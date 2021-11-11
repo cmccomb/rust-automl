@@ -13,4 +13,4 @@ linfa-nn = "0.5.0"
 linfa-elasticnet = "0.5.0"
 linfa = { version = "0.5.0", features = ["openblas-static"] }
 ndarray = "0.15.3"
-eval-metrics = "0.1.1"
+comfy-table = "5.0.0"
