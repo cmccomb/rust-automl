@@ -26,14 +26,28 @@ Will output this:
 │ Ridge        │ 0.007 │ 5.904e3 │ 6.571e1 │ 6.537e-3  │
 └──────────────┴───────┴─────────┴─────────┴───────────┘
 ```
-Based on this output, you can select the best model for the task.
+Based on this output, you can then select the best model for the task.
 
 ## Roadmap
-Currently this crate only includes some regression functions, but classification and clustering will be developed in the future. 
+Currently this crate only includes some regression functions, but classification and clustering utilities will be developed in the future. 
 - Regression
   - [ ] Preprocessing
-  - [ ] PLS Regression
+  - [ ] Hyperparameter Tuning
   - [x] ElasticNet
   - [x] Linear Regression
-- [ ] Classification
-- [ ] Clustering
+  - [ ] PLS Regression
+- Classification
+  - [ ] Preprocessing
+  - [ ] Hyperparameter Tuning
+  - [ ] Naive Bayes
+  - [ ] SVM
+  - [ ] Decision Trees
+  - [ ] Logistic Regression
+- Clustering
+  - [ ] Preprocessing
+  - [ ] Hyperparameter Tuning
+  - [ ] K-Means
+  - [ ] DBSCAN
+  - [ ] Approximated DBSCAN
+  - [ ] Gaussian Mixture Model
+  - [ ] Hierarchical
