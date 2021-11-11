@@ -28,16 +28,24 @@ impl<F: Float> Regressor for ElasticNet<F> {}
 pub fn compare_models<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>, R: Records>(
     dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
     settings: Settings,
-) -> Vec<Box<dyn Predict<R, T>>> {
-    let mut models: Vec<Box<dyn Predict<R, T>>> = Vec::new();
-    models.push(Box::new(LinearRegression::default().fit(dataset).unwrap()));
-    models.push(Box::new(ElasticNet::ridge().fit(dataset).unwrap()));
-    models.push(Box::new(ElasticNet::lasso().fit(dataset).unwrap()));
+) -> Box<dyn Regressor> {
+    let model1 = LinearRegression::default().fit(dataset).unwrap();
+    let r21 = model1.predict(dataset);
 
-    // let r2 = Vec::new();
-    // for model in models {
-    // model.
-    // }
+    let model2 = ElasticNet::params().fit(dataset).unwrap();
+    let r22 = model2.predict(dataset);
 
-    models
+    Box::new(model1)
 }
+
+// pub fn compare_models<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>, R: Records>(
+//     dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
+//     settings: Settings,
+// ) -> Vec<Box<dyn Regressor>> {
+//     let mut models: Vec<Box<dyn Regressor>> = Vec::new();
+//     models.push(Box::new(LinearRegression::default().fit(dataset).unwrap()));
+//     models.push(Box::new(ElasticNet::ridge().fit(dataset).unwrap()));
+//     models.push(Box::new(ElasticNet::lasso().fit(dataset).unwrap()));
+//
+//     models
+// }
