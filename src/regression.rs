@@ -1,4 +1,7 @@
-use comfy_table::Table;
+use comfy_table::{
+    modifiers::{UTF8_ROUND_CORNERS, UTF8_SOLID_INNER_BORDERS},
+    Table,
+};
 use linfa::dataset::{AsTargets, DatasetBase, Records};
 use linfa::prelude::*;
 use linfa::traits::{Fit, Predict};
@@ -24,6 +27,8 @@ pub struct ModelComparison<F: Float>(Vec<ModelResult<F>>);
 impl<F: Float> Display for ModelComparison<F> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut table = Table::new();
+        table.apply_modifier(UTF8_SOLID_INNER_BORDERS);
+        table.apply_modifier(UTF8_ROUND_CORNERS);
         table.set_header(vec!["Model", "R^2", "MSE"]);
         for model_results in &self.0 {
             table.add_row(vec![
