@@ -1,3 +1,7 @@
+[![Github CI](https://github.com/cmccomb/automl/actions/workflows/tests.yml/badge.svg)](https://github.com/cmccomb/automl/actions)
+[![Crates.io](https://img.shields.io/crates/v/automl.svg)](https://crates.io/crates/automl)
+[![docs.rs](https://img.shields.io/docsrs/automl/latest?logo=rust)](https://docs.rs/automl)
+
 # AutoML with Linfa
 AutoML is _Automated Machine Learning_, referring to processes and methods to make machine learning more accesible for 
 a general audience. This crate builds on top of the [linfa](https://crates.io/crates/linfa) machine learning framework, 
