@@ -51,7 +51,6 @@ impl<F: Float> Regressor for ElasticNet<F> {}
 /// ```
 /// let data = linfa_datasets::diabetes();
 /// let r = automl::regression::compare_models(&data);
-/// print!("{}", r);
 /// ```
 pub fn compare_models<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>>(
     dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
@@ -113,6 +112,8 @@ pub fn compare_models<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>>(
         explained_variance: y.explained_variance(dataset).unwrap(),
         name: "Ridge".to_string(),
     });
+
+    results.sort_by(|a, b| b.r_square.cmp(&a.r_squared));
 
     ModelComparison(results)
 }
