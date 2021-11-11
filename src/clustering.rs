@@ -1,3 +1,5 @@
+//! Auto-ML for clustering models
+
 use linfa::dataset::DatasetBase;
 use linfa::traits::Fit;
 use linfa::traits::Transformer;

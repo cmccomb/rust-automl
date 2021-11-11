@@ -1,3 +1,5 @@
+//! Auto-ML for regression models
+
 use comfy_table::{
     modifiers::{UTF8_ROUND_CORNERS, UTF8_SOLID_INNER_BORDERS},
     presets::UTF8_FULL,
@@ -11,18 +13,17 @@ use linfa_linear::{FittedLinearRegression, Float, LinearRegression};
 use ndarray::{Array1, Array2, ArrayBase, Axis, Data, DataMut, Dim, Ix1, Ix2, OwnedRepr};
 use std::fmt::{Display, Formatter};
 
+/// This contains the results of a single model, including the model itself
 pub struct ModelResult<F: Float> {
     model: Box<dyn Regressor>,
     r_squared: F,
-    median_absolute_error: F,
     mean_absolute_error: F,
     mean_squared_error: F,
-    mean_squared_log_error: F,
-    max_error: F,
     explained_variance: F,
     name: String,
 }
 
+/// This is the output from a model comparison operation
 pub struct ModelComparison<F: Float>(Vec<ModelResult<F>>);
 
 impl<F: Float> Display for ModelComparison<F> {
@@ -30,19 +31,21 @@ impl<F: Float> Display for ModelComparison<F> {
         let mut table = Table::new();
         table.load_preset(UTF8_FULL);
         table.apply_modifier(UTF8_SOLID_INNER_BORDERS);
-        table.apply_modifier(UTF8_ROUND_CORNERS);
-        table.set_header(vec!["Model", "R^2", "MSE"]);
+        table.set_header(vec!["Model", "R^2", "MSE", "MAE", "Exp. Var."]);
         for model_results in &self.0 {
             table.add_row(vec![
                 format!("{}", &model_results.name),
-                format!("{}", &model_results.r_squared),
-                format!("{}", &model_results.mean_squared_error),
+                format!("{:.3}", &model_results.r_squared),
+                format!("{:.3e}", &model_results.mean_squared_error),
+                format!("{:.3e}", &model_results.mean_absolute_error),
+                format!("{:.3e}", &model_results.explained_variance),
             ]);
         }
-        write!(f, "{}", table)
+        write!(f, "{}\n", table)
     }
 }
 
+#[doc(hidden)]
 pub trait Regressor {}
 impl<F: Float> Regressor for FittedLinearRegression<F> {}
 impl<F: Float> Regressor for ElasticNet<F> {}
@@ -52,22 +55,23 @@ impl<F: Float> Regressor for ElasticNet<F> {}
 /// let data = linfa_datasets::diabetes();
 /// let r = automl::regression::compare_models(&data);
 /// ```
-pub fn compare_models<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>>(
+// pub fn compare_models<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>>(
+//     dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
+// ) -> ModelComparison<F> {
+//     let mut results: Vec<ModelResult<F>> = Vec::new();
+pub fn compare_models<F: Float, D: Data<Elem = f64>, T: AsTargets<Elem = f64>>(
     dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
-) -> ModelComparison<F> {
-    let mut results: Vec<ModelResult<F>> = Vec::new();
+) -> ModelComparison<f64> {
+    let mut results: Vec<ModelResult<f64>> = Vec::new();
 
     let model = LinearRegression::default().fit(dataset).unwrap();
     let y = model.predict(dataset);
     results.push(ModelResult {
         model: Box::new(model),
-        r_squared: y.r2(dataset).unwrap(),
-        median_absolute_error: y.median_absolute_error(dataset).unwrap(),
-        mean_absolute_error: y.mean_absolute_error(dataset).unwrap(),
-        mean_squared_error: y.mean_squared_error(dataset).unwrap(),
-        mean_squared_log_error: y.mean_squared_log_error(dataset).unwrap(),
-        max_error: y.max_error(dataset).unwrap(),
-        explained_variance: y.explained_variance(dataset).unwrap(),
+        r_squared: y.r2(dataset).unwrap_or(f64::NAN),
+        mean_absolute_error: y.mean_absolute_error(dataset).unwrap_or(f64::NAN),
+        mean_squared_error: y.mean_squared_error(dataset).unwrap_or(f64::NAN),
+        explained_variance: y.explained_variance(dataset).unwrap_or(f64::NAN),
         name: "Linear Model".to_string(),
     });
 
@@ -75,13 +79,10 @@ pub fn compare_models<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>>(
     let y = model.predict(dataset);
     results.push(ModelResult {
         model: Box::new(model),
-        r_squared: y.r2(dataset).unwrap(),
-        median_absolute_error: y.median_absolute_error(dataset).unwrap(),
-        mean_absolute_error: y.mean_absolute_error(dataset).unwrap(),
-        mean_squared_error: y.mean_squared_error(dataset).unwrap(),
-        mean_squared_log_error: y.mean_squared_log_error(dataset).unwrap(),
-        max_error: y.max_error(dataset).unwrap(),
-        explained_variance: y.explained_variance(dataset).unwrap(),
+        r_squared: y.r2(dataset).unwrap_or(f64::NAN),
+        mean_absolute_error: y.mean_absolute_error(dataset).unwrap_or(f64::NAN),
+        mean_squared_error: y.mean_squared_error(dataset).unwrap_or(f64::NAN),
+        explained_variance: y.explained_variance(dataset).unwrap_or(f64::NAN),
         name: "Elastic Net".to_string(),
     });
 
@@ -89,13 +90,10 @@ pub fn compare_models<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>>(
     let y = model.predict(dataset);
     results.push(ModelResult {
         model: Box::new(model),
-        r_squared: y.r2(dataset).unwrap(),
-        median_absolute_error: y.median_absolute_error(dataset).unwrap(),
-        mean_absolute_error: y.mean_absolute_error(dataset).unwrap(),
-        mean_squared_error: y.mean_squared_error(dataset).unwrap(),
-        mean_squared_log_error: y.mean_squared_log_error(dataset).unwrap(),
-        max_error: y.max_error(dataset).unwrap(),
-        explained_variance: y.explained_variance(dataset).unwrap(),
+        r_squared: y.r2(dataset).unwrap_or(f64::NAN),
+        mean_absolute_error: y.mean_absolute_error(dataset).unwrap_or(f64::NAN),
+        mean_squared_error: y.mean_squared_error(dataset).unwrap_or(f64::NAN),
+        explained_variance: y.explained_variance(dataset).unwrap_or(f64::NAN),
         name: "LASSO".to_string(),
     });
 
@@ -103,14 +101,17 @@ pub fn compare_models<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>>(
     let y = model.predict(dataset);
     results.push(ModelResult {
         model: Box::new(model),
-        r_squared: y.r2(dataset).unwrap(),
-        median_absolute_error: y.median_absolute_error(dataset).unwrap(),
-        mean_absolute_error: y.mean_absolute_error(dataset).unwrap(),
-        mean_squared_error: y.mean_squared_error(dataset).unwrap(),
-        mean_squared_log_error: y.mean_squared_log_error(dataset).unwrap(),
-        max_error: y.max_error(dataset).unwrap(),
-        explained_variance: y.explained_variance(dataset).unwrap(),
+        r_squared: y.r2(dataset).unwrap_or(f64::NAN),
+        mean_absolute_error: y.mean_absolute_error(dataset).unwrap_or(f64::NAN),
+        mean_squared_error: y.mean_squared_error(dataset).unwrap_or(f64::NAN),
+        explained_variance: y.explained_variance(dataset).unwrap_or(f64::NAN),
         name: "Ridge".to_string(),
+    });
+
+    results.sort_by(|a, b| {
+        a.r_squared
+            .partial_cmp(&b.r_squared)
+            .unwrap_or(std::cmp::Ordering::Equal)
     });
 
     ModelComparison(results)
