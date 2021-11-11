@@ -59,19 +59,19 @@ impl<F: Float> Regressor for ElasticNet<F> {}
 //     dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
 // ) -> ModelComparison<F> {
 //     let mut results: Vec<ModelResult<F>> = Vec::new();
-pub fn compare_models<F: Float, D: Data<Elem = f64>, T: AsTargets<Elem = f64>>(
+pub fn compare_models<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>>(
     dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
-) -> ModelComparison<f64> {
-    let mut results: Vec<ModelResult<f64>> = Vec::new();
+) -> ModelComparison<F> {
+    let mut results: Vec<ModelResult<F>> = Vec::new();
 
     let model = LinearRegression::default().fit(dataset).unwrap();
     let y = model.predict(dataset);
     results.push(ModelResult {
         model: Box::new(model),
-        r_squared: y.r2(dataset).unwrap_or(f64::NAN),
-        mean_absolute_error: y.mean_absolute_error(dataset).unwrap_or(f64::NAN),
-        mean_squared_error: y.mean_squared_error(dataset).unwrap_or(f64::NAN),
-        explained_variance: y.explained_variance(dataset).unwrap_or(f64::NAN),
+        r_squared: y.r2(dataset).unwrap(),
+        mean_absolute_error: y.mean_absolute_error(dataset).unwrap(),
+        mean_squared_error: y.mean_squared_error(dataset).unwrap(),
+        explained_variance: y.explained_variance(dataset).unwrap(),
         name: "Linear Model".to_string(),
     });
 
@@ -79,10 +79,10 @@ pub fn compare_models<F: Float, D: Data<Elem = f64>, T: AsTargets<Elem = f64>>(
     let y = model.predict(dataset);
     results.push(ModelResult {
         model: Box::new(model),
-        r_squared: y.r2(dataset).unwrap_or(f64::NAN),
-        mean_absolute_error: y.mean_absolute_error(dataset).unwrap_or(f64::NAN),
-        mean_squared_error: y.mean_squared_error(dataset).unwrap_or(f64::NAN),
-        explained_variance: y.explained_variance(dataset).unwrap_or(f64::NAN),
+        r_squared: y.r2(dataset).unwrap(),
+        mean_absolute_error: y.mean_absolute_error(dataset).unwrap(),
+        mean_squared_error: y.mean_squared_error(dataset).unwrap(),
+        explained_variance: y.explained_variance(dataset).unwrap(),
         name: "Elastic Net".to_string(),
     });
 
@@ -90,10 +90,10 @@ pub fn compare_models<F: Float, D: Data<Elem = f64>, T: AsTargets<Elem = f64>>(
     let y = model.predict(dataset);
     results.push(ModelResult {
         model: Box::new(model),
-        r_squared: y.r2(dataset).unwrap_or(f64::NAN),
-        mean_absolute_error: y.mean_absolute_error(dataset).unwrap_or(f64::NAN),
-        mean_squared_error: y.mean_squared_error(dataset).unwrap_or(f64::NAN),
-        explained_variance: y.explained_variance(dataset).unwrap_or(f64::NAN),
+        r_squared: y.r2(dataset).unwrap(),
+        mean_absolute_error: y.mean_absolute_error(dataset).unwrap(),
+        mean_squared_error: y.mean_squared_error(dataset).unwrap(),
+        explained_variance: y.explained_variance(dataset).unwrap(),
         name: "LASSO".to_string(),
     });
 
@@ -101,30 +101,12 @@ pub fn compare_models<F: Float, D: Data<Elem = f64>, T: AsTargets<Elem = f64>>(
     let y = model.predict(dataset);
     results.push(ModelResult {
         model: Box::new(model),
-        r_squared: y.r2(dataset).unwrap_or(f64::NAN),
-        mean_absolute_error: y.mean_absolute_error(dataset).unwrap_or(f64::NAN),
-        mean_squared_error: y.mean_squared_error(dataset).unwrap_or(f64::NAN),
-        explained_variance: y.explained_variance(dataset).unwrap_or(f64::NAN),
+        r_squared: y.r2(dataset).unwrap(),
+        mean_absolute_error: y.mean_absolute_error(dataset).unwrap(),
+        mean_squared_error: y.mean_squared_error(dataset).unwrap(),
+        explained_variance: y.explained_variance(dataset).unwrap(),
         name: "Ridge".to_string(),
-    });
-
-    results.sort_by(|a, b| {
-        a.r_squared
-            .partial_cmp(&b.r_squared)
-            .unwrap_or(std::cmp::Ordering::Equal)
     });
 
     ModelComparison(results)
 }
-
-// pub fn compare_models<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>, R: Records>(
-//     dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
-//     settings: Settings,
-// ) -> Vec<Box<dyn Regressor>> {
-//     let mut models: Vec<Box<dyn Regressor>> = Vec::new();
-//     models.push(Box::new(LinearRegression::default().fit(dataset).unwrap()));
-//     models.push(Box::new(ElasticNet::ridge().fit(dataset).unwrap()));
-//     models.push(Box::new(ElasticNet::lasso().fit(dataset).unwrap()));
-//
-//     models
-// }
