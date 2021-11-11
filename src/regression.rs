@@ -113,8 +113,6 @@ pub fn compare_models<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>>(
         name: "Ridge".to_string(),
     });
 
-    results.sort_by(|a, b| b.r_square.cmp(&a.r_squared));
-
     ModelComparison(results)
 }
 
