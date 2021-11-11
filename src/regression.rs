@@ -25,7 +25,7 @@ impl<F: Float> Regressor for ElasticNet<F> {}
 /// let data = linfa_datasets::diabetes();
 /// automl::regression::compare_models(&data, automl::regression::Settings::default());
 /// ```
-pub fn compare_models<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>, R: Records>(
+pub fn compare_models<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>>(
     dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
     settings: Settings,
 ) -> Box<dyn Regressor> {
