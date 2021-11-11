@@ -16,6 +16,11 @@ impl Default for Settings {
     }
 }
 
+pub struct ModelResult<F: Float> {
+    models: Box<dyn Regressor>,
+    r2: F,
+}
+
 pub trait Regressor {}
 impl<F: Float> Regressor for FittedLinearRegression<F> {}
 impl<F: Float> Regressor for ElasticNet<F> {}
@@ -23,19 +28,36 @@ impl<F: Float> Regressor for ElasticNet<F> {}
 ///
 /// ```
 /// let data = linfa_datasets::diabetes();
-/// automl::regression::compare_models(&data, automl::regression::Settings::default());
+/// let r = automl::regression::compare_models(&data);
+/// println!("{:?}", r);
+/// panic!();
 /// ```
 pub fn compare_models<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>>(
     dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
-    settings: Settings,
-) -> Box<dyn Regressor> {
-    let model1 = LinearRegression::default().fit(dataset).unwrap();
-    let r21 = model1.predict(dataset);
+) -> Vec<ModelResult<F>> {
+    let mut results: Vec<ModelResult<F>> = Vec::new();
 
-    let model2 = ElasticNet::params().fit(dataset).unwrap();
-    let r22 = model2.predict(dataset);
+    let model = LinearRegression::default().fit(dataset).unwrap();
+    let y = model.predict(dataset);
+    results.push(ModelResult {
+        models: Box::new(model),
+        r2: y.r2(dataset).unwrap(),
+    });
 
-    Box::new(model1)
+    let model = ElasticNet::params().fit(dataset).unwrap();
+    let y = model.predict(dataset);
+    results.push(ModelResult {
+        models: Box::new(model),
+        r2: y.r2(dataset).unwrap(),
+    });
+
+    // let model2 = ElasticNet::ridge().fit(dataset).unwrap();
+    // let r22 = model2.predict(dataset);
+    //
+    // let model2 = ElasticNet::params().fit(dataset).unwrap();
+    // let r22 = model2.predict(dataset);
+
+    results
 }
 
 // pub fn compare_models<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>, R: Records>(
