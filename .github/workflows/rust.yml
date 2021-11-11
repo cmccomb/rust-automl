@@ -17,12 +17,12 @@ jobs:
     steps:
       - name: apt install gfortran
         run: |
-          apt update
-          apt install -y gfortran
+          sudo apt update
+          sudo apt install -y gfortran
       - name: Install OpenBLAS by apt
         run: |
-          apt update
-          apt install -y libopenblas-dev
+          sudo apt update
+          sudo apt install -y libopenblas-dev
       - uses: actions/checkout@v2
       - name: Build
         run: cargo build --verbose
