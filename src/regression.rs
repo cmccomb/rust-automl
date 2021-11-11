@@ -1,16 +1,12 @@
 //! Auto-ML for regression models
 
-use comfy_table::{
-    modifiers::{UTF8_ROUND_CORNERS, UTF8_SOLID_INNER_BORDERS},
-    presets::UTF8_FULL,
-    Table,
-};
-use linfa::dataset::{AsTargets, DatasetBase, Records};
+use comfy_table::{modifiers::UTF8_SOLID_INNER_BORDERS, presets::UTF8_FULL, Table};
+use linfa::dataset::{AsTargets, DatasetBase};
 use linfa::prelude::*;
 use linfa::traits::{Fit, Predict};
 use linfa_elasticnet::ElasticNet;
 use linfa_linear::{FittedLinearRegression, Float, LinearRegression};
-use ndarray::{Array1, Array2, ArrayBase, Axis, Data, DataMut, Dim, Ix1, Ix2, OwnedRepr};
+use ndarray::{ArrayBase, Data, Ix2};
 use std::fmt::{Display, Formatter};
 
 /// This contains the results of a single model, including the model itself
@@ -55,10 +51,6 @@ impl<F: Float> Regressor for ElasticNet<F> {}
 /// let data = linfa_datasets::diabetes();
 /// let r = automl::regression::compare_models(&data);
 /// ```
-// pub fn compare_models<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>>(
-//     dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
-// ) -> ModelComparison<F> {
-//     let mut results: Vec<ModelResult<F>> = Vec::new();
 pub fn compare_models<F: Float, D: Data<Elem = F>, T: AsTargets<Elem = F>>(
     dataset: &DatasetBase<ArrayBase<D, Ix2>, T>,
 ) -> ModelComparison<F> {
