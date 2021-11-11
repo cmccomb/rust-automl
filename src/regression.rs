@@ -46,7 +46,7 @@ pub trait Regressor {}
 impl<F: Float> Regressor for FittedLinearRegression<F> {}
 impl<F: Float> Regressor for ElasticNet<F> {}
 
-///
+/// This function compares all of the regression models available in the package.
 /// ```
 /// let data = linfa_datasets::diabetes();
 /// let r = automl::regression::compare_models(&data);
