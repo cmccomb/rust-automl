@@ -42,7 +42,7 @@ Will output this:
 Based on this output, you can then select the best model for the task.
 
 ## Features
-Currently this crate only includes AutoML features for regression. 
+Currently this crate only includes AutoML features for regression and classification. 
 - Regression
   - Decision Tree Regression
   - KNN Regression
@@ -52,3 +52,8 @@ Currently this crate only includes AutoML features for regression.
   - LASSO
   - Elastic Net
   - Support Vector Regression
+- Classification
+  - Random Forest Classification
+  - Support Vector Classification
+  - Logistic Regression
+  - KNN Classification
