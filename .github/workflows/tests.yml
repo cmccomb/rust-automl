@@ -15,18 +15,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: apt install gfortran
-        run: |
-          sudo apt update
-          sudo apt install -y gfortran
-      - name: Install OpenBLAS by apt
-        run: |
-          sudo apt update
-          sudo apt install -y libopenblas-dev
       - uses: actions/checkout@v2
       - name: Build
         run: cargo build --verbose
       - name: Run tests
         run: cargo test --verbose -- --nocapture
-      - name: Run regression example
-        run: cargo run --example regression
