@@ -72,7 +72,6 @@ impl Display for ModelComparison {
 /// let data = smartcore::dataset::breast_cancer::load_dataset();
 /// let x = automl::regression::compare_models(data);
 /// print!("{}", x);
-/// panic!()
 /// ```
 pub fn compare_models(dataset: Dataset<f32, f32>) -> ModelComparison {
     let x = DenseMatrix::from_array(dataset.num_samples, dataset.num_features, &dataset.data);
