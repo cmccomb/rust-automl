@@ -41,26 +41,14 @@ Will output this:
 ```
 Based on this output, you can then select the best model for the task.
 
-## Roadmap
-Currently this crate only includes some regression functions, but classification and clustering utilities will be developed in the future. 
+## Features
+Currently this crate only includes AutoML features for regression. 
 - Regression
-  - [ ] Preprocessing
-  - [ ] Hyperparameter Tuning
-  - [x] ElasticNet
-  - [x] Linear Regression
-  - [ ] PLS Regression
-- Classification
-  - [ ] Preprocessing
-  - [ ] Hyperparameter Tuning
-  - [ ] Naive Bayes
-  - [ ] SVM
-  - [ ] Decision Trees
-  - [ ] Logistic Regression
-- Clustering
-  - [ ] Preprocessing
-  - [ ] Hyperparameter Tuning
-  - [ ] K-Means
-  - [ ] DBSCAN
-  - [ ] Approximated DBSCAN
-  - [ ] Gaussian Mixture Model
-  - [ ] Hierarchical
+  - Decision Tree Regression
+  - KNN Regression
+  - Random Forest Regression
+  - Linear Regression
+  - Rdige Regression
+  - LASSO
+  - Elastic Net
+  - Support Vector Regression
