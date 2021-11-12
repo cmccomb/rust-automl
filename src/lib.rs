@@ -3,35 +3,41 @@
 #![warn(rustdoc::missing_doc_code_examples)]
 #![warn(clippy::missing_docs_in_private_items)]
 
-//! # AutoML with Linfa
+//! # AutoML with SmartCore
 //! AutoML is _Automated Machine Learning_, referring to processes and methods to make machine learning more accesible for
-//! a general audience. This crate builds on top of the [linfa](https://crates.io/crates/linfa) machine learning framework,
+//! a general audience. This crate builds on top of the [smartcore](https://smartcorelib.org/) machine learning framework,
 //! and provides some utilities to quickly train and compare models.
 //!
 //! # Usage
 //! For instance, running the following:
 //! ```rust
 //! fn main() {
-//!     let data = linfa_datasets::diabetes();
-//!     let r = automl::regression::compare_models(&data);
+//!     let data = smartcore::dataset::breast_cancer::load_dataset();
+//!     let r = automl::regression::compare_models(data);
 //!     print!("{}", r);
 //! }
 //! ```
 //! Will output this:
 //! ```text
-//! ┌──────────────┬───────┬─────────┬─────────┬───────────┐
-//! │ Model        │ R^2   │ MSE     │ MAE     │ Exp. Var. │
-//! ╞══════════════╪═══════╪═════════╪═════════╪═══════════╡
-//! │ Linear Model │ 0.519 │ 2.859e3 │ 4.326e1 │ 5.189e-1  │
-//! ├──────────────┼───────┼─────────┼─────────┼───────────┤
-//! │ Elastic Net  │ 0.009 │ 5.891e3 │ 6.563e1 │ 8.864e-3  │
-//! ├──────────────┼───────┼─────────┼─────────┼───────────┤
-//! │ LASSO        │ 0.359 │ 3.811e3 │ 5.254e1 │ 3.589e-1  │
-//! ├──────────────┼───────┼─────────┼─────────┼───────────┤
-//! │ Ridge        │ 0.007 │ 5.904e3 │ 6.571e1 │ 6.537e-3  │
-//! └──────────────┴───────┴─────────┴─────────┴───────────┘
+//! ┌───────────────────────────┬────────┬───────────┬──────────┐
+//! │ Model                     │ R^2    │ MSE       │ MAE      │
+//! ╞═══════════════════════════╪════════╪═══════════╪══════════╡
+//! │ Decision Tree Regression  │ 1.000  │ 1.638e-12 │ 5.531e-8 │
+//! ├───────────────────────────┼────────┼───────────┼──────────┤
+//! │ Random Forest Regression  │ 0.972  │ 6.626e-3  │ 2.830e-2 │
+//! ├───────────────────────────┼────────┼───────────┼──────────┤
+//! │ KNN Regression            │ 0.878  │ 2.851e-2  │ 5.624e-2 │
+//! ├───────────────────────────┼────────┼───────────┼──────────┤
+//! │ Linear Regression         │ 0.773  │ 5.309e-2  │ 1.813e-1 │
+//! ├───────────────────────────┼────────┼───────────┼──────────┤
+//! │ Ridge Regression          │ 0.772  │ 5.320e-2  │ 1.822e-1 │
+//! ├───────────────────────────┼────────┼───────────┼──────────┤
+//! │ Elastic Net               │ 0.385  │ 1.437e-1  │ 3.591e-1 │
+//! ├───────────────────────────┼────────┼───────────┼──────────┤
+//! │ LASSO                     │ 0.000  │ 2.338e-1  │ 4.675e-1 │
+//! ├───────────────────────────┼────────┼───────────┼──────────┤
+//! │ Support Vector Regression │ -0.069 │ 2.500e-1  │ 5.000e-1 │
+//! └───────────────────────────┴────────┴───────────┴──────────┘
 //! ```
 
-// pub mod classification;
-// pub mod clustering;
 pub mod regression;
