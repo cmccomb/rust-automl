@@ -1,15 +1,15 @@
 [package]
 name = "automl"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Chris McComb <ccmcc2012@gmail.com>"]
-description = "AutoML built on top of linfa"
+description = "Machine learning for the rest of us"
 edition = "2021"
 readme = "README.md"
 repository = "https://github.com/cmccomb/rust-automl"
 homepage = "https://github.com/cmccomb/rust-automl"
 documentation = "https://docs.rs/automl"
 license = "MIT OR Apache-2.0"
-keywords = ["machine-learning", "ml", "linfa", "automl"]
+keywords = ["machine-learning", "ml", "ai", "artificial-intelligence", "automl", "smartcore"]
 categories = ["algorithms", "mathematics", "science"]
 
 

@@ -3,7 +3,7 @@
 [![docs.rs](https://img.shields.io/docsrs/automl/latest?logo=rust)](https://docs.rs/automl)
 
 # AutoML with SmartCore
-AutoML is _Automated Machine Learning_, referring to processes and methods to make machine learning more accesible for 
+AutoML is _Automated Machine Learning_, referring to processes and methods to make machine learning more accessible for 
 a general audience. This crate builds on top of the [smartcore](https://smartcorelib.org/) machine learning framework, 
 and provides some utilities to quickly train and compare models. 
 
@@ -13,8 +13,9 @@ For instance, running the following:
 ```rust
 fn main() {
   let data = smartcore::dataset::breast_cancer::load_dataset();
-  let r = automl::regression::compare_models(data);
-  print!("{}", r);
+  let settings = automl::regression::Settings::default();
+  let results = automl::regression::compare_models(data, settings);
+  print!("{}", results);
 }
 ```
 Will output this:
