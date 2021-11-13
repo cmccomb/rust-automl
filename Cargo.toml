@@ -12,7 +12,6 @@ license = "MIT OR Apache-2.0"
 keywords = ["machine-learning", "ml", "ai", "smartcore", "automl"]
 categories = ["algorithms", "mathematics", "science"]
 
-
 [dependencies]
 smartcore = "0.2.0"
 comfy-table = "5.0.0"
