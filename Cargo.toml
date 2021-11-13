@@ -16,3 +16,5 @@ categories = ["algorithms", "mathematics", "science"]
 [dependencies]
 smartcore = "0.2.0"
 comfy-table = "5.0.0"
+serde = "1.0.130"
+bincode = "1.3.3"
