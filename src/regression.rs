@@ -265,8 +265,10 @@ impl Settings {
 
 /// This function compares all of the regression models available in the package.
 /// ```
-/// let data = smartcore::dataset::breast_cancer::load_dataset();
-/// let settings = automl::regression::Settings::default().sorted_by(automl::regression::SortBy::MeanSquaredError);
+/// let data = smartcore::dataset::diabetes::load_dataset();
+/// let settings = automl::regression::Settings::default()
+///     .sorted_by(automl::regression::SortBy::MeanSquaredError)
+///     .with_svr_settings(smartcore::svm::svr::SVRParameters::default().with_eps(2.0).with_c(10.0));
 /// let x = automl::regression::compare_models(data, settings);
 /// print!("{}", x);
 /// ```
@@ -286,12 +288,7 @@ pub fn compare_models(dataset: Dataset<f32, f32>, settings: Settings) -> Compari
     let serial_model = bincode::serialize(&model).unwrap();
     results.add_model(model.name(), &y_test, &y_pred, serial_model);
 
-    let model = SVR::fit(
-        &x_train,
-        &y_train,
-        SVRParameters::default().with_eps(2.0).with_c(10.0),
-    )
-    .unwrap();
+    let model = SVR::fit(&x_train, &y_train, settings.svr_settings).unwrap();
     let y_pred = model.predict(&x_test).unwrap();
     let serial_model = bincode::serialize(&model).unwrap();
     results.add_model(model.name(), &y_test, &y_pred, serial_model);

@@ -8,11 +8,10 @@ a general audience. This crate builds on top of the [smartcore](https://smartcor
 and provides some utilities to quickly train and compare models. 
 
 # Usage
-Running the following:
 For instance, running the following:
 ```rust
 fn main() {
-  let data = smartcore::dataset::breast_cancer::load_dataset();
+  let data = smartcore::dataset::diabetes::load_dataset();
   let settings = automl::regression::Settings::default();
   let results = automl::regression::compare_models(data, settings);
   print!("{}", results);
@@ -55,6 +54,7 @@ Currently this crate only includes AutoML features for regression and classifica
   - Support Vector Regression
 - Classification
   - Random Forest Classification
+  - Decision Tree Classification
   - Support Vector Classification
   - Logistic Regression
   - KNN Classification

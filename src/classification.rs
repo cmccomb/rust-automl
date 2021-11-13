@@ -232,7 +232,7 @@ pub fn compare_models(dataset: Dataset<f32, f32>, settings: Settings) -> Compari
     results.add_model(model.name(), &y_test, &y_pred, serial_model);
 
     // Do the standard linear model
-    let model = KNNClassifier::fit(&x_train, &y_train, KNNClassifierParameters::default()).unwrap();
+    let model = KNNClassifier::fit(&x_train, &y_train, settings.knn_settings).unwrap();
     let y_pred = model.predict(&x_test).unwrap();
     let serial_model = bincode::serialize(&model).unwrap();
     results.add_model(model.name(), &y_test, &y_pred, serial_model);
@@ -244,7 +244,7 @@ pub fn compare_models(dataset: Dataset<f32, f32>, settings: Settings) -> Compari
     results.add_model(model.name(), &y_test, &y_pred, serial_model);
 
     if number_of_classes == 2 {
-        let model = SVC::fit(&x_train, &y_train, SVCParameters::default()).unwrap();
+        let model = SVC::fit(&x_train, &y_train, settings.svc_settings).unwrap();
         let y_pred = model.predict(&x_test).unwrap();
         let serial_model = bincode::serialize(&model).unwrap();
         results.add_model(model.name(), &y_test, &y_pred, serial_model);
