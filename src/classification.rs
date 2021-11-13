@@ -11,6 +11,7 @@ use smartcore::{
     linear::logistic_regression::{LogisticRegression, LogisticRegressionParameters},
     math::{distance::Distance, num::RealNumber},
     metrics::accuracy,
+    model_selection::train_test_split,
     neighbors::knn_classifier::{KNNClassifier, KNNClassifierParameters},
     svm::{
         svc::{SVCParameters, SVC},
@@ -38,6 +39,8 @@ pub enum SortBy {
 /// The settings artifact for all classifications
 pub struct Settings {
     sort_by: SortBy,
+    testing_fraction: f32,
+    shuffle: bool,
     logistic_settings: LogisticRegressionParameters,
     random_forest_settings: RandomForestClassifierParameters,
     // knn_settings: KNNClassifierParameters<T, D>,
@@ -48,6 +51,8 @@ impl Default for Settings {
     fn default() -> Self {
         Settings {
             sort_by: SortBy::Accuracy,
+            testing_fraction: 0.3,
+            shuffle: true,
             logistic_settings: LogisticRegressionParameters::default(),
             random_forest_settings: RandomForestClassifierParameters::default(),
             // knn_settings: KNNClassifierParameters::default(),
@@ -125,40 +130,45 @@ pub fn compare_models(dataset: Dataset<f32, f32>, settings: Settings) -> ModelCo
     // These are our target values
     let y = dataset.target;
 
+    let (x_test, x_train, y_test, y_train) =
+        train_test_split(&x, &y, settings.testing_fraction, settings.shuffle);
+
     let mut results = Vec::new();
 
     // Do the standard linear model
-    let model = LogisticRegression::fit(&x, &y, settings.logistic_settings).unwrap();
-    let y_pred = model.predict(&x).unwrap();
+    let model = LogisticRegression::fit(&x_train, &y_train, settings.logistic_settings).unwrap();
+    let y_pred = model.predict(&x_test).unwrap();
     results.push(ModelResult {
         model: Box::new(model),
-        accuracy: accuracy(&y, &y_pred),
+        accuracy: accuracy(&y_test, &y_pred),
         name: "Logistic Regression".to_string(),
     });
 
     // Do the standard linear model
-    let model = RandomForestClassifier::fit(&x, &y, settings.random_forest_settings).unwrap();
-    let y_pred = model.predict(&x).unwrap();
+    let model =
+        RandomForestClassifier::fit(&x_train, &y_train, settings.random_forest_settings).unwrap();
+    let y_pred = model.predict(&x_test).unwrap();
     results.push(ModelResult {
         model: Box::new(model),
-        accuracy: accuracy(&y, &y_pred),
+        accuracy: accuracy(&y_test, &y_pred),
         name: "Random Forest Classifier".to_string(),
     });
 
     // Do the standard linear model
-    let model = KNNClassifier::fit(&x, &y, KNNClassifierParameters::default()).unwrap();
-    let y_pred = model.predict(&x).unwrap();
+    let model = KNNClassifier::fit(&x_train, &y_train, KNNClassifierParameters::default()).unwrap();
+    let y_pred = model.predict(&x_test).unwrap();
     results.push(ModelResult {
         model: Box::new(model),
-        accuracy: accuracy(&y, &y_pred),
+        accuracy: accuracy(&y_test, &y_pred),
         name: "KNN Classifier".to_string(),
     });
 
-    let model = DecisionTreeClassifier::fit(&x, &y, settings.decision_tree_settings).unwrap();
-    let y_pred = model.predict(&x).unwrap();
+    let model =
+        DecisionTreeClassifier::fit(&x_train, &y_train, settings.decision_tree_settings).unwrap();
+    let y_pred = model.predict(&x_test).unwrap();
     results.push(ModelResult {
         model: Box::new(model),
-        accuracy: accuracy(&y, &y_pred),
+        accuracy: accuracy(&y_test, &y_pred),
         name: "Support Vector Classifier".to_string(),
     });
 

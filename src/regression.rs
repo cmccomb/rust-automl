@@ -15,6 +15,7 @@ use smartcore::{
     metrics::{
         mean_absolute_error::MeanAbsoluteError, mean_squared_error::MeanSquareError, r2::R2,
     },
+    model_selection::train_test_split,
     neighbors::knn_regressor::{KNNRegressor, KNNRegressorParameters},
     svm::{
         svr::{SVRParameters, SVR},
@@ -34,6 +35,18 @@ pub enum SortBy {
     MeanAbsoluteError,
     /// Sort by MSE
     MeanSquaredError,
+}
+
+/// Testing approach
+pub enum Testing {
+    TrainTestSplit {
+        testing_fraction: f32,
+        shuffle: bool,
+    },
+    // KFoldsCV {
+    //     number_of_folds: usize,
+    //     shuffle: bool,
+    // },
 }
 
 /// This contains the results of a single model, including the model itself
@@ -79,6 +92,8 @@ impl Display for ModelComparison {
 /// The settings artifact for all regressions
 pub struct Settings {
     sort_by: SortBy,
+    testing_fraction: f32,
+    shuffle: bool,
     linear_settings: LinearRegressionParameters,
     // svr_settings: SVRParameters<f32, DenseMatrix<f32>, K>,
     lasso_settings: LassoParameters<f32>,
@@ -93,6 +108,8 @@ impl Default for Settings {
     fn default() -> Self {
         Settings {
             sort_by: SortBy::RSquared,
+            testing_fraction: 0.3,
+            shuffle: true,
             linear_settings: LinearRegressionParameters::default(),
             // svr_settings: SVRParameters::default(),
             lasso_settings: LassoParameters::default(),
@@ -167,86 +184,96 @@ pub fn compare_models(dataset: Dataset<f32, f32>, settings: Settings) -> ModelCo
     // These are our target values
     let y = dataset.target;
 
+    let (x_test, x_train, y_test, y_train) =
+        train_test_split(&x, &y, settings.testing_fraction, settings.shuffle);
+
     let mut results = Vec::new();
 
     // Do the standard linear model
-    let model = LinearRegression::fit(&x, &y, settings.linear_settings).unwrap();
-    let y_pred = model.predict(&x).unwrap();
+    let model = LinearRegression::fit(&x_train, &y_train, settings.linear_settings).unwrap();
+    let y_pred = model.predict(&x_test).unwrap();
     results.push(ModelResult {
         model: Box::new(model),
-        r_squared: R2 {}.get_score(&y, &y_pred),
-        mean_absolute_error: MeanAbsoluteError {}.get_score(&y, &y_pred),
-        mean_squared_error: MeanSquareError {}.get_score(&y, &y_pred),
+        r_squared: R2 {}.get_score(&y_test, &y_pred),
+        mean_absolute_error: MeanAbsoluteError {}.get_score(&y_test, &y_pred),
+        mean_squared_error: MeanSquareError {}.get_score(&y_test, &y_pred),
         name: "Linear Regression".to_string(),
     });
 
-    let model = SVR::fit(&x, &y, SVRParameters::default().with_eps(2.0).with_c(10.0)).unwrap();
-    let y_pred = model.predict(&x).unwrap();
+    let model = SVR::fit(
+        &x_train,
+        &y_train,
+        SVRParameters::default().with_eps(2.0).with_c(10.0),
+    )
+    .unwrap();
+    let y_pred = model.predict(&x_test).unwrap();
     results.push(ModelResult {
         model: Box::new(model),
-        r_squared: R2 {}.get_score(&y, &y_pred),
-        mean_absolute_error: MeanAbsoluteError {}.get_score(&y, &y_pred),
-        mean_squared_error: MeanSquareError {}.get_score(&y, &y_pred),
+        r_squared: R2 {}.get_score(&y_test, &y_pred),
+        mean_absolute_error: MeanAbsoluteError {}.get_score(&y_test, &y_pred),
+        mean_squared_error: MeanSquareError {}.get_score(&y_test, &y_pred),
         name: "Support Vector Regression".to_string(),
     });
 
-    let model = Lasso::fit(&x, &y, settings.lasso_settings).unwrap();
-    let y_pred = model.predict(&x).unwrap();
+    let model = Lasso::fit(&x_train, &y_train, settings.lasso_settings).unwrap();
+    let y_pred = model.predict(&x_test).unwrap();
     results.push(ModelResult {
         model: Box::new(model),
-        r_squared: R2 {}.get_score(&y, &y_pred),
-        mean_absolute_error: MeanAbsoluteError {}.get_score(&y, &y_pred),
-        mean_squared_error: MeanSquareError {}.get_score(&y, &y_pred),
+        r_squared: R2 {}.get_score(&y_test, &y_pred),
+        mean_absolute_error: MeanAbsoluteError {}.get_score(&y_test, &y_pred),
+        mean_squared_error: MeanSquareError {}.get_score(&y_test, &y_pred),
         name: "LASSO".to_string(),
     });
 
-    let model = RidgeRegression::fit(&x, &y, settings.ridge_settings).unwrap();
-    let y_pred = model.predict(&x).unwrap();
+    let model = RidgeRegression::fit(&x_train, &y_train, settings.ridge_settings).unwrap();
+    let y_pred = model.predict(&x_test).unwrap();
     results.push(ModelResult {
         model: Box::new(model),
-        r_squared: R2 {}.get_score(&y, &y_pred),
-        mean_absolute_error: MeanAbsoluteError {}.get_score(&y, &y_pred),
-        mean_squared_error: MeanSquareError {}.get_score(&y, &y_pred),
+        r_squared: R2 {}.get_score(&y_test, &y_pred),
+        mean_absolute_error: MeanAbsoluteError {}.get_score(&y_test, &y_pred),
+        mean_squared_error: MeanSquareError {}.get_score(&y_test, &y_pred),
         name: "Ridge Regression".to_string(),
     });
 
-    let model = ElasticNet::fit(&x, &y, settings.elastic_net_settings).unwrap();
-    let y_pred = model.predict(&x).unwrap();
+    let model = ElasticNet::fit(&x_train, &y_train, settings.elastic_net_settings).unwrap();
+    let y_pred = model.predict(&x_test).unwrap();
     results.push(ModelResult {
         model: Box::new(model),
-        r_squared: R2 {}.get_score(&y, &y_pred),
-        mean_absolute_error: MeanAbsoluteError {}.get_score(&y, &y_pred),
-        mean_squared_error: MeanSquareError {}.get_score(&y, &y_pred),
+        r_squared: R2 {}.get_score(&y_test, &y_pred),
+        mean_absolute_error: MeanAbsoluteError {}.get_score(&y_test, &y_pred),
+        mean_squared_error: MeanSquareError {}.get_score(&y_test, &y_pred),
         name: "Elastic Net".to_string(),
     });
 
-    let model = DecisionTreeRegressor::fit(&x, &y, settings.decision_tree_settings).unwrap();
-    let y_pred = model.predict(&x).unwrap();
+    let model =
+        DecisionTreeRegressor::fit(&x_train, &y_train, settings.decision_tree_settings).unwrap();
+    let y_pred = model.predict(&x_test).unwrap();
     results.push(ModelResult {
         model: Box::new(model),
-        r_squared: R2 {}.get_score(&y, &y_pred),
-        mean_absolute_error: MeanAbsoluteError {}.get_score(&y, &y_pred),
-        mean_squared_error: MeanSquareError {}.get_score(&y, &y_pred),
+        r_squared: R2 {}.get_score(&y_test, &y_pred),
+        mean_absolute_error: MeanAbsoluteError {}.get_score(&y_test, &y_pred),
+        mean_squared_error: MeanSquareError {}.get_score(&y_test, &y_pred),
         name: "Decision Tree Regression".to_string(),
     });
 
-    let model = RandomForestRegressor::fit(&x, &y, settings.random_forest_settings).unwrap();
-    let y_pred = model.predict(&x).unwrap();
+    let model =
+        RandomForestRegressor::fit(&x_train, &y_train, settings.random_forest_settings).unwrap();
+    let y_pred = model.predict(&x_test).unwrap();
     results.push(ModelResult {
         model: Box::new(model),
-        r_squared: R2 {}.get_score(&y, &y_pred),
-        mean_absolute_error: MeanAbsoluteError {}.get_score(&y, &y_pred),
-        mean_squared_error: MeanSquareError {}.get_score(&y, &y_pred),
+        r_squared: R2 {}.get_score(&y_test, &y_pred),
+        mean_absolute_error: MeanAbsoluteError {}.get_score(&y_test, &y_pred),
+        mean_squared_error: MeanSquareError {}.get_score(&y_test, &y_pred),
         name: "Random Forest Regression".to_string(),
     });
 
-    let model = KNNRegressor::fit(&x, &y, KNNRegressorParameters::default()).unwrap();
-    let y_pred = model.predict(&x).unwrap();
+    let model = KNNRegressor::fit(&x_train, &y_train, KNNRegressorParameters::default()).unwrap();
+    let y_pred = model.predict(&x_test).unwrap();
     results.push(ModelResult {
         model: Box::new(model),
-        r_squared: R2 {}.get_score(&y, &y_pred),
-        mean_absolute_error: MeanAbsoluteError {}.get_score(&y, &y_pred),
-        mean_squared_error: MeanSquareError {}.get_score(&y, &y_pred),
+        r_squared: R2 {}.get_score(&y_test, &y_pred),
+        mean_absolute_error: MeanAbsoluteError {}.get_score(&y_test, &y_pred),
+        mean_squared_error: MeanSquareError {}.get_score(&y_test, &y_pred),
         name: "KNN Regression".to_string(),
     });
 
