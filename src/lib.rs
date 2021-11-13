@@ -12,10 +12,11 @@
 //! For instance, running the following:
 //! ```rust
 //! fn main() {
-//!     let data = smartcore::dataset::breast_cancer::load_dataset();
-//!     let r = automl::regression::compare_models(data);
-//!     print!("{}", r);
-//! }
+//!    let data = smartcore::dataset::breast_cancer::load_dataset();
+//!    let settings = automl::regression::Settings::default();
+//!    let r = automl::regression::compare_models(data, settings);
+//!    print!("{}", r);
+//!}
 //! ```
 //! Will output this:
 //! ```text

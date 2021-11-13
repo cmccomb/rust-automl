@@ -8,10 +8,8 @@ use smartcore::{
     linear::{
         elastic_net::{ElasticNet, ElasticNetParameters},
         lasso::{Lasso, LassoParameters},
-        linear_regression::{
-            LinearRegression, LinearRegressionParameters, LinearRegressionSolverName,
-        },
-        ridge_regression::{RidgeRegression, RidgeRegressionParameters, RidgeRegressionSolverName},
+        linear_regression::{LinearRegression, LinearRegressionParameters},
+        ridge_regression::{RidgeRegression, RidgeRegressionParameters},
     },
     math::{distance::Distance, num::RealNumber},
     metrics::{
@@ -26,6 +24,17 @@ use smartcore::{
 };
 use std::cmp::Ordering::Equal;
 use std::fmt::{Display, Formatter};
+
+/// An enum for sorting
+#[non_exhaustive]
+pub enum SortBy {
+    /// Sort by R^2
+    RSquared,
+    /// Sort by MAE
+    MeanAbsoluteError,
+    /// Sort by MSE
+    MeanSquaredError,
+}
 
 /// This contains the results of a single model, including the model itself
 pub struct ModelResult {
@@ -67,13 +76,93 @@ impl Display for ModelComparison {
     }
 }
 
+/// The settings artifact for all regressions
+pub struct Settings {
+    sort_by: SortBy,
+    linear_settings: LinearRegressionParameters,
+    // svr_settings: SVRParameters<f32, DenseMatrix<f32>, K>,
+    lasso_settings: LassoParameters<f32>,
+    ridge_settings: RidgeRegressionParameters<f32>,
+    elastic_net_settings: ElasticNetParameters<f32>,
+    decision_tree_settings: DecisionTreeRegressorParameters,
+    random_forest_settings: RandomForestRegressorParameters,
+    // knn_regression_settings: KNNRegressorParameters<f32, Euclidian>,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Settings {
+            sort_by: SortBy::RSquared,
+            linear_settings: LinearRegressionParameters::default(),
+            // svr_settings: SVRParameters::default(),
+            lasso_settings: LassoParameters::default(),
+            ridge_settings: RidgeRegressionParameters::default(),
+            elastic_net_settings: ElasticNetParameters::default(),
+            decision_tree_settings: DecisionTreeRegressorParameters::default(),
+            random_forest_settings: RandomForestRegressorParameters::default(),
+            // knn_regression_settings: KNNRegressorParameters::default(),
+        }
+    }
+}
+
+impl Settings {
+    /// Adds a specific sorting function to the settings
+    pub fn sorted_by(mut self, sort_by: SortBy) -> Self {
+        self.sort_by = sort_by;
+        self
+    }
+
+    /// Specify settings for linear regression
+    pub fn with_linear_settings(mut self, settings: LinearRegressionParameters) -> Self {
+        self.linear_settings = settings;
+        self
+    }
+
+    /// Specify settings for lasso regression
+    pub fn with_lasso_settings(mut self, settings: LassoParameters<f32>) -> Self {
+        self.lasso_settings = settings;
+        self
+    }
+
+    /// Specify settings for ridge regression
+    pub fn with_ridge_settings(mut self, settings: RidgeRegressionParameters<f32>) -> Self {
+        self.ridge_settings = settings;
+        self
+    }
+
+    /// Specify settings for elastic net
+    pub fn with_elastic_net_settings(mut self, settings: ElasticNetParameters<f32>) -> Self {
+        self.elastic_net_settings = settings;
+        self
+    }
+
+    /// Specify settings for random forest
+    pub fn with_random_forest_settings(
+        mut self,
+        settings: RandomForestRegressorParameters,
+    ) -> Self {
+        self.random_forest_settings = settings;
+        self
+    }
+
+    /// Specify settings for decision tree
+    pub fn with_decision_tree_settings(
+        mut self,
+        settings: DecisionTreeRegressorParameters,
+    ) -> Self {
+        self.decision_tree_settings = settings;
+        self
+    }
+}
+
 /// This function compares all of the regression models available in the package.
 /// ```
 /// let data = smartcore::dataset::breast_cancer::load_dataset();
-/// let x = automl::regression::compare_models(data);
+/// let settings = automl::regression::Settings::default().sorted_by(automl::regression::SortBy::MeanSquaredError);
+/// let x = automl::regression::compare_models(data, settings);
 /// print!("{}", x);
 /// ```
-pub fn compare_models(dataset: Dataset<f32, f32>) -> ModelComparison {
+pub fn compare_models(dataset: Dataset<f32, f32>, settings: Settings) -> ModelComparison {
     let x = DenseMatrix::from_array(dataset.num_samples, dataset.num_features, &dataset.data);
     // These are our target values
     let y = dataset.target;
@@ -81,7 +170,7 @@ pub fn compare_models(dataset: Dataset<f32, f32>) -> ModelComparison {
     let mut results = Vec::new();
 
     // Do the standard linear model
-    let model = LinearRegression::fit(&x, &y, LinearRegressionParameters::default()).unwrap();
+    let model = LinearRegression::fit(&x, &y, settings.linear_settings).unwrap();
     let y_pred = model.predict(&x).unwrap();
     results.push(ModelResult {
         model: Box::new(model),
@@ -101,7 +190,7 @@ pub fn compare_models(dataset: Dataset<f32, f32>) -> ModelComparison {
         name: "Support Vector Regression".to_string(),
     });
 
-    let model = Lasso::fit(&x, &y, LassoParameters::default()).unwrap();
+    let model = Lasso::fit(&x, &y, settings.lasso_settings).unwrap();
     let y_pred = model.predict(&x).unwrap();
     results.push(ModelResult {
         model: Box::new(model),
@@ -111,7 +200,7 @@ pub fn compare_models(dataset: Dataset<f32, f32>) -> ModelComparison {
         name: "LASSO".to_string(),
     });
 
-    let model = RidgeRegression::fit(&x, &y, RidgeRegressionParameters::default()).unwrap();
+    let model = RidgeRegression::fit(&x, &y, settings.ridge_settings).unwrap();
     let y_pred = model.predict(&x).unwrap();
     results.push(ModelResult {
         model: Box::new(model),
@@ -121,7 +210,7 @@ pub fn compare_models(dataset: Dataset<f32, f32>) -> ModelComparison {
         name: "Ridge Regression".to_string(),
     });
 
-    let model = ElasticNet::fit(&x, &y, ElasticNetParameters::default()).unwrap();
+    let model = ElasticNet::fit(&x, &y, settings.elastic_net_settings).unwrap();
     let y_pred = model.predict(&x).unwrap();
     results.push(ModelResult {
         model: Box::new(model),
@@ -131,8 +220,7 @@ pub fn compare_models(dataset: Dataset<f32, f32>) -> ModelComparison {
         name: "Elastic Net".to_string(),
     });
 
-    let model =
-        DecisionTreeRegressor::fit(&x, &y, DecisionTreeRegressorParameters::default()).unwrap();
+    let model = DecisionTreeRegressor::fit(&x, &y, settings.decision_tree_settings).unwrap();
     let y_pred = model.predict(&x).unwrap();
     results.push(ModelResult {
         model: Box::new(model),
@@ -142,8 +230,7 @@ pub fn compare_models(dataset: Dataset<f32, f32>) -> ModelComparison {
         name: "Decision Tree Regression".to_string(),
     });
 
-    let model =
-        RandomForestRegressor::fit(&x, &y, RandomForestRegressorParameters::default()).unwrap();
+    let model = RandomForestRegressor::fit(&x, &y, settings.random_forest_settings).unwrap();
     let y_pred = model.predict(&x).unwrap();
     results.push(ModelResult {
         model: Box::new(model),
@@ -163,7 +250,25 @@ pub fn compare_models(dataset: Dataset<f32, f32>) -> ModelComparison {
         name: "KNN Regression".to_string(),
     });
 
-    results.sort_by(|a, b| b.r_squared.partial_cmp(&a.r_squared).unwrap_or(Equal));
+    match settings.sort_by {
+        SortBy::RSquared => {
+            results.sort_by(|a, b| b.r_squared.partial_cmp(&a.r_squared).unwrap_or(Equal));
+        }
+        SortBy::MeanSquaredError => {
+            results.sort_by(|a, b| {
+                a.mean_squared_error
+                    .partial_cmp(&b.mean_squared_error)
+                    .unwrap_or(Equal)
+            });
+        }
+        SortBy::MeanAbsoluteError => {
+            results.sort_by(|a, b| {
+                a.mean_absolute_error
+                    .partial_cmp(&b.mean_absolute_error)
+                    .unwrap_or(Equal)
+            });
+        }
+    }
 
     ModelComparison(results)
 }

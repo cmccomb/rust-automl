@@ -1,6 +1,7 @@
 //! Auto-ML for regression models
 
 use comfy_table::{modifiers::UTF8_SOLID_INNER_BORDERS, presets::UTF8_FULL, Table};
+use smartcore::tree::decision_tree_regressor::DecisionTreeRegressorParameters;
 use smartcore::{
     dataset::Dataset,
     ensemble::random_forest_classifier::{
@@ -27,11 +28,70 @@ pub struct ModelResult {
     name: String,
 }
 
+/// An enum for sorting
+#[non_exhaustive]
+pub enum SortBy {
+    /// Sort by accuracy
+    Accuracy,
+}
+
+/// The settings artifact for all classifications
+pub struct Settings {
+    sort_by: SortBy,
+    logistic_settings: LogisticRegressionParameters,
+    random_forest_settings: RandomForestClassifierParameters,
+    // knn_settings: KNNClassifierParameters<T, D>,
+    decision_tree_settings: DecisionTreeClassifierParameters,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Settings {
+            sort_by: SortBy::Accuracy,
+            logistic_settings: LogisticRegressionParameters::default(),
+            random_forest_settings: RandomForestClassifierParameters::default(),
+            // knn_settings: KNNClassifierParameters::default(),
+            decision_tree_settings: DecisionTreeClassifierParameters::default(),
+        }
+    }
+}
+
+impl Settings {
+    /// Adds a specific sorting function to the settings
+    pub fn sorted_by(mut self, sort_by: SortBy) -> Self {
+        self.sort_by = sort_by;
+        self
+    }
+
+    /// Specify settings for random_forest
+    pub fn with_random_forest_settings(
+        mut self,
+        settings: RandomForestClassifierParameters,
+    ) -> Self {
+        self.random_forest_settings = settings;
+        self
+    }
+
+    /// Specify settings for logistic regression
+    pub fn with_logistic_settings(mut self, settings: LogisticRegressionParameters) -> Self {
+        self.logistic_settings = settings;
+        self
+    }
+
+    /// Specify settings for logistic regression
+    pub fn with_decision_tree_settings(
+        mut self,
+        settings: DecisionTreeClassifierParameters,
+    ) -> Self {
+        self.decision_tree_settings = settings;
+        self
+    }
+}
+
 trait Classifier {}
 impl<T: RealNumber, M: Matrix<T>> Classifier for LogisticRegression<T, M> {}
 impl<T: RealNumber> Classifier for RandomForestClassifier<T> {}
 impl<T: RealNumber, D: Distance<Vec<T>, T>> Classifier for KNNClassifier<T, D> {}
-impl<T: RealNumber, M: Matrix<T>, K: Kernel<T, M::RowVector>> Classifier for SVC<T, M, K> {}
 impl<T: RealNumber> Classifier for DecisionTreeClassifier<T> {}
 
 /// This is the output from a model comparison operation
@@ -56,10 +116,11 @@ impl Display for ModelComparison {
 /// This function compares all of the classification models available in the package.
 /// ```
 /// let data = smartcore::dataset::iris::load_dataset();
-/// let x = automl::classification::compare_models(data);
+/// let settings = automl::classification::Settings::default();
+/// let x = automl::classification::compare_models(data, settings);
 /// print!("{}", x);
 /// ```
-pub fn compare_models(dataset: Dataset<f32, f32>) -> ModelComparison {
+pub fn compare_models(dataset: Dataset<f32, f32>, settings: Settings) -> ModelComparison {
     let x = DenseMatrix::from_array(dataset.num_samples, dataset.num_features, &dataset.data);
     // These are our target values
     let y = dataset.target;
@@ -67,7 +128,7 @@ pub fn compare_models(dataset: Dataset<f32, f32>) -> ModelComparison {
     let mut results = Vec::new();
 
     // Do the standard linear model
-    let model = LogisticRegression::fit(&x, &y, LogisticRegressionParameters::default()).unwrap();
+    let model = LogisticRegression::fit(&x, &y, settings.logistic_settings).unwrap();
     let y_pred = model.predict(&x).unwrap();
     results.push(ModelResult {
         model: Box::new(model),
@@ -76,8 +137,7 @@ pub fn compare_models(dataset: Dataset<f32, f32>) -> ModelComparison {
     });
 
     // Do the standard linear model
-    let model =
-        RandomForestClassifier::fit(&x, &y, RandomForestClassifierParameters::default()).unwrap();
+    let model = RandomForestClassifier::fit(&x, &y, settings.random_forest_settings).unwrap();
     let y_pred = model.predict(&x).unwrap();
     results.push(ModelResult {
         model: Box::new(model),
@@ -94,16 +154,7 @@ pub fn compare_models(dataset: Dataset<f32, f32>) -> ModelComparison {
         name: "KNN Classifier".to_string(),
     });
 
-    // let model = SVC::fit(&x, &y, SVCParameters::default()).unwrap();
-    // let y_pred = model.predict(&x).unwrap();
-    // results.push(ModelResult {
-    //     model: Box::new(model),
-    //     accuracy: accuracy(&y, &y_pred),
-    //     name: "Support Vector Classifier".to_string(),
-    // });
-
-    let model =
-        DecisionTreeClassifier::fit(&x, &y, DecisionTreeClassifierParameters::default()).unwrap();
+    let model = DecisionTreeClassifier::fit(&x, &y, settings.decision_tree_settings).unwrap();
     let y_pred = model.predict(&x).unwrap();
     results.push(ModelResult {
         model: Box::new(model),
@@ -111,7 +162,11 @@ pub fn compare_models(dataset: Dataset<f32, f32>) -> ModelComparison {
         name: "Support Vector Classifier".to_string(),
     });
 
-    results.sort_by(|a, b| b.accuracy.partial_cmp(&a.accuracy).unwrap_or(Equal));
+    match settings.sort_by {
+        SortBy::Accuracy => {
+            results.sort_by(|a, b| b.accuracy.partial_cmp(&a.accuracy).unwrap_or(Equal));
+        }
+    }
 
     ModelComparison(results)
 }
