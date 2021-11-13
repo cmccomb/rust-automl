@@ -171,13 +171,13 @@ pub struct Settings {
     testing_fraction: f32,
     shuffle: bool,
     linear_settings: LinearRegressionParameters,
-    // svr_settings: SVRParameters<f32, DenseMatrix<f32>, K>,
+    svr_settings: SVRParameters<f32, DenseMatrix<f32>, LinearKernel>,
     lasso_settings: LassoParameters<f32>,
     ridge_settings: RidgeRegressionParameters<f32>,
     elastic_net_settings: ElasticNetParameters<f32>,
     decision_tree_settings: DecisionTreeRegressorParameters,
     random_forest_settings: RandomForestRegressorParameters,
-    // knn_regression_settings: KNNRegressorParameters<f32, Euclidian>,
+    knn_settings: KNNRegressorParameters<f32, Euclidian>,
 }
 
 impl Default for Settings {
@@ -187,13 +187,13 @@ impl Default for Settings {
             testing_fraction: 0.3,
             shuffle: true,
             linear_settings: LinearRegressionParameters::default(),
-            // svr_settings: SVRParameters::default(),
+            svr_settings: SVRParameters::default(),
             lasso_settings: LassoParameters::default(),
             ridge_settings: RidgeRegressionParameters::default(),
             elastic_net_settings: ElasticNetParameters::default(),
             decision_tree_settings: DecisionTreeRegressorParameters::default(),
             random_forest_settings: RandomForestRegressorParameters::default(),
-            // knn_regression_settings: KNNRegressorParameters::default(),
+            knn_settings: KNNRegressorParameters::default(),
         }
     }
 }
@@ -226,6 +226,21 @@ impl Settings {
     /// Specify settings for elastic net
     pub fn with_elastic_net_settings(mut self, settings: ElasticNetParameters<f32>) -> Self {
         self.elastic_net_settings = settings;
+        self
+    }
+
+    /// Specify settings for KNN regressor
+    pub fn with_knn_settings(mut self, settings: KNNRegressorParameters<f32, Euclidian>) -> Self {
+        self.knn_settings = settings;
+        self
+    }
+
+    /// Specify settings for support vector regressor
+    pub fn with_svr_settings(
+        mut self,
+        settings: SVRParameters<f32, DenseMatrix<f32>, LinearKernel>,
+    ) -> Self {
+        self.svr_settings = settings;
         self
     }
 
