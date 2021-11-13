@@ -9,7 +9,7 @@ repository = "https://github.com/cmccomb/rust-automl"
 homepage = "https://github.com/cmccomb/rust-automl"
 documentation = "https://docs.rs/automl"
 license = "MIT OR Apache-2.0"
-keywords = ["machine-learning", "ml", "ai", "artificial-intelligence", "automl"]
+keywords = ["machine-learning", "ml", "ai", "smartcore", "automl"]
 categories = ["algorithms", "mathematics", "science"]
 
 
