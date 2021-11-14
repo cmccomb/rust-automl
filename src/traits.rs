@@ -19,46 +19,46 @@ use smartcore::{
     },
 };
 
-pub(crate) trait Regressor {
+pub(crate) trait ValidRegressor {
     fn name(&self) -> String;
 }
 
-impl<T: RealNumber, M: Matrix<T>> Regressor for LinearRegression<T, M> {
+impl<T: RealNumber, M: Matrix<T>> ValidRegressor for LinearRegression<T, M> {
     fn name(&self) -> String {
         "Linear Regressor".to_string()
     }
 }
-impl<T: RealNumber, M: Matrix<T>, K: Kernel<T, M::RowVector>> Regressor for SVR<T, M, K> {
+impl<T: RealNumber, M: Matrix<T>, K: Kernel<T, M::RowVector>> ValidRegressor for SVR<T, M, K> {
     fn name(&self) -> String {
         "Support Vector Regessor".to_string()
     }
 }
-impl<T: RealNumber, M: Matrix<T>> Regressor for Lasso<T, M> {
+impl<T: RealNumber, M: Matrix<T>> ValidRegressor for Lasso<T, M> {
     fn name(&self) -> String {
         "LASSO Regressor".to_string()
     }
 }
-impl<T: RealNumber, M: Matrix<T>> Regressor for RidgeRegression<T, M> {
+impl<T: RealNumber, M: Matrix<T>> ValidRegressor for RidgeRegression<T, M> {
     fn name(&self) -> String {
         "Ridge Regressor".to_string()
     }
 }
-impl<T: RealNumber, M: Matrix<T>> Regressor for ElasticNet<T, M> {
+impl<T: RealNumber, M: Matrix<T>> ValidRegressor for ElasticNet<T, M> {
     fn name(&self) -> String {
         "Elastic Net Regressor".to_string()
     }
 }
-impl<T: RealNumber> Regressor for DecisionTreeRegressor<T> {
+impl<T: RealNumber> ValidRegressor for DecisionTreeRegressor<T> {
     fn name(&self) -> String {
         "Decision Tree Regressor".to_string()
     }
 }
-impl<T: RealNumber, D: Distance<Vec<T>, T>> Regressor for KNNRegressor<T, D> {
+impl<T: RealNumber, D: Distance<Vec<T>, T>> ValidRegressor for KNNRegressor<T, D> {
     fn name(&self) -> String {
         "KNN Regressor".to_string()
     }
 }
-impl<T: RealNumber> Regressor for RandomForestRegressor<T> {
+impl<T: RealNumber> ValidRegressor for RandomForestRegressor<T> {
     fn name(&self) -> String {
         "Random Forest Regressor".to_string()
     }

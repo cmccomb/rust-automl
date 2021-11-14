@@ -31,14 +31,14 @@ pub struct Model {
 
 /// An enum for sorting
 #[non_exhaustive]
-pub enum SortBy {
+pub enum Metric {
     /// Sort by accuracy
     Accuracy,
 }
 
 /// The settings artifact for all classifications
 pub struct Settings {
-    sort_by: SortBy,
+    sort_by: Metric,
     testing_fraction: f32,
     shuffle: bool,
     logistic_settings: LogisticRegressionParameters,
@@ -51,7 +51,7 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Settings {
-            sort_by: SortBy::Accuracy,
+            sort_by: Metric::Accuracy,
             testing_fraction: 0.3,
             shuffle: true,
             logistic_settings: LogisticRegressionParameters::default(),
@@ -65,7 +65,7 @@ impl Default for Settings {
 
 impl Settings {
     /// Adds a specific sorting function to the settings
-    pub fn sorted_by(mut self, sort_by: SortBy) -> Self {
+    pub fn sorted_by(mut self, sort_by: Metric) -> Self {
         self.sort_by = sort_by;
         self
     }
@@ -113,7 +113,7 @@ impl Settings {
 /// This is the output from a model comparison operation
 pub struct ComparisonResults {
     results: Vec<Model>,
-    sort_by: SortBy,
+    sort_by: Metric,
 }
 
 impl ComparisonResults {
@@ -165,14 +165,14 @@ impl ComparisonResults {
 
     fn sort(&mut self) {
         match self.sort_by {
-            SortBy::Accuracy => {
+            Metric::Accuracy => {
                 self.results
                     .sort_by(|a, b| b.accuracy.partial_cmp(&a.accuracy).unwrap_or(Equal));
             }
         }
     }
 
-    fn new(sort_by: SortBy) -> Self {
+    fn new(sort_by: Metric) -> Self {
         Self {
             results: Vec::new(),
             sort_by,

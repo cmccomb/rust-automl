@@ -2,7 +2,7 @@
 mod regression_tests {
     #[test]
     fn test_with_default_settings() {
-        use automl::regression::{compare_models, Settings, SortBy};
+        use automl::regression::{compare_models, Metric, Regressor, Settings};
         use smartcore::svm::svr::SVRParameters;
         use smartcore::{
             dataset::diabetes::load_dataset, linalg::naive::dense_matrix::DenseMatrix,
@@ -12,8 +12,9 @@ mod regression_tests {
         // Check training
         let data = load_dataset();
         let settings = Settings::default()
-            .sorted_by(automl::regression::SortBy::MeanSquaredError)
-            .with_svr_settings(SVRParameters::default().with_eps(2.0).with_c(10.0));
+            .sorted_by(automl::regression::Metric::MeanSquaredError)
+            .with_svr_settings(SVRParameters::default().with_eps(2.0).with_c(10.0))
+            .skip(vec![Regressor::ElasticNet]);
         let results = compare_models(data, settings);
 
         print!("{}", results);

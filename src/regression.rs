@@ -1,6 +1,6 @@
 //! Auto-ML for regression models
 
-use super::traits::Regressor;
+use super::traits::ValidRegressor;
 use comfy_table::{modifiers::UTF8_SOLID_INNER_BORDERS, presets::UTF8_FULL, Table};
 use smartcore::{
     dataset::Dataset,
@@ -30,7 +30,7 @@ use std::fmt::{Display, Formatter};
 /// This is the output from a model comparison operation
 pub struct ComparisonResults {
     results: Vec<Model>,
-    sort_by: SortBy,
+    sort_by: Metric,
 }
 
 impl ComparisonResults {
@@ -99,18 +99,18 @@ impl ComparisonResults {
 
     fn sort(&mut self) {
         match self.sort_by {
-            SortBy::RSquared => {
+            Metric::RSquared => {
                 self.results
                     .sort_by(|a, b| b.r_squared.partial_cmp(&a.r_squared).unwrap_or(Equal));
             }
-            SortBy::MeanSquaredError => {
+            Metric::MeanSquaredError => {
                 self.results.sort_by(|a, b| {
                     a.mean_squared_error
                         .partial_cmp(&b.mean_squared_error)
                         .unwrap_or(Equal)
                 });
             }
-            SortBy::MeanAbsoluteError => {
+            Metric::MeanAbsoluteError => {
                 self.results.sort_by(|a, b| {
                     a.mean_absolute_error
                         .partial_cmp(&b.mean_absolute_error)
@@ -119,7 +119,7 @@ impl ComparisonResults {
             }
         }
     }
-    fn new(sort_by: SortBy) -> Self {
+    fn new(sort_by: Metric) -> Self {
         Self {
             results: Vec::new(),
             sort_by,
@@ -147,13 +147,34 @@ impl Display for ComparisonResults {
 
 /// An enum for sorting
 #[non_exhaustive]
-pub enum SortBy {
+pub enum Metric {
     /// Sort by R^2
     RSquared,
     /// Sort by MAE
     MeanAbsoluteError,
     /// Sort by MSE
     MeanSquaredError,
+}
+
+/// An enum containing regression algorithms
+#[derive(PartialEq)]
+pub enum Regressor {
+    /// Decision tree regressor
+    DecisionTree,
+    /// KNN Regressor
+    KNN,
+    /// Random forest regressor
+    RandomForest,
+    /// Linear regressor
+    Linear,
+    /// Ridge regressor
+    Ridge,
+    /// Lasso regressor
+    Lasso,
+    /// Elastic net regresso
+    ElasticNet,
+    /// Support vector regressor
+    SupportVector,
 }
 
 /// This contains the results of a single model, including the model itself
@@ -167,7 +188,8 @@ struct Model {
 
 /// The settings artifact for all regressions
 pub struct Settings {
-    sort_by: SortBy,
+    sort_by: Metric,
+    skiplist: Vec<Regressor>,
     testing_fraction: f32,
     shuffle: bool,
     linear_settings: LinearRegressionParameters,
@@ -183,7 +205,8 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Settings {
-            sort_by: SortBy::RSquared,
+            sort_by: Metric::RSquared,
+            skiplist: vec![],
             testing_fraction: 0.3,
             shuffle: true,
             linear_settings: LinearRegressionParameters::default(),
@@ -199,8 +222,14 @@ impl Default for Settings {
 }
 
 impl Settings {
+    /// Specify algorithms that shouldn't be included in comparison
+    pub fn skip(mut self, skip: Vec<Regressor>) -> Self {
+        self.skiplist = skip;
+        self
+    }
+
     /// Adds a specific sorting function to the settings
-    pub fn sorted_by(mut self, sort_by: SortBy) -> Self {
+    pub fn sorted_by(mut self, sort_by: Metric) -> Self {
         self.sort_by = sort_by;
         self
     }
@@ -267,7 +296,7 @@ impl Settings {
 /// ```
 /// let data = smartcore::dataset::diabetes::load_dataset();
 /// let settings = automl::regression::Settings::default()
-///     .sorted_by(automl::regression::SortBy::MeanSquaredError)
+///     .sorted_by(automl::regression::Metric::MeanSquaredError)
 ///     .with_svr_settings(smartcore::svm::svr::SVRParameters::default().with_eps(2.0).with_c(10.0));
 /// let x = automl::regression::compare_models(data, settings);
 /// print!("{}", x);
@@ -282,48 +311,63 @@ pub fn compare_models(dataset: Dataset<f32, f32>, settings: Settings) -> Compari
 
     let mut results = ComparisonResults::new(settings.sort_by);
 
-    // Do the standard linear model
-    let model = LinearRegression::fit(&x_train, &y_train, settings.linear_settings).unwrap();
-    let y_pred = model.predict(&x_test).unwrap();
-    let serial_model = bincode::serialize(&model).unwrap();
-    results.add_model(model.name(), &y_test, &y_pred, serial_model);
+    if !settings.skiplist.contains(&Regressor::Linear) {
+        let model = LinearRegression::fit(&x_train, &y_train, settings.linear_settings).unwrap();
+        let y_pred = model.predict(&x_test).unwrap();
+        let serial_model = bincode::serialize(&model).unwrap();
+        results.add_model(model.name(), &y_test, &y_pred, serial_model);
+    }
 
-    let model = SVR::fit(&x_train, &y_train, settings.svr_settings).unwrap();
-    let y_pred = model.predict(&x_test).unwrap();
-    let serial_model = bincode::serialize(&model).unwrap();
-    results.add_model(model.name(), &y_test, &y_pred, serial_model);
+    if !settings.skiplist.contains(&Regressor::SupportVector) {
+        let model = SVR::fit(&x_train, &y_train, settings.svr_settings).unwrap();
+        let y_pred = model.predict(&x_test).unwrap();
+        let serial_model = bincode::serialize(&model).unwrap();
+        results.add_model(model.name(), &y_test, &y_pred, serial_model);
+    }
 
-    let model = Lasso::fit(&x_train, &y_train, settings.lasso_settings).unwrap();
-    let y_pred = model.predict(&x_test).unwrap();
-    let serial_model = bincode::serialize(&model).unwrap();
-    results.add_model(model.name(), &y_test, &y_pred, serial_model);
+    if !settings.skiplist.contains(&Regressor::Lasso) {
+        let model = Lasso::fit(&x_train, &y_train, settings.lasso_settings).unwrap();
+        let y_pred = model.predict(&x_test).unwrap();
+        let serial_model = bincode::serialize(&model).unwrap();
+        results.add_model(model.name(), &y_test, &y_pred, serial_model);
+    }
 
-    let model = RidgeRegression::fit(&x_train, &y_train, settings.ridge_settings).unwrap();
-    let y_pred = model.predict(&x_test).unwrap();
-    let serial_model = bincode::serialize(&model).unwrap();
-    results.add_model(model.name(), &y_test, &y_pred, serial_model);
+    if !settings.skiplist.contains(&Regressor::Ridge) {
+        let model = RidgeRegression::fit(&x_train, &y_train, settings.ridge_settings).unwrap();
+        let y_pred = model.predict(&x_test).unwrap();
+        let serial_model = bincode::serialize(&model).unwrap();
+        results.add_model(model.name(), &y_test, &y_pred, serial_model);
+    }
 
-    let model = ElasticNet::fit(&x_train, &y_train, settings.elastic_net_settings).unwrap();
-    let y_pred = model.predict(&x_test).unwrap();
-    let serial_model = bincode::serialize(&model).unwrap();
-    results.add_model(model.name(), &y_test, &y_pred, serial_model);
+    if !settings.skiplist.contains(&Regressor::ElasticNet) {
+        let model = ElasticNet::fit(&x_train, &y_train, settings.elastic_net_settings).unwrap();
+        let y_pred = model.predict(&x_test).unwrap();
+        let serial_model = bincode::serialize(&model).unwrap();
+        results.add_model(model.name(), &y_test, &y_pred, serial_model);
+    }
 
-    let model =
-        DecisionTreeRegressor::fit(&x_train, &y_train, settings.decision_tree_settings).unwrap();
-    let y_pred = model.predict(&x_test).unwrap();
-    let serial_model = bincode::serialize(&model).unwrap();
-    results.add_model(model.name(), &y_test, &y_pred, serial_model);
+    if !settings.skiplist.contains(&Regressor::DecisionTree) {
+        let model = DecisionTreeRegressor::fit(&x_train, &y_train, settings.decision_tree_settings)
+            .unwrap();
+        let y_pred = model.predict(&x_test).unwrap();
+        let serial_model = bincode::serialize(&model).unwrap();
+        results.add_model(model.name(), &y_test, &y_pred, serial_model);
+    }
 
-    let model =
-        RandomForestRegressor::fit(&x_train, &y_train, settings.random_forest_settings).unwrap();
-    let y_pred = model.predict(&x_test).unwrap();
-    let serial_model = bincode::serialize(&model).unwrap();
-    results.add_model(model.name(), &y_test, &y_pred, serial_model);
+    if !settings.skiplist.contains(&Regressor::RandomForest) {
+        let model = RandomForestRegressor::fit(&x_train, &y_train, settings.random_forest_settings)
+            .unwrap();
+        let y_pred = model.predict(&x_test).unwrap();
+        let serial_model = bincode::serialize(&model).unwrap();
+        results.add_model(model.name(), &y_test, &y_pred, serial_model);
+    }
 
-    let model = KNNRegressor::fit(&x_train, &y_train, KNNRegressorParameters::default()).unwrap();
-    let y_pred = model.predict(&x_test).unwrap();
-    let serial_model = bincode::serialize(&model).unwrap();
-    results.add_model(model.name(), &y_test, &y_pred, serial_model);
-
+    if !settings.skiplist.contains(&Regressor::KNN) {
+        let model =
+            KNNRegressor::fit(&x_train, &y_train, KNNRegressorParameters::default()).unwrap();
+        let y_pred = model.predict(&x_test).unwrap();
+        let serial_model = bincode::serialize(&model).unwrap();
+        results.add_model(model.name(), &y_test, &y_pred, serial_model);
+    }
     results
 }
