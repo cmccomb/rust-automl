@@ -3,6 +3,7 @@
 use super::traits::ValidRegressor;
 use crate::regression::Algorithm::Ridge;
 use comfy_table::{modifiers::UTF8_SOLID_INNER_BORDERS, presets::UTF8_FULL, Table};
+use polars::prelude::*;
 use smartcore::{
     dataset::Dataset,
     ensemble::random_forest_regressor::{RandomForestRegressor, RandomForestRegressorParameters},
@@ -248,6 +249,102 @@ impl Regressor {
     pub fn with_data(&mut self, x: DenseMatrix<f32>, y: Vec<f32>) {
         self.x = x;
         self.y = y;
+    }
+
+    /// Add data from a csv
+    pub fn with_data_from_csv(&mut self, filepath: &str, target: usize, header: bool) {
+        let mut df = CsvReader::from_path(filepath)
+            .unwrap()
+            .infer_schema(None)
+            .has_header(header)
+            .finish()
+            .unwrap();
+
+        // Get target variables
+        let target_column_name = df.get_column_names()[target];
+        let series = df.column(target_column_name).unwrap();
+        match series.dtype() {
+            DataType::Boolean => series
+                .bool()
+                .unwrap()
+                .into_no_null_iter()
+                .for_each(|v| self.y.push(if v { 1.0 as f32 } else { 0.0 as f32 })),
+            DataType::UInt8 => series
+                .u8()
+                .unwrap()
+                .into_no_null_iter()
+                .for_each(|v| self.y.push(v as f32)),
+            DataType::UInt16 => series
+                .u64()
+                .unwrap()
+                .into_no_null_iter()
+                .for_each(|v| self.y.push(v as f32)),
+            DataType::UInt32 => series
+                .u32()
+                .unwrap()
+                .into_no_null_iter()
+                .for_each(|v| self.y.push(v as f32)),
+            DataType::UInt64 => series
+                .u64()
+                .unwrap()
+                .into_no_null_iter()
+                .for_each(|v| self.y.push(v as f32)),
+            DataType::Int8 => series
+                .i8()
+                .unwrap()
+                .into_no_null_iter()
+                .for_each(|v| self.y.push(v as f32)),
+            DataType::Int16 => series
+                .i16()
+                .unwrap()
+                .into_no_null_iter()
+                .for_each(|v| self.y.push(v as f32)),
+            DataType::Int32 => series
+                .i32()
+                .unwrap()
+                .into_no_null_iter()
+                .for_each(|v| self.y.push(v as f32)),
+            DataType::Int64 => series
+                .i64()
+                .unwrap()
+                .into_no_null_iter()
+                .for_each(|v| self.y.push(v as f32)),
+            DataType::Float32 => series
+                .f32()
+                .unwrap()
+                .into_no_null_iter()
+                .for_each(|v| self.y.push(v as f32)),
+            DataType::Float64 => series
+                .f64()
+                .unwrap()
+                .into_no_null_iter()
+                .for_each(|v| self.y.push(v as f32)),
+            DataType::Utf8 => {
+                panic!("Text data encountered")
+            }
+            DataType::Date => {
+                panic!("No idea how to handle dates or times yet")
+            }
+            DataType::Datetime => {
+                panic!("No idea how to handle dates or times yet")
+            }
+            DataType::Time => {
+                panic!("No idea how to handle dates or times yet")
+            }
+            DataType::List(_) => {
+                panic!("Super weird failure")
+            }
+            DataType::Null => panic!("Null data encountered"),
+
+            DataType::Categorical => panic!("Categorical data is bad mmk"),
+            _ => panic!("Object encountered?"),
+        }
+
+        // Get the rest of the data
+        let features = df.drop(target_column_name).unwrap();
+        let (height, width) = features.shape();
+        let ndarray = features.to_ndarray::<Float32Type>().unwrap();
+        self.x = DenseMatrix::from_array(height, width, ndarray.as_slice().unwrap());
     }
 
     /// Add a dataset to regressor object
