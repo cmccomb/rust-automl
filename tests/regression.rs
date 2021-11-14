@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod regression_tests {
     #[test]
-    fn test_with_default_settings() {
-        use automl::regression::{compare_models, Metric, Regressor, Settings};
+    fn test_step_by_step() {
+        use automl::regression::{Algorithm, Metric, Regressor, Settings};
         use smartcore::svm::svr::SVRParameters;
         use smartcore::{
             dataset::diabetes::load_dataset, linalg::naive::dense_matrix::DenseMatrix,
@@ -10,18 +10,55 @@ mod regression_tests {
         };
 
         // Check training
-        let data = load_dataset();
+        let dataset = load_dataset();
+        let x = DenseMatrix::from_array(dataset.num_samples, dataset.num_features, &dataset.data);
+        let y = dataset.target;
+
+        // Set up the regressor settings and load data
         let settings = Settings::default()
-            .sorted_by(automl::regression::Metric::MeanSquaredError)
+            .sorted_by(Metric::MeanSquaredError)
             .with_svr_settings(SVRParameters::default().with_eps(2.0).with_c(10.0))
-            .skip(vec![Regressor::ElasticNet]);
-        let results = compare_models(data, settings);
+            .skip(vec![Algorithm::ElasticNet]);
+        let mut regressor = Regressor::new(settings);
+        regressor.with_data(x, y);
 
-        print!("{}", results);
+        // Compare models
+        regressor.compare_models();
+        print!("{}", regressor);
 
-        // Check inference
+        // Train final model
+        regressor.train_final_model();
+
+        // Do inference with final model
         let x = DenseMatrix::from_2d_array(&[&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]]);
+        print!("{:?}", regressor.predict(&x));
+    }
 
-        print!("{:?}", results.predict_with_best_model(&x));
+    #[test]
+    fn test_auto() {
+        use automl::regression::{Algorithm, Metric, Regressor, Settings};
+        use smartcore::svm::svr::SVRParameters;
+        use smartcore::{
+            dataset::diabetes::load_dataset, linalg::naive::dense_matrix::DenseMatrix,
+            model_selection::train_test_split,
+        };
+
+        // Check training
+        let dataset = load_dataset();
+        let x = DenseMatrix::from_array(dataset.num_samples, dataset.num_features, &dataset.data);
+        let y = dataset.target;
+
+        // Set up the regressor settings and load data
+        let settings = Settings::default()
+            .sorted_by(Metric::MeanSquaredError)
+            .with_svr_settings(SVRParameters::default().with_eps(2.0).with_c(10.0))
+            .skip(vec![Algorithm::ElasticNet]);
+
+        // Compare models
+        let regressor = Regressor::auto(settings, x, y);
+
+        // Do inference with final model
+        let x = DenseMatrix::from_2d_array(&[&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]]);
+        print!("{:?}", regressor.predict(&x));
     }
 }

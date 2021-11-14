@@ -11,10 +11,12 @@ and provides some utilities to quickly train and compare models.
 For instance, running the following:
 ```rust
 fn main() {
-  let data = smartcore::dataset::diabetes::load_dataset();
+  let dataset = smartcore::dataset::diabetes::load_dataset();
   let settings = automl::regression::Settings::default();
-  let results = automl::regression::compare_models(data, settings);
-  print!("{}", results);
+  let mut regressor = automl::regression::Regressor::new(settings);
+  regressor.with_dataset(dataset);
+  regressor.compare_models();
+  print!("{}", regressor);
 }
 ```
 Will output this:

@@ -1,6 +1,6 @@
 //! Auto-ML for regression models
 
-use super::traits::Classifier;
+use super::traits::ValidClassifier;
 use comfy_table::{modifiers::UTF8_SOLID_INNER_BORDERS, presets::UTF8_FULL, Table};
 use smartcore::{
     dataset::Dataset,

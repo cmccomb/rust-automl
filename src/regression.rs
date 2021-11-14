@@ -1,6 +1,7 @@
 //! Auto-ML for regression models
 
 use super::traits::ValidRegressor;
+use crate::regression::Algorithm::Ridge;
 use comfy_table::{modifiers::UTF8_SOLID_INNER_BORDERS, presets::UTF8_FULL, Table};
 use smartcore::{
     dataset::Dataset,
@@ -27,124 +28,6 @@ use smartcore::{
 use std::cmp::Ordering::Equal;
 use std::fmt::{Display, Formatter};
 
-/// This is the output from a model comparison operation
-pub struct ComparisonResults {
-    results: Vec<Model>,
-    sort_by: Metric,
-}
-
-impl ComparisonResults {
-    /// Uses the best model to make a prediction
-    pub fn predict_with_best_model(&self, x: &DenseMatrix<f32>) -> Vec<f32> {
-        match self.results[0].name.as_str() {
-            "Linear Regressor" => {
-                let model: LinearRegression<f32, DenseMatrix<f32>> =
-                    bincode::deserialize(&*self.results[0].model).unwrap();
-                model.predict(x).unwrap()
-            }
-            "LASSO Regressor" => {
-                let model: Lasso<f32, DenseMatrix<f32>> =
-                    bincode::deserialize(&*self.results[0].model).unwrap();
-                model.predict(x).unwrap()
-            }
-            "Ridge Regressor" => {
-                let model: RidgeRegression<f32, DenseMatrix<f32>> =
-                    bincode::deserialize(&*self.results[0].model).unwrap();
-                model.predict(x).unwrap()
-            }
-            "Elastic Net Regressor" => {
-                let model: ElasticNet<f32, DenseMatrix<f32>> =
-                    bincode::deserialize(&*self.results[0].model).unwrap();
-                model.predict(x).unwrap()
-            }
-            "Random Forest Regressor" => {
-                let model: RandomForestRegressor<f32> =
-                    bincode::deserialize(&*self.results[0].model).unwrap();
-                model.predict(x).unwrap()
-            }
-            "KNN Regressor" => {
-                let model: KNNRegressor<f32, Euclidian> =
-                    bincode::deserialize(&*self.results[0].model).unwrap();
-                model.predict(x).unwrap()
-            }
-            "Support Vector Regressor" => {
-                let model: SVR<f32, DenseMatrix<f32>, LinearKernel> =
-                    bincode::deserialize(&*self.results[0].model).unwrap();
-                model.predict(x).unwrap()
-            }
-            "Decision Tree Regressor" => {
-                let model: DecisionTreeRegressor<f32> =
-                    bincode::deserialize(&*self.results[0].model).unwrap();
-                model.predict(x).unwrap()
-            }
-            &_ => panic!("Unable to predict"),
-        }
-    }
-
-    /// Returns a serialized version of the best model
-    pub fn get_best_model(&self) -> Vec<u8> {
-        self.results[0].model.clone()
-    }
-
-    fn add_model(&mut self, name: String, y_test: &Vec<f32>, y_pred: &Vec<f32>, model: Vec<u8>) {
-        self.results.push(Model {
-            model,
-            r_squared: R2 {}.get_score(y_test, y_pred),
-            mean_absolute_error: MeanAbsoluteError {}.get_score(y_test, y_pred),
-            mean_squared_error: MeanSquareError {}.get_score(y_test, y_pred),
-            name,
-        });
-        self.sort()
-    }
-
-    fn sort(&mut self) {
-        match self.sort_by {
-            Metric::RSquared => {
-                self.results
-                    .sort_by(|a, b| b.r_squared.partial_cmp(&a.r_squared).unwrap_or(Equal));
-            }
-            Metric::MeanSquaredError => {
-                self.results.sort_by(|a, b| {
-                    a.mean_squared_error
-                        .partial_cmp(&b.mean_squared_error)
-                        .unwrap_or(Equal)
-                });
-            }
-            Metric::MeanAbsoluteError => {
-                self.results.sort_by(|a, b| {
-                    a.mean_absolute_error
-                        .partial_cmp(&b.mean_absolute_error)
-                        .unwrap_or(Equal)
-                });
-            }
-        }
-    }
-    fn new(sort_by: Metric) -> Self {
-        Self {
-            results: Vec::new(),
-            sort_by,
-        }
-    }
-}
-
-impl Display for ComparisonResults {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let mut table = Table::new();
-        table.load_preset(UTF8_FULL);
-        table.apply_modifier(UTF8_SOLID_INNER_BORDERS);
-        table.set_header(vec!["Model", "R^2", "MSE", "MAE"]);
-        for model_results in &self.results {
-            table.add_row(vec![
-                format!("{}", &model_results.name),
-                format!("{:.3}", &model_results.r_squared),
-                format!("{:.3e}", &model_results.mean_squared_error),
-                format!("{:.3e}", &model_results.mean_absolute_error),
-            ]);
-        }
-        write!(f, "{}\n", table)
-    }
-}
-
 /// An enum for sorting
 #[non_exhaustive]
 pub enum Metric {
@@ -158,7 +41,7 @@ pub enum Metric {
 
 /// An enum containing regression algorithms
 #[derive(PartialEq)]
-pub enum Regressor {
+pub enum Algorithm {
     /// Decision tree regressor
     DecisionTree,
     /// KNN Regressor
@@ -171,15 +54,308 @@ pub enum Regressor {
     Ridge,
     /// Lasso regressor
     Lasso,
-    /// Elastic net regresso
+    /// Elastic net regressor
     ElasticNet,
     /// Support vector regressor
     SupportVector,
 }
 
+/// This is the output from a model comparison operation
+pub struct Regressor {
+    settings: Settings,
+    x: DenseMatrix<f32>,
+    y: Vec<f32>,
+    comparison: Vec<Model>,
+    final_model: Vec<u8>,
+}
+
+impl Regressor {
+    /// [Zhu Li, do the thing!](https://www.youtube.com/watch?v=mofRHlO1E_A)
+    pub fn auto(settings: Settings, x: DenseMatrix<f32>, y: Vec<f32>) -> Self {
+        let mut regressor = Self::new(settings);
+        regressor.with_data(x, y);
+        regressor.compare_models();
+        regressor.train_final_model();
+        regressor
+    }
+
+    /// Predict values using the best model
+    pub fn predict(&self, x: &DenseMatrix<f32>) -> Vec<f32> {
+        match self.comparison[0].name.as_str() {
+            "Linear Regressor" => {
+                let model: LinearRegression<f32, DenseMatrix<f32>> =
+                    bincode::deserialize(&*self.final_model).unwrap();
+                model.predict(x).unwrap()
+            }
+            "LASSO Regressor" => {
+                let model: Lasso<f32, DenseMatrix<f32>> =
+                    bincode::deserialize(&*self.final_model).unwrap();
+                model.predict(x).unwrap()
+            }
+            "Ridge Regressor" => {
+                let model: RidgeRegression<f32, DenseMatrix<f32>> =
+                    bincode::deserialize(&*self.final_model).unwrap();
+                model.predict(x).unwrap()
+            }
+            "Elastic Net Regressor" => {
+                let model: ElasticNet<f32, DenseMatrix<f32>> =
+                    bincode::deserialize(&*self.final_model).unwrap();
+                model.predict(x).unwrap()
+            }
+            "Random Forest Regressor" => {
+                let model: RandomForestRegressor<f32> =
+                    bincode::deserialize(&*self.final_model).unwrap();
+                model.predict(x).unwrap()
+            }
+            "KNN Regressor" => {
+                let model: KNNRegressor<f32, Euclidian> =
+                    bincode::deserialize(&*self.final_model).unwrap();
+                model.predict(x).unwrap()
+            }
+            "Support Vector Regressor" => {
+                let model: SVR<f32, DenseMatrix<f32>, LinearKernel> =
+                    bincode::deserialize(&*self.final_model).unwrap();
+                model.predict(x).unwrap()
+            }
+            "Decision Tree Regressor" => {
+                let model: DecisionTreeRegressor<f32> =
+                    bincode::deserialize(&*self.final_model).unwrap();
+                model.predict(x).unwrap()
+            }
+            &_ => panic!("Unable to predict"),
+        }
+    }
+
+    /// Uses the best model to make a prediction
+    pub fn train_final_model(&mut self) {
+        match self.comparison[0].name.as_str() {
+            "Linear Regressor" => {
+                self.final_model = bincode::serialize(
+                    &LinearRegression::fit(&self.x, &self.y, self.settings.linear_settings.clone())
+                        .unwrap(),
+                )
+                .unwrap()
+            }
+            "LASSO Regressor" => {
+                self.final_model = bincode::serialize(
+                    &Lasso::fit(&self.x, &self.y, self.settings.lasso_settings.clone()).unwrap(),
+                )
+                .unwrap()
+            }
+            "Ridge Regressor" => {
+                self.final_model = bincode::serialize(
+                    &RidgeRegression::fit(&self.x, &self.y, self.settings.ridge_settings.clone())
+                        .unwrap(),
+                )
+                .unwrap()
+            }
+            "Elastic Net Regressor" => {
+                self.final_model = bincode::serialize(
+                    &ElasticNet::fit(&self.x, &self.y, self.settings.elastic_net_settings.clone())
+                        .unwrap(),
+                )
+                .unwrap()
+            }
+            "Random Forest Regressor" => {
+                self.final_model = bincode::serialize(
+                    &RandomForestRegressor::fit(
+                        &self.x,
+                        &self.y,
+                        self.settings.random_forest_settings.clone(),
+                    )
+                    .unwrap(),
+                )
+                .unwrap()
+            }
+            "KNN Regressor" => {
+                self.final_model = bincode::serialize(
+                    &KNNRegressor::fit(&self.x, &self.y, self.settings.knn_settings.clone())
+                        .unwrap(),
+                )
+                .unwrap()
+            }
+            "Support Vector Regressor" => {
+                self.final_model = bincode::serialize(
+                    &SVR::fit(&self.x, &self.y, self.settings.svr_settings.clone()).unwrap(),
+                )
+                .unwrap()
+            }
+            "Decision Tree Regressor" => {
+                self.final_model = bincode::serialize(
+                    &DecisionTreeRegressor::fit(
+                        &self.x,
+                        &self.y,
+                        self.settings.decision_tree_settings.clone(),
+                    )
+                    .unwrap(),
+                )
+                .unwrap()
+            }
+            &_ => panic!("Unable to predict"),
+        }
+    }
+
+    /// Returns a serialized version of the best model
+    pub fn get_best_model(&self) -> Vec<u8> {
+        self.final_model.clone()
+    }
+
+    fn add_model(&mut self, name: String, y_test: &Vec<f32>, y_pred: &Vec<f32>) {
+        self.comparison.push(Model {
+            r_squared: R2 {}.get_score(y_test, y_pred),
+            mean_absolute_error: MeanAbsoluteError {}.get_score(y_test, y_pred),
+            mean_squared_error: MeanSquareError {}.get_score(y_test, y_pred),
+            name,
+        });
+        self.sort()
+    }
+
+    fn sort(&mut self) {
+        match self.settings.sort_by {
+            Metric::RSquared => {
+                self.comparison
+                    .sort_by(|a, b| b.r_squared.partial_cmp(&a.r_squared).unwrap_or(Equal));
+            }
+            Metric::MeanSquaredError => {
+                self.comparison.sort_by(|a, b| {
+                    a.mean_squared_error
+                        .partial_cmp(&b.mean_squared_error)
+                        .unwrap_or(Equal)
+                });
+            }
+            Metric::MeanAbsoluteError => {
+                self.comparison.sort_by(|a, b| {
+                    a.mean_absolute_error
+                        .partial_cmp(&b.mean_absolute_error)
+                        .unwrap_or(Equal)
+                });
+            }
+        }
+    }
+
+    /// Create a new regressor based on settings
+    pub fn new(settings: Settings) -> Self {
+        Self {
+            settings,
+            x: DenseMatrix::new(0, 0, vec![]),
+            y: vec![],
+            comparison: Vec::new(),
+            final_model: vec![],
+        }
+    }
+
+    /// Add data to regressor object
+    pub fn with_data(&mut self, x: DenseMatrix<f32>, y: Vec<f32>) {
+        self.x = x;
+        self.y = y;
+    }
+
+    /// Add a dataset to regressor object
+    pub fn with_dataset(&mut self, dataset: Dataset<f32, f32>) {
+        self.x = DenseMatrix::from_array(dataset.num_samples, dataset.num_features, &dataset.data);
+        self.y = dataset.target;
+    }
+
+    /// This function compares all of the regression models available in the package.
+    pub fn compare_models(&mut self) {
+        let (x_test, x_train, y_test, y_train) = train_test_split(
+            &self.x,
+            &self.y,
+            self.settings.testing_fraction,
+            self.settings.shuffle,
+        );
+
+        if !self.settings.skiplist.contains(&Algorithm::Linear) {
+            let model =
+                LinearRegression::fit(&x_train, &y_train, self.settings.linear_settings.clone())
+                    .unwrap();
+            let y_pred = model.predict(&x_test).unwrap();
+            self.add_model(model.name(), &y_test, &y_pred);
+        }
+
+        if !self.settings.skiplist.contains(&Algorithm::SupportVector) {
+            let model = SVR::fit(&x_train, &y_train, self.settings.svr_settings.clone()).unwrap();
+            let y_pred = model.predict(&x_test).unwrap();
+            self.add_model(model.name(), &y_test, &y_pred);
+        }
+
+        if !self.settings.skiplist.contains(&Algorithm::Lasso) {
+            let model =
+                Lasso::fit(&x_train, &y_train, self.settings.lasso_settings.clone()).unwrap();
+            let y_pred = model.predict(&x_test).unwrap();
+            self.add_model(model.name(), &y_test, &y_pred);
+        }
+
+        if !self.settings.skiplist.contains(&Algorithm::Ridge) {
+            let model =
+                RidgeRegression::fit(&x_train, &y_train, self.settings.ridge_settings.clone())
+                    .unwrap();
+            let y_pred = model.predict(&x_test).unwrap();
+            self.add_model(model.name(), &y_test, &y_pred);
+        }
+
+        if !self.settings.skiplist.contains(&Algorithm::ElasticNet) {
+            let model = ElasticNet::fit(
+                &x_train,
+                &y_train,
+                self.settings.elastic_net_settings.clone(),
+            )
+            .unwrap();
+            let y_pred = model.predict(&x_test).unwrap();
+            self.add_model(model.name(), &y_test, &y_pred);
+        }
+
+        if !self.settings.skiplist.contains(&Algorithm::DecisionTree) {
+            let model = DecisionTreeRegressor::fit(
+                &x_train,
+                &y_train,
+                self.settings.decision_tree_settings.clone(),
+            )
+            .unwrap();
+            let y_pred = model.predict(&x_test).unwrap();
+            self.add_model(model.name(), &y_test, &y_pred);
+        }
+
+        if !self.settings.skiplist.contains(&Algorithm::RandomForest) {
+            let model = RandomForestRegressor::fit(
+                &x_train,
+                &y_train,
+                self.settings.random_forest_settings.clone(),
+            )
+            .unwrap();
+            let y_pred = model.predict(&x_test).unwrap();
+            self.add_model(model.name(), &y_test, &y_pred);
+        }
+
+        if !self.settings.skiplist.contains(&Algorithm::KNN) {
+            let model =
+                KNNRegressor::fit(&x_train, &y_train, self.settings.knn_settings.clone()).unwrap();
+            let y_pred = model.predict(&x_test).unwrap();
+            self.add_model(model.name(), &y_test, &y_pred);
+        }
+    }
+}
+
+impl Display for Regressor {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut table = Table::new();
+        table.load_preset(UTF8_FULL);
+        table.apply_modifier(UTF8_SOLID_INNER_BORDERS);
+        table.set_header(vec!["Model", "R^2", "MSE", "MAE"]);
+        for model in &self.comparison {
+            table.add_row(vec![
+                format!("{}", &model.name),
+                format!("{:.3}", &model.r_squared),
+                format!("{:.3e}", &model.mean_squared_error),
+                format!("{:.3e}", &model.mean_absolute_error),
+            ]);
+        }
+        write!(f, "{}\n", table)
+    }
+}
+
 /// This contains the results of a single model, including the model itself
 struct Model {
-    model: Vec<u8>,
     r_squared: f32,
     mean_absolute_error: f32,
     mean_squared_error: f32,
@@ -189,7 +365,7 @@ struct Model {
 /// The settings artifact for all regressions
 pub struct Settings {
     sort_by: Metric,
-    skiplist: Vec<Regressor>,
+    skiplist: Vec<Algorithm>,
     testing_fraction: f32,
     shuffle: bool,
     linear_settings: LinearRegressionParameters,
@@ -223,7 +399,7 @@ impl Default for Settings {
 
 impl Settings {
     /// Specify algorithms that shouldn't be included in comparison
-    pub fn skip(mut self, skip: Vec<Regressor>) -> Self {
+    pub fn skip(mut self, skip: Vec<Algorithm>) -> Self {
         self.skiplist = skip;
         self
     }
@@ -290,84 +466,4 @@ impl Settings {
         self.decision_tree_settings = settings;
         self
     }
-}
-
-/// This function compares all of the regression models available in the package.
-/// ```
-/// let data = smartcore::dataset::diabetes::load_dataset();
-/// let settings = automl::regression::Settings::default()
-///     .sorted_by(automl::regression::Metric::MeanSquaredError)
-///     .with_svr_settings(smartcore::svm::svr::SVRParameters::default().with_eps(2.0).with_c(10.0));
-/// let x = automl::regression::compare_models(data, settings);
-/// print!("{}", x);
-/// ```
-pub fn compare_models(dataset: Dataset<f32, f32>, settings: Settings) -> ComparisonResults {
-    let x = DenseMatrix::from_array(dataset.num_samples, dataset.num_features, &dataset.data);
-    // These are our target values
-    let y = dataset.target;
-
-    let (x_test, x_train, y_test, y_train) =
-        train_test_split(&x, &y, settings.testing_fraction, settings.shuffle);
-
-    let mut results = ComparisonResults::new(settings.sort_by);
-
-    if !settings.skiplist.contains(&Regressor::Linear) {
-        let model = LinearRegression::fit(&x_train, &y_train, settings.linear_settings).unwrap();
-        let y_pred = model.predict(&x_test).unwrap();
-        let serial_model = bincode::serialize(&model).unwrap();
-        results.add_model(model.name(), &y_test, &y_pred, serial_model);
-    }
-
-    if !settings.skiplist.contains(&Regressor::SupportVector) {
-        let model = SVR::fit(&x_train, &y_train, settings.svr_settings).unwrap();
-        let y_pred = model.predict(&x_test).unwrap();
-        let serial_model = bincode::serialize(&model).unwrap();
-        results.add_model(model.name(), &y_test, &y_pred, serial_model);
-    }
-
-    if !settings.skiplist.contains(&Regressor::Lasso) {
-        let model = Lasso::fit(&x_train, &y_train, settings.lasso_settings).unwrap();
-        let y_pred = model.predict(&x_test).unwrap();
-        let serial_model = bincode::serialize(&model).unwrap();
-        results.add_model(model.name(), &y_test, &y_pred, serial_model);
-    }
-
-    if !settings.skiplist.contains(&Regressor::Ridge) {
-        let model = RidgeRegression::fit(&x_train, &y_train, settings.ridge_settings).unwrap();
-        let y_pred = model.predict(&x_test).unwrap();
-        let serial_model = bincode::serialize(&model).unwrap();
-        results.add_model(model.name(), &y_test, &y_pred, serial_model);
-    }
-
-    if !settings.skiplist.contains(&Regressor::ElasticNet) {
-        let model = ElasticNet::fit(&x_train, &y_train, settings.elastic_net_settings).unwrap();
-        let y_pred = model.predict(&x_test).unwrap();
-        let serial_model = bincode::serialize(&model).unwrap();
-        results.add_model(model.name(), &y_test, &y_pred, serial_model);
-    }
-
-    if !settings.skiplist.contains(&Regressor::DecisionTree) {
-        let model = DecisionTreeRegressor::fit(&x_train, &y_train, settings.decision_tree_settings)
-            .unwrap();
-        let y_pred = model.predict(&x_test).unwrap();
-        let serial_model = bincode::serialize(&model).unwrap();
-        results.add_model(model.name(), &y_test, &y_pred, serial_model);
-    }
-
-    if !settings.skiplist.contains(&Regressor::RandomForest) {
-        let model = RandomForestRegressor::fit(&x_train, &y_train, settings.random_forest_settings)
-            .unwrap();
-        let y_pred = model.predict(&x_test).unwrap();
-        let serial_model = bincode::serialize(&model).unwrap();
-        results.add_model(model.name(), &y_test, &y_pred, serial_model);
-    }
-
-    if !settings.skiplist.contains(&Regressor::KNN) {
-        let model =
-            KNNRegressor::fit(&x_train, &y_train, KNNRegressorParameters::default()).unwrap();
-        let y_pred = model.predict(&x_test).unwrap();
-        let serial_model = bincode::serialize(&model).unwrap();
-        results.add_model(model.name(), &y_test, &y_pred, serial_model);
-    }
-    results
 }

@@ -64,31 +64,38 @@ impl<T: RealNumber> ValidRegressor for RandomForestRegressor<T> {
     }
 }
 
-pub(crate) trait Classifier {
+pub(crate) trait ValidClassifier {
     fn name(&self) -> String;
 }
-impl<T: RealNumber, M: Matrix<T>> Classifier for LogisticRegression<T, M> {
+impl<T: RealNumber, M: Matrix<T>> ValidClassifier for LogisticRegression<T, M> {
     fn name(&self) -> String {
         "Logistic Regression Classifier".to_string()
     }
 }
-impl<T: RealNumber> Classifier for RandomForestClassifier<T> {
+impl<T: RealNumber> ValidClassifier for RandomForestClassifier<T> {
     fn name(&self) -> String {
         "Random Forest Classifier".to_string()
     }
 }
-impl<T: RealNumber, D: Distance<Vec<T>, T>> Classifier for KNNClassifier<T, D> {
+impl<T: RealNumber, D: Distance<Vec<T>, T>> ValidClassifier for KNNClassifier<T, D> {
     fn name(&self) -> String {
         "KNN Classifier".to_string()
     }
 }
-impl<T: RealNumber> Classifier for DecisionTreeClassifier<T> {
+impl<T: RealNumber> ValidClassifier for DecisionTreeClassifier<T> {
     fn name(&self) -> String {
         "Decision Tree Classifier".to_string()
     }
 }
-impl<T: RealNumber, M: Matrix<T>, K: Kernel<T, M::RowVector>> Classifier for SVC<T, M, K> {
+impl<T: RealNumber, M: Matrix<T>, K: Kernel<T, M::RowVector>> ValidClassifier for SVC<T, M, K> {
     fn name(&self) -> String {
         "Suppport Vector Classifier".to_string()
     }
+}
+
+pub(crate) enum Status {
+    Starting,
+    DataLoaded,
+    ModelsCompared,
+    FinalModelTrained,
 }
