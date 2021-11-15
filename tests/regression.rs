@@ -1,6 +1,16 @@
 #[cfg(test)]
 mod regression_tests {
     #[test]
+    fn the_doc_test() {
+        let dataset = smartcore::dataset::diabetes::load_dataset();
+        let settings = automl::regression::Settings::default();
+        let mut regressor = automl::regression::Regressor::new(settings);
+        regressor.with_dataset(dataset);
+        regressor.compare_models();
+        print!("{}", regressor);
+    }
+
+    #[test]
     fn test_step_by_step() {
         use automl::regression::{Algorithm, Metric, Regressor, Settings};
         use smartcore::svm::svr::SVRParameters;

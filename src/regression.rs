@@ -415,7 +415,7 @@ impl Regressor {
 
             if !self.settings.skiplist.contains(&Algorithm::Lasso) {
                 self.add_model(
-                    Algorithm::Linear,
+                    Algorithm::Lasso,
                     cross_validate(
                         Lasso::fit,
                         &self.x,
