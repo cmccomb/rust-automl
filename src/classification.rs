@@ -221,39 +221,55 @@ impl Classifier {
             self.settings.testing_fraction,
             self.settings.shuffle,
         );
-        // Do the standard linear model
-        let model =
-            LogisticRegression::fit(&x_train, &y_train, self.settings.logistic_settings.clone())
-                .unwrap();
-        let y_pred = model.predict(&x_test).unwrap();
-        self.add_model(Algorithm::LogisticRegression, &y_test, &y_pred);
 
-        // Do the standard linear model
-        let model = RandomForestClassifier::fit(
-            &x_train,
-            &y_train,
-            self.settings.random_forest_settings.clone(),
-        )
-        .unwrap();
-        let y_pred = model.predict(&x_test).unwrap();
-        self.add_model(Algorithm::RandomForest, &y_test, &y_pred);
+        if !self
+            .settings
+            .skiplist
+            .contains(&Algorithm::LogisticRegression)
+        {
+            // Do the standard linear model
+            let model = LogisticRegression::fit(
+                &x_train,
+                &y_train,
+                self.settings.logistic_settings.clone(),
+            )
+            .unwrap();
+            let y_pred = model.predict(&x_test).unwrap();
+            self.add_model(Algorithm::LogisticRegression, &y_test, &y_pred);
+        }
 
-        // Do the standard linear model
-        let model =
-            KNNClassifier::fit(&x_train, &y_train, self.settings.knn_settings.clone()).unwrap();
-        let y_pred = model.predict(&x_test).unwrap();
-        self.add_model(Algorithm::KNN, &y_test, &y_pred);
+        if !self.settings.skiplist.contains(&Algorithm::RandomForest) {
+            // Do the standard linear model
+            let model = RandomForestClassifier::fit(
+                &x_train,
+                &y_train,
+                self.settings.random_forest_settings.clone(),
+            )
+            .unwrap();
+            let y_pred = model.predict(&x_test).unwrap();
+            self.add_model(Algorithm::RandomForest, &y_test, &y_pred);
+        }
 
-        let model = DecisionTreeClassifier::fit(
-            &x_train,
-            &y_train,
-            self.settings.decision_tree_settings.clone(),
-        )
-        .unwrap();
-        let y_pred = model.predict(&x_test).unwrap();
-        self.add_model(Algorithm::DecisionTree, &y_test, &y_pred);
+        if !self.settings.skiplist.contains(&Algorithm::KNN) {
+            // Do the standard linear model
+            let model =
+                KNNClassifier::fit(&x_train, &y_train, self.settings.knn_settings.clone()).unwrap();
+            let y_pred = model.predict(&x_test).unwrap();
+            self.add_model(Algorithm::KNN, &y_test, &y_pred);
+        }
 
-        if self.number_of_classes == 2 {
+        if !self.settings.skiplist.contains(&Algorithm::DecisionTree) {
+            let model = DecisionTreeClassifier::fit(
+                &x_train,
+                &y_train,
+                self.settings.decision_tree_settings.clone(),
+            )
+            .unwrap();
+            let y_pred = model.predict(&x_test).unwrap();
+            self.add_model(Algorithm::DecisionTree, &y_test, &y_pred);
+        }
+
+        if self.number_of_classes == 2 && !self.settings.skiplist.contains(&Algorithm::SVC) {
             let model = SVC::fit(&x_train, &y_train, self.settings.svc_settings.clone()).unwrap();
             let y_pred = model.predict(&x_test).unwrap();
             self.add_model(Algorithm::SVC, &y_test, &y_pred);
@@ -285,6 +301,7 @@ struct Model {
 
 /// The settings artifact for all classifications
 pub struct Settings {
+    skiplist: Vec<Algorithm>,
     sort_by: Metric,
     testing_fraction: f32,
     shuffle: bool,
@@ -298,6 +315,7 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Settings {
+            skiplist: vec![],
             sort_by: Metric::Accuracy,
             testing_fraction: 0.3,
             shuffle: true,
@@ -311,6 +329,12 @@ impl Default for Settings {
 }
 
 impl Settings {
+    /// Specify algorithms that shouldn't be included in comparison
+    pub fn skip(mut self, skip: Vec<Algorithm>) -> Self {
+        self.skiplist = skip;
+        self
+    }
+
     /// Adds a specific sorting function to the settings
     pub fn sorted_by(mut self, sort_by: Metric) -> Self {
         self.sort_by = sort_by;
