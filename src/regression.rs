@@ -2,8 +2,13 @@
 
 use super::traits::{Status, ValidRegressor};
 use crate::regression::Algorithm::Ridge;
+use comfy_table::modifiers::UTF8_ROUND_CORNERS;
 use comfy_table::{modifiers::UTF8_SOLID_INNER_BORDERS, presets::UTF8_FULL, Table};
 use polars::prelude::*;
+use smartcore::linalg::Matrix;
+use smartcore::math::num::RealNumber;
+use smartcore::metrics;
+use smartcore::model_selection::{CrossValidationResult, KFold};
 use smartcore::{
     dataset::Dataset,
     ensemble::random_forest_regressor::{RandomForestRegressor, RandomForestRegressorParameters},
@@ -15,10 +20,8 @@ use smartcore::{
         ridge_regression::{RidgeRegression, RidgeRegressionParameters},
     },
     math::distance::euclidian::Euclidian,
-    metrics::{
-        mean_absolute_error::MeanAbsoluteError, mean_squared_error::MeanSquareError, r2::R2,
-    },
-    model_selection::train_test_split,
+    metrics::{mean_absolute_error, mean_squared_error, r2},
+    model_selection::cross_validate,
     neighbors::knn_regressor::{KNNRegressor, KNNRegressorParameters},
     svm::{
         svr::{SVRParameters, SVR},
@@ -31,6 +34,7 @@ use std::fmt::{Display, Formatter};
 
 /// An enum for sorting
 #[non_exhaustive]
+#[derive(PartialEq)]
 pub enum Metric {
     /// Sort by R^2
     RSquared,
@@ -38,6 +42,16 @@ pub enum Metric {
     MeanAbsoluteError,
     /// Sort by MSE
     MeanSquaredError,
+}
+
+impl Display for Metric {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Metric::RSquared => write!(f, "R^2"),
+            Metric::MeanAbsoluteError => write!(f, "MAE"),
+            Metric::MeanSquaredError => write!(f, "MSE"),
+        }
+    }
 }
 
 /// An enum containing possible regression algorithms
@@ -215,36 +229,20 @@ impl Regressor {
         self.final_model.clone()
     }
 
-    fn add_model(&mut self, name: Algorithm, y_test: &Vec<f32>, y_pred: &Vec<f32>) {
-        self.comparison.push(Model {
-            r_squared: R2 {}.get_score(y_test, y_pred),
-            mean_absolute_error: MeanAbsoluteError {}.get_score(y_test, y_pred),
-            mean_squared_error: MeanSquareError {}.get_score(y_test, y_pred),
-            name,
-        });
+    fn add_model(&mut self, name: Algorithm, score: CrossValidationResult<f32>) {
+        self.comparison.push(Model { score, name });
         self.sort()
     }
 
     fn sort(&mut self) {
-        match self.settings.sort_by {
-            Metric::RSquared => {
-                self.comparison
-                    .sort_by(|a, b| b.r_squared.partial_cmp(&a.r_squared).unwrap_or(Equal));
-            }
-            Metric::MeanSquaredError => {
-                self.comparison.sort_by(|a, b| {
-                    a.mean_squared_error
-                        .partial_cmp(&b.mean_squared_error)
-                        .unwrap_or(Equal)
-                });
-            }
-            Metric::MeanAbsoluteError => {
-                self.comparison.sort_by(|a, b| {
-                    a.mean_absolute_error
-                        .partial_cmp(&b.mean_absolute_error)
-                        .unwrap_or(Equal)
-                });
-            }
+        self.comparison.sort_by(|a, b| {
+            a.score
+                .mean_test_score()
+                .partial_cmp(&b.score.mean_test_score())
+                .unwrap_or(Equal)
+        });
+        if self.settings.sort_by == Metric::RSquared {
+            self.comparison.reverse();
         }
     }
 
@@ -377,85 +375,156 @@ impl Regressor {
     /// This function compares all of the regression models available in the package.
     pub fn compare_models(&mut self) {
         if self.status == Status::DataLoaded {
-            let (x_test, x_train, y_test, y_train) = train_test_split(
-                &self.x,
-                &self.y,
-                self.settings.testing_fraction,
-                self.settings.shuffle,
-            );
-
             if !self.settings.skiplist.contains(&Algorithm::Linear) {
-                let model = LinearRegression::fit(
-                    &x_train,
-                    &y_train,
-                    self.settings.linear_settings.clone(),
-                )
-                .unwrap();
-                let y_pred = model.predict(&x_test).unwrap();
-                self.add_model(Algorithm::Linear, &y_test, &y_pred);
+                self.add_model(
+                    Algorithm::Linear,
+                    cross_validate(
+                        LinearRegression::fit,
+                        &self.x,
+                        &self.y,
+                        self.settings.linear_settings.clone(),
+                        KFold::default().with_n_splits(3),
+                        match self.settings.sort_by {
+                            Metric::RSquared => r2,
+                            Metric::MeanAbsoluteError => mean_absolute_error,
+                            Metric::MeanSquaredError => mean_squared_error,
+                        },
+                    )
+                    .unwrap(),
+                );
             }
 
             if !self.settings.skiplist.contains(&Algorithm::SVR) {
-                let model =
-                    SVR::fit(&x_train, &y_train, self.settings.svr_settings.clone()).unwrap();
-                let y_pred = model.predict(&x_test).unwrap();
-                self.add_model(Algorithm::SVR, &y_test, &y_pred);
+                self.add_model(
+                    Algorithm::SVR,
+                    cross_validate(
+                        SVR::fit,
+                        &self.x,
+                        &self.y,
+                        self.settings.svr_settings.clone(),
+                        KFold::default().with_n_splits(3),
+                        match self.settings.sort_by {
+                            Metric::RSquared => r2,
+                            Metric::MeanAbsoluteError => mean_absolute_error,
+                            Metric::MeanSquaredError => mean_squared_error,
+                        },
+                    )
+                    .unwrap(),
+                );
             }
 
             if !self.settings.skiplist.contains(&Algorithm::Lasso) {
-                let model =
-                    Lasso::fit(&x_train, &y_train, self.settings.lasso_settings.clone()).unwrap();
-                let y_pred = model.predict(&x_test).unwrap();
-                self.add_model(Algorithm::Lasso, &y_test, &y_pred);
+                self.add_model(
+                    Algorithm::Linear,
+                    cross_validate(
+                        Lasso::fit,
+                        &self.x,
+                        &self.y,
+                        self.settings.lasso_settings.clone(),
+                        KFold::default().with_n_splits(3),
+                        match self.settings.sort_by {
+                            Metric::RSquared => r2,
+                            Metric::MeanAbsoluteError => mean_absolute_error,
+                            Metric::MeanSquaredError => mean_squared_error,
+                        },
+                    )
+                    .unwrap(),
+                );
             }
 
             if !self.settings.skiplist.contains(&Algorithm::Ridge) {
-                let model =
-                    RidgeRegression::fit(&x_train, &y_train, self.settings.ridge_settings.clone())
-                        .unwrap();
-                let y_pred = model.predict(&x_test).unwrap();
-                self.add_model(Algorithm::Ridge, &y_test, &y_pred);
+                self.add_model(
+                    Algorithm::Ridge,
+                    cross_validate(
+                        RidgeRegression::fit,
+                        &self.x,
+                        &self.y,
+                        self.settings.ridge_settings.clone(),
+                        KFold::default().with_n_splits(3),
+                        match self.settings.sort_by {
+                            Metric::RSquared => r2,
+                            Metric::MeanAbsoluteError => mean_absolute_error,
+                            Metric::MeanSquaredError => mean_squared_error,
+                        },
+                    )
+                    .unwrap(),
+                );
             }
 
             if !self.settings.skiplist.contains(&Algorithm::ElasticNet) {
-                let model = ElasticNet::fit(
-                    &x_train,
-                    &y_train,
-                    self.settings.elastic_net_settings.clone(),
-                )
-                .unwrap();
-                let y_pred = model.predict(&x_test).unwrap();
-                self.add_model(Algorithm::ElasticNet, &y_test, &y_pred);
+                self.add_model(
+                    Algorithm::ElasticNet,
+                    cross_validate(
+                        ElasticNet::fit,
+                        &self.x,
+                        &self.y,
+                        self.settings.elastic_net_settings.clone(),
+                        KFold::default().with_n_splits(3),
+                        match self.settings.sort_by {
+                            Metric::RSquared => r2,
+                            Metric::MeanAbsoluteError => mean_absolute_error,
+                            Metric::MeanSquaredError => mean_squared_error,
+                        },
+                    )
+                    .unwrap(),
+                );
             }
 
             if !self.settings.skiplist.contains(&Algorithm::DecisionTree) {
-                let model = DecisionTreeRegressor::fit(
-                    &x_train,
-                    &y_train,
-                    self.settings.decision_tree_settings.clone(),
-                )
-                .unwrap();
-                let y_pred = model.predict(&x_test).unwrap();
-                self.add_model(Algorithm::DecisionTree, &y_test, &y_pred);
+                self.add_model(
+                    Algorithm::DecisionTree,
+                    cross_validate(
+                        DecisionTreeRegressor::fit,
+                        &self.x,
+                        &self.y,
+                        self.settings.decision_tree_settings.clone(),
+                        KFold::default().with_n_splits(3),
+                        match self.settings.sort_by {
+                            Metric::RSquared => r2,
+                            Metric::MeanAbsoluteError => mean_absolute_error,
+                            Metric::MeanSquaredError => mean_squared_error,
+                        },
+                    )
+                    .unwrap(),
+                );
             }
 
             if !self.settings.skiplist.contains(&Algorithm::RandomForest) {
-                let model = RandomForestRegressor::fit(
-                    &x_train,
-                    &y_train,
-                    self.settings.random_forest_settings.clone(),
-                )
-                .unwrap();
-                let y_pred = model.predict(&x_test).unwrap();
-                self.add_model(Algorithm::RandomForest, &y_test, &y_pred);
+                self.add_model(
+                    Algorithm::RandomForest,
+                    cross_validate(
+                        RandomForestRegressor::fit,
+                        &self.x,
+                        &self.y,
+                        self.settings.random_forest_settings.clone(),
+                        KFold::default().with_n_splits(3),
+                        match self.settings.sort_by {
+                            Metric::RSquared => r2,
+                            Metric::MeanAbsoluteError => mean_absolute_error,
+                            Metric::MeanSquaredError => mean_squared_error,
+                        },
+                    )
+                    .unwrap(),
+                );
             }
 
             if !self.settings.skiplist.contains(&Algorithm::KNN) {
-                let model =
-                    KNNRegressor::fit(&x_train, &y_train, self.settings.knn_settings.clone())
-                        .unwrap();
-                let y_pred = model.predict(&x_test).unwrap();
-                self.add_model(Algorithm::KNN, &y_test, &y_pred);
+                self.add_model(
+                    Algorithm::KNN,
+                    cross_validate(
+                        KNNRegressor::fit,
+                        &self.x,
+                        &self.y,
+                        self.settings.knn_settings.clone(),
+                        KFold::default().with_n_splits(3),
+                        match self.settings.sort_by {
+                            Metric::RSquared => r2,
+                            Metric::MeanAbsoluteError => mean_absolute_error,
+                            Metric::MeanSquaredError => mean_squared_error,
+                        },
+                    )
+                    .unwrap(),
+                );
             }
         } else {
             panic!("You must load data before trying to compare models.")
@@ -468,14 +537,25 @@ impl Display for Regressor {
         let mut table = Table::new();
         table.load_preset(UTF8_FULL);
         table.apply_modifier(UTF8_SOLID_INNER_BORDERS);
-        table.set_header(vec!["Model", "R^2", "MSE", "MAE"]);
+        table.set_header(vec![
+            "Model",
+            &*format!("Training {}", self.settings.sort_by),
+            &*format!("Testing {}", self.settings.sort_by),
+        ]);
         for model in &self.comparison {
-            table.add_row(vec![
-                format!("{}", &model.name),
-                format!("{:.3}", &model.r_squared),
-                format!("{:.3e}", &model.mean_squared_error),
-                format!("{:.3e}", &model.mean_absolute_error),
-            ]);
+            let mut row_vec = vec![];
+            row_vec.push(format!("{}", &model.name));
+            let decider =
+                ((model.score.mean_train_score() + model.score.mean_test_score()) / 2.0).abs();
+            if decider > 0.01 && decider < 1000.0 {
+                row_vec.push(format!("{:.2}", &model.score.mean_train_score()));
+                row_vec.push(format!("{:.2}", &model.score.mean_test_score()));
+            } else {
+                row_vec.push(format!("{:.3e}", &model.score.mean_train_score()));
+                row_vec.push(format!("{:.3e}", &model.score.mean_test_score()));
+            }
+
+            table.add_row(row_vec);
         }
         write!(f, "{}\n", table)
     }
@@ -483,9 +563,7 @@ impl Display for Regressor {
 
 /// This contains the results of a single model
 struct Model {
-    r_squared: f32,
-    mean_absolute_error: f32,
-    mean_squared_error: f32,
+    score: CrossValidationResult<f32>,
     name: Algorithm,
 }
 
@@ -493,7 +571,7 @@ struct Model {
 pub struct Settings {
     sort_by: Metric,
     skiplist: Vec<Algorithm>,
-    testing_fraction: f32,
+    number_of_folds: usize,
     shuffle: bool,
     linear_settings: LinearRegressionParameters,
     svr_settings: SVRParameters<f32, DenseMatrix<f32>, LinearKernel>,
@@ -510,7 +588,7 @@ impl Default for Settings {
         Settings {
             sort_by: Metric::RSquared,
             skiplist: vec![],
-            testing_fraction: 0.3,
+            number_of_folds: 10,
             shuffle: true,
             linear_settings: LinearRegressionParameters::default(),
             svr_settings: SVRParameters::default(),
@@ -525,6 +603,18 @@ impl Default for Settings {
 }
 
 impl Settings {
+    /// Specify number of folds for cross-validation
+    pub fn with_number_of_folds(mut self, n: usize) -> Self {
+        self.number_of_folds = n;
+        self
+    }
+
+    /// Specify whether or not data should be shuffled
+    pub fn shuffle_data(mut self, shuffle: bool) -> Self {
+        self.shuffle = shuffle;
+        self
+    }
+
     /// Specify algorithms that shouldn't be included in comparison
     pub fn skip(mut self, skip: Vec<Algorithm>) -> Self {
         self.skiplist = skip;

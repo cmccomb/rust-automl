@@ -15,13 +15,14 @@ mod regression_tests {
 
         // Set up the regressor settings and load data
         let settings = Settings::default()
-            .sorted_by(Metric::MeanSquaredError)
+            .sorted_by(Metric::MeanAbsoluteError)
             .with_svr_settings(SVRParameters::default().with_eps(2.0).with_c(10.0))
             .skip(vec![Algorithm::ElasticNet]);
         let mut regressor = Regressor::new(settings);
         regressor.with_data(x, y);
 
         // Compare models
+        println!("Comparing models...");
         regressor.compare_models();
         print!("{}", regressor);
 
@@ -81,6 +82,7 @@ mod regression_tests {
 
         regressor.compare_models();
         regressor.train_final_model();
+        println!("{}", regressor);
 
         // Do inference with final model
         let x = DenseMatrix::from_2d_array(&[&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]]);
