@@ -93,6 +93,7 @@ impl<T: RealNumber, M: Matrix<T>, K: Kernel<T, M::RowVector>> ValidClassifier fo
     }
 }
 
+#[derive(PartialEq)]
 pub(crate) enum Status {
     Starting,
     DataLoaded,

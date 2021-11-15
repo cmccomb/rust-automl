@@ -6,7 +6,6 @@ mod regression_tests {
         use smartcore::svm::svr::SVRParameters;
         use smartcore::{
             dataset::diabetes::load_dataset, linalg::naive::dense_matrix::DenseMatrix,
-            model_selection::train_test_split,
         };
 
         // Check training
@@ -40,7 +39,6 @@ mod regression_tests {
         use smartcore::svm::svr::SVRParameters;
         use smartcore::{
             dataset::diabetes::load_dataset, linalg::naive::dense_matrix::DenseMatrix,
-            model_selection::train_test_split,
         };
 
         // Check training
@@ -68,7 +66,6 @@ mod regression_tests {
         use smartcore::svm::svr::SVRParameters;
         use smartcore::{
             dataset::diabetes::load_dataset, linalg::naive::dense_matrix::DenseMatrix,
-            model_selection::train_test_split,
         };
 
         let file_name = "data/diabetes.csv";

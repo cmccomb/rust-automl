@@ -22,18 +22,265 @@ use smartcore::{
 use std::cmp::Ordering::Equal;
 use std::fmt::{Display, Formatter};
 
-/// This contains the results of a single model, including the model itself
-pub struct Model {
-    model: Vec<u8>,
-    accuracy: f32,
-    name: String,
-}
-
 /// An enum for sorting
 #[non_exhaustive]
 pub enum Metric {
     /// Sort by accuracy
     Accuracy,
+}
+
+/// An enum containing possible  classification algorithms
+#[derive(PartialEq)]
+pub enum Algorithm {
+    /// Decision tree classifier
+    DecisionTree,
+    /// KNN classifier
+    KNN,
+    /// Random forest classifier
+    RandomForest,
+    /// Support vector classifier
+    SVC,
+    /// Logistic regression classifier
+    LogisticRegression,
+}
+
+impl Display for Algorithm {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Algorithm::DecisionTree => write!(f, "Decision Tree Classifier"),
+            Algorithm::KNN => write!(f, "KNN Classifier"),
+            Algorithm::RandomForest => write!(f, "Random Forest Classifier"),
+            Algorithm::LogisticRegression => write!(f, "Logistic Regression Classifier"),
+            Algorithm::SVC => write!(f, "Support Vector Classifier"),
+        }
+    }
+}
+
+/// This is the output from a model comparison operation
+pub struct Classifier {
+    settings: Settings,
+    x: DenseMatrix<f32>,
+    y: Vec<f32>,
+    comparison: Vec<Model>,
+    final_model: Vec<u8>,
+    number_of_classes: usize,
+}
+
+impl Classifier {
+    /// [Zhu Li, do the thing!](https://www.youtube.com/watch?v=mofRHlO1E_A)
+    pub fn auto(settings: Settings, x: DenseMatrix<f32>, y: Vec<f32>) -> Self {
+        let mut classifier = Self::new(settings);
+        classifier.with_data(x, y);
+        classifier.compare_models();
+        classifier.train_final_model();
+        classifier
+    }
+
+    /// Predict values using the best model
+    pub fn predict(&self, x: &DenseMatrix<f32>) -> Vec<f32> {
+        match self.comparison[0].name {
+            Algorithm::LogisticRegression => {
+                let model: LogisticRegression<f32, DenseMatrix<f32>> =
+                    bincode::deserialize(&*self.final_model).unwrap();
+                model.predict(x).unwrap()
+            }
+            Algorithm::RandomForest => {
+                let model: RandomForestClassifier<f32> =
+                    bincode::deserialize(&*self.final_model).unwrap();
+                model.predict(x).unwrap()
+            }
+            Algorithm::DecisionTree => {
+                let model: DecisionTreeClassifier<f32> =
+                    bincode::deserialize(&*self.final_model).unwrap();
+                model.predict(x).unwrap()
+            }
+            Algorithm::KNN => {
+                let model: KNNClassifier<f32, Euclidian> =
+                    bincode::deserialize(&*self.final_model).unwrap();
+                model.predict(x).unwrap()
+            }
+            Algorithm::SVC => {
+                let model: SVC<f32, DenseMatrix<f32>, LinearKernel> =
+                    bincode::deserialize(&*self.final_model).unwrap();
+                model.predict(x).unwrap()
+            }
+        }
+    }
+
+    /// Trains the best model found during comparison
+    pub fn train_final_model(&mut self) {
+        match self.comparison[0].name {
+            Algorithm::LogisticRegression => {
+                self.final_model = bincode::serialize(
+                    &LogisticRegression::fit(
+                        &self.x,
+                        &self.y,
+                        self.settings.logistic_settings.clone(),
+                    )
+                    .unwrap(),
+                )
+                .unwrap()
+            }
+            Algorithm::KNN => {
+                self.final_model = bincode::serialize(
+                    &KNNClassifier::fit(&self.x, &self.y, self.settings.knn_settings.clone())
+                        .unwrap(),
+                )
+                .unwrap()
+            }
+            Algorithm::RandomForest => {
+                self.final_model = bincode::serialize(
+                    &RandomForestClassifier::fit(
+                        &self.x,
+                        &self.y,
+                        self.settings.random_forest_settings.clone(),
+                    )
+                    .unwrap(),
+                )
+                .unwrap()
+            }
+            Algorithm::DecisionTree => {
+                self.final_model = bincode::serialize(
+                    &DecisionTreeClassifier::fit(
+                        &self.x,
+                        &self.y,
+                        self.settings.decision_tree_settings.clone(),
+                    )
+                    .unwrap(),
+                )
+                .unwrap()
+            }
+            Algorithm::SVC => {
+                self.final_model = bincode::serialize(
+                    &SVC::fit(&self.x, &self.y, self.settings.svc_settings.clone()).unwrap(),
+                )
+                .unwrap()
+            }
+        }
+    }
+
+    /// Returns a serialized version of the best model
+    pub fn get_best_model(&self) -> Vec<u8> {
+        self.final_model.clone()
+    }
+
+    fn add_model(&mut self, name: Algorithm, y_test: &Vec<f32>, y_pred: &Vec<f32>) {
+        self.comparison.push(Model {
+            accuracy: Accuracy {}.get_score(y_test, y_pred),
+            name,
+        });
+        self.sort()
+    }
+
+    fn sort(&mut self) {
+        match self.settings.sort_by {
+            Metric::Accuracy => {
+                self.comparison
+                    .sort_by(|a, b| b.accuracy.partial_cmp(&a.accuracy).unwrap_or(Equal));
+            }
+        }
+    }
+
+    pub fn new(settings: Settings) -> Self {
+        Self {
+            settings,
+            x: DenseMatrix::new(0, 0, vec![]),
+            y: vec![],
+            comparison: vec![],
+            final_model: vec![],
+            number_of_classes: 0,
+        }
+    }
+
+    /// Add data to regressor object
+    pub fn with_data(&mut self, x: DenseMatrix<f32>, y: Vec<f32>) {
+        self.x = x;
+        self.y = y;
+        self.count_classes();
+    }
+
+    /// Add a dataset to regressor object
+    pub fn with_dataset(&mut self, dataset: Dataset<f32, f32>) {
+        self.x = DenseMatrix::from_array(dataset.num_samples, dataset.num_features, &dataset.data);
+        self.y = dataset.target;
+        self.count_classes();
+    }
+
+    fn count_classes(&mut self) {
+        let mut sorted_targets = self.y.clone();
+        sorted_targets.sort_by(|a, b| a.partial_cmp(&b).unwrap_or(Equal));
+        sorted_targets.dedup();
+        self.number_of_classes = sorted_targets.len();
+    }
+
+    /// This function compares all of the classification models available in the package.
+    pub fn compare_models(&mut self) {
+        let (x_test, x_train, y_test, y_train) = train_test_split(
+            &self.x,
+            &self.y,
+            self.settings.testing_fraction,
+            self.settings.shuffle,
+        );
+        // Do the standard linear model
+        let model =
+            LogisticRegression::fit(&x_train, &y_train, self.settings.logistic_settings.clone())
+                .unwrap();
+        let y_pred = model.predict(&x_test).unwrap();
+        self.add_model(Algorithm::LogisticRegression, &y_test, &y_pred);
+
+        // Do the standard linear model
+        let model = RandomForestClassifier::fit(
+            &x_train,
+            &y_train,
+            self.settings.random_forest_settings.clone(),
+        )
+        .unwrap();
+        let y_pred = model.predict(&x_test).unwrap();
+        self.add_model(Algorithm::RandomForest, &y_test, &y_pred);
+
+        // Do the standard linear model
+        let model =
+            KNNClassifier::fit(&x_train, &y_train, self.settings.knn_settings.clone()).unwrap();
+        let y_pred = model.predict(&x_test).unwrap();
+        self.add_model(Algorithm::KNN, &y_test, &y_pred);
+
+        let model = DecisionTreeClassifier::fit(
+            &x_train,
+            &y_train,
+            self.settings.decision_tree_settings.clone(),
+        )
+        .unwrap();
+        let y_pred = model.predict(&x_test).unwrap();
+        self.add_model(Algorithm::DecisionTree, &y_test, &y_pred);
+
+        if self.number_of_classes == 2 {
+            let model = SVC::fit(&x_train, &y_train, self.settings.svc_settings.clone()).unwrap();
+            let y_pred = model.predict(&x_test).unwrap();
+            self.add_model(Algorithm::SVC, &y_test, &y_pred);
+        }
+    }
+}
+
+impl Display for Classifier {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut table = Table::new();
+        table.load_preset(UTF8_FULL);
+        table.apply_modifier(UTF8_SOLID_INNER_BORDERS);
+        table.set_header(vec!["Model", "Accuracy"]);
+        for model in &self.comparison {
+            table.add_row(vec![
+                format!("{}", &model.name),
+                format!("{}", model.accuracy),
+            ]);
+        }
+        write!(f, "{}\n", table)
+    }
+}
+
+/// This contains the results of a single model
+struct Model {
+    accuracy: f32,
+    name: Algorithm,
 }
 
 /// The settings artifact for all classifications
@@ -108,147 +355,4 @@ impl Settings {
         self.knn_settings = settings;
         self
     }
-}
-
-/// This is the output from a model comparison operation
-pub struct ComparisonResults {
-    results: Vec<Model>,
-    sort_by: Metric,
-}
-
-impl ComparisonResults {
-    /// Uses the best model to make a prediction
-    pub fn predict_with_best_model(&self, x: &DenseMatrix<f32>) -> Vec<f32> {
-        match self.results[0].name.as_str() {
-            "Logistic Regression Classifier" => {
-                let model: LogisticRegression<f32, DenseMatrix<f32>> =
-                    bincode::deserialize(&*self.results[0].model).unwrap();
-                model.predict(x).unwrap()
-            }
-            "Random Forest Classifier" => {
-                let model: RandomForestClassifier<f32> =
-                    bincode::deserialize(&*self.results[0].model).unwrap();
-                model.predict(x).unwrap()
-            }
-            "Decision Tree Classifier" => {
-                let model: DecisionTreeClassifier<f32> =
-                    bincode::deserialize(&*self.results[0].model).unwrap();
-                model.predict(x).unwrap()
-            }
-            "KNN Classifier" => {
-                let model: KNNClassifier<f32, Euclidian> =
-                    bincode::deserialize(&*self.results[0].model).unwrap();
-                model.predict(x).unwrap()
-            }
-            "Support Vector Classifier" => {
-                let model: SVC<f32, DenseMatrix<f32>, LinearKernel> =
-                    bincode::deserialize(&*self.results[0].model).unwrap();
-                model.predict(x).unwrap()
-            }
-            &_ => panic!("Unable to predict"),
-        }
-    }
-
-    /// Returns a serialized version of the best model
-    pub fn get_best_model(&self) -> Vec<u8> {
-        self.results[0].model.clone()
-    }
-
-    fn add_model(&mut self, name: String, y_test: &Vec<f32>, y_pred: &Vec<f32>, model: Vec<u8>) {
-        self.results.push(Model {
-            model,
-            accuracy: Accuracy {}.get_score(y_test, y_pred),
-            name,
-        });
-        self.sort()
-    }
-
-    fn sort(&mut self) {
-        match self.sort_by {
-            Metric::Accuracy => {
-                self.results
-                    .sort_by(|a, b| b.accuracy.partial_cmp(&a.accuracy).unwrap_or(Equal));
-            }
-        }
-    }
-
-    fn new(sort_by: Metric) -> Self {
-        Self {
-            results: Vec::new(),
-            sort_by,
-        }
-    }
-}
-
-impl Display for ComparisonResults {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let mut table = Table::new();
-        table.load_preset(UTF8_FULL);
-        table.apply_modifier(UTF8_SOLID_INNER_BORDERS);
-        table.set_header(vec!["Model", "Accuracy"]);
-        for model_results in &self.results {
-            table.add_row(vec![
-                format!("{}", &model_results.name),
-                format!("{}", model_results.accuracy),
-            ]);
-        }
-        write!(f, "{}\n", table)
-    }
-}
-
-/// This function compares all of the classification models available in the package.
-/// ```
-/// let data = smartcore::dataset::iris::load_dataset();
-/// let settings = automl::classification::Settings::default();
-/// let x = automl::classification::compare_models(data, settings);
-/// print!("{}", x);
-/// ```
-pub fn compare_models(dataset: Dataset<f32, f32>, settings: Settings) -> ComparisonResults {
-    let x = DenseMatrix::from_array(dataset.num_samples, dataset.num_features, &dataset.data);
-    // These are our target values
-    let y = dataset.target;
-
-    let mut sorted_targets = y.clone();
-    sorted_targets.sort_by(|a, b| a.partial_cmp(&b).unwrap_or(Equal));
-    sorted_targets.dedup();
-    let number_of_classes = sorted_targets.len();
-
-    let (x_test, x_train, y_test, y_train) =
-        train_test_split(&x, &y, settings.testing_fraction, settings.shuffle);
-
-    let mut results = ComparisonResults::new(settings.sort_by);
-
-    // Do the standard linear model
-    let model = LogisticRegression::fit(&x_train, &y_train, settings.logistic_settings).unwrap();
-    let y_pred = model.predict(&x_test).unwrap();
-    let serial_model = bincode::serialize(&model).unwrap();
-    results.add_model(model.name(), &y_test, &y_pred, serial_model);
-
-    // Do the standard linear model
-    let model =
-        RandomForestClassifier::fit(&x_train, &y_train, settings.random_forest_settings).unwrap();
-    let y_pred = model.predict(&x_test).unwrap();
-    let serial_model = bincode::serialize(&model).unwrap();
-    results.add_model(model.name(), &y_test, &y_pred, serial_model);
-
-    // Do the standard linear model
-    let model = KNNClassifier::fit(&x_train, &y_train, settings.knn_settings).unwrap();
-    let y_pred = model.predict(&x_test).unwrap();
-    let serial_model = bincode::serialize(&model).unwrap();
-    results.add_model(model.name(), &y_test, &y_pred, serial_model);
-
-    let model =
-        DecisionTreeClassifier::fit(&x_train, &y_train, settings.decision_tree_settings).unwrap();
-    let y_pred = model.predict(&x_test).unwrap();
-    let serial_model = bincode::serialize(&model).unwrap();
-    results.add_model(model.name(), &y_test, &y_pred, serial_model);
-
-    if number_of_classes == 2 {
-        let model = SVC::fit(&x_train, &y_train, settings.svc_settings).unwrap();
-        let y_pred = model.predict(&x_test).unwrap();
-        let serial_model = bincode::serialize(&model).unwrap();
-        results.add_model(model.name(), &y_test, &y_pred, serial_model);
-    }
-
-    results
 }
