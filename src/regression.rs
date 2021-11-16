@@ -1,14 +1,8 @@
 //! Auto-ML for regression models
 
-use super::traits::{Status, ValidRegressor};
-use crate::regression::Algorithm::Ridge;
-use comfy_table::modifiers::UTF8_ROUND_CORNERS;
+use super::utils::Status;
 use comfy_table::{modifiers::UTF8_SOLID_INNER_BORDERS, presets::UTF8_FULL, Table};
 use polars::prelude::*;
-use smartcore::linalg::Matrix;
-use smartcore::math::num::RealNumber;
-use smartcore::metrics;
-use smartcore::model_selection::{CrossValidationResult, KFold};
 use smartcore::{
     dataset::Dataset,
     ensemble::random_forest_regressor::{RandomForestRegressor, RandomForestRegressorParameters},
@@ -21,7 +15,7 @@ use smartcore::{
     },
     math::distance::euclidian::Euclidian,
     metrics::{mean_absolute_error, mean_squared_error, r2},
-    model_selection::cross_validate,
+    model_selection::{cross_validate, CrossValidationResult, KFold},
     neighbors::knn_regressor::{KNNRegressor, KNNRegressorParameters},
     svm::{
         svr::{SVRParameters, SVR},
@@ -108,6 +102,18 @@ impl Regressor {
         regressor.compare_models();
         regressor.train_final_model();
         regressor
+    }
+
+    /// Create a new regressor based on settings
+    pub fn new(settings: Settings) -> Self {
+        Self {
+            settings,
+            x: DenseMatrix::new(0, 0, vec![]),
+            y: vec![],
+            comparison: vec![],
+            final_model: vec![],
+            status: Status::Starting,
+        }
     }
 
     /// Predict values using the best model
@@ -222,6 +228,8 @@ impl Regressor {
                 .unwrap()
             }
         }
+
+        self.status = Status::FinalModelTrained;
     }
 
     /// Returns a serialized version of the best model
@@ -243,18 +251,6 @@ impl Regressor {
         });
         if self.settings.sort_by == Metric::RSquared {
             self.comparison.reverse();
-        }
-    }
-
-    /// Create a new regressor based on settings
-    pub fn new(settings: Settings) -> Self {
-        Self {
-            settings,
-            x: DenseMatrix::new(0, 0, vec![]),
-            y: vec![],
-            comparison: vec![],
-            final_model: vec![],
-            status: Status::Starting,
         }
     }
 
@@ -383,7 +379,7 @@ impl Regressor {
                         &self.x,
                         &self.y,
                         self.settings.linear_settings.clone(),
-                        KFold::default().with_n_splits(3),
+                        KFold::default().with_n_splits(self.settings.number_of_folds),
                         match self.settings.sort_by {
                             Metric::RSquared => r2,
                             Metric::MeanAbsoluteError => mean_absolute_error,
@@ -402,7 +398,7 @@ impl Regressor {
                         &self.x,
                         &self.y,
                         self.settings.svr_settings.clone(),
-                        KFold::default().with_n_splits(3),
+                        KFold::default().with_n_splits(self.settings.number_of_folds),
                         match self.settings.sort_by {
                             Metric::RSquared => r2,
                             Metric::MeanAbsoluteError => mean_absolute_error,
@@ -421,7 +417,7 @@ impl Regressor {
                         &self.x,
                         &self.y,
                         self.settings.lasso_settings.clone(),
-                        KFold::default().with_n_splits(3),
+                        KFold::default().with_n_splits(self.settings.number_of_folds),
                         match self.settings.sort_by {
                             Metric::RSquared => r2,
                             Metric::MeanAbsoluteError => mean_absolute_error,
@@ -440,7 +436,7 @@ impl Regressor {
                         &self.x,
                         &self.y,
                         self.settings.ridge_settings.clone(),
-                        KFold::default().with_n_splits(3),
+                        KFold::default().with_n_splits(self.settings.number_of_folds),
                         match self.settings.sort_by {
                             Metric::RSquared => r2,
                             Metric::MeanAbsoluteError => mean_absolute_error,
@@ -459,7 +455,7 @@ impl Regressor {
                         &self.x,
                         &self.y,
                         self.settings.elastic_net_settings.clone(),
-                        KFold::default().with_n_splits(3),
+                        KFold::default().with_n_splits(self.settings.number_of_folds),
                         match self.settings.sort_by {
                             Metric::RSquared => r2,
                             Metric::MeanAbsoluteError => mean_absolute_error,
@@ -478,7 +474,7 @@ impl Regressor {
                         &self.x,
                         &self.y,
                         self.settings.decision_tree_settings.clone(),
-                        KFold::default().with_n_splits(3),
+                        KFold::default().with_n_splits(self.settings.number_of_folds),
                         match self.settings.sort_by {
                             Metric::RSquared => r2,
                             Metric::MeanAbsoluteError => mean_absolute_error,
@@ -497,7 +493,7 @@ impl Regressor {
                         &self.x,
                         &self.y,
                         self.settings.random_forest_settings.clone(),
-                        KFold::default().with_n_splits(3),
+                        KFold::default().with_n_splits(self.settings.number_of_folds),
                         match self.settings.sort_by {
                             Metric::RSquared => r2,
                             Metric::MeanAbsoluteError => mean_absolute_error,
@@ -516,7 +512,7 @@ impl Regressor {
                         &self.x,
                         &self.y,
                         self.settings.knn_settings.clone(),
-                        KFold::default().with_n_splits(3),
+                        KFold::default().with_n_splits(self.settings.number_of_folds),
                         match self.settings.sort_by {
                             Metric::RSquared => r2,
                             Metric::MeanAbsoluteError => mean_absolute_error,
@@ -526,6 +522,7 @@ impl Regressor {
                     .unwrap(),
                 );
             }
+            self.status = Status::ModelsCompared;
         } else {
             panic!("You must load data before trying to compare models.")
         }
@@ -558,6 +555,19 @@ impl Display for Regressor {
             table.add_row(row_vec);
         }
         write!(f, "{}\n", table)
+    }
+}
+
+impl Default for Regressor {
+    fn default() -> Self {
+        Self {
+            settings: Default::default(),
+            x: DenseMatrix::new(0, 0, vec![]),
+            y: vec![],
+            comparison: vec![],
+            final_model: vec![],
+            status: Status::Starting,
+        }
     }
 }
 
@@ -684,3 +694,9 @@ impl Settings {
         self
     }
 }
+
+// impl Display for Settings {
+//     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+//         todo!()
+//     }
+// }

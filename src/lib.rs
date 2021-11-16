@@ -6,4 +6,4 @@
 
 pub mod classification;
 pub mod regression;
-mod traits;
+mod utils;

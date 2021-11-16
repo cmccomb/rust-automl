@@ -2,7 +2,7 @@
 mod classification_tests {
     #[test]
     fn test_step_by_step() {
-        use automl::classification::{Algorithm, Classifier, Metric, Settings};
+        use automl::classification::{Classifier, Settings};
         use smartcore::dataset::breast_cancer::load_dataset;
 
         // Check training

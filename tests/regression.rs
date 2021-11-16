@@ -74,10 +74,8 @@ mod regression_tests {
     #[test]
     fn test_read_from_csv() {
         use automl::regression::{Algorithm, Metric, Regressor, Settings};
+        use smartcore::linalg::naive::dense_matrix::DenseMatrix;
         use smartcore::svm::svr::SVRParameters;
-        use smartcore::{
-            dataset::diabetes::load_dataset, linalg::naive::dense_matrix::DenseMatrix,
-        };
 
         let file_name = "data/diabetes.csv";
 

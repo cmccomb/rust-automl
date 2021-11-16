@@ -1,6 +1,6 @@
 //! Auto-ML for regression models
 
-use super::traits::ValidClassifier;
+use crate::utils::Status;
 use comfy_table::{modifiers::UTF8_SOLID_INNER_BORDERS, presets::UTF8_FULL, Table};
 use smartcore::{
     dataset::Dataset,
@@ -10,8 +10,8 @@ use smartcore::{
     linalg::naive::dense_matrix::DenseMatrix,
     linear::logistic_regression::{LogisticRegression, LogisticRegressionParameters},
     math::distance::euclidian::Euclidian,
-    metrics::accuracy::Accuracy,
-    model_selection::train_test_split,
+    metrics::accuracy,
+    model_selection::{cross_validate, CrossValidationResult, KFold},
     neighbors::knn_classifier::{KNNClassifier, KNNClassifierParameters},
     svm::{
         svc::{SVCParameters, SVC},
@@ -24,9 +24,18 @@ use std::fmt::{Display, Formatter};
 
 /// An enum for sorting
 #[non_exhaustive]
+#[derive(PartialEq)]
 pub enum Metric {
     /// Sort by accuracy
     Accuracy,
+}
+
+impl Display for Metric {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Metric::Accuracy => write!(f, "Accuracy"),
+        }
+    }
 }
 
 /// An enum containing possible  classification algorithms
@@ -64,6 +73,7 @@ pub struct Classifier {
     comparison: Vec<Model>,
     final_model: Vec<u8>,
     number_of_classes: usize,
+    status: Status,
 }
 
 impl Classifier {
@@ -157,6 +167,7 @@ impl Classifier {
                 .unwrap()
             }
         }
+        self.status = Status::FinalModelTrained;
     }
 
     /// Returns a serialized version of the best model
@@ -164,23 +175,21 @@ impl Classifier {
         self.final_model.clone()
     }
 
-    fn add_model(&mut self, name: Algorithm, y_test: &Vec<f32>, y_pred: &Vec<f32>) {
-        self.comparison.push(Model {
-            accuracy: Accuracy {}.get_score(y_test, y_pred),
-            name,
-        });
+    fn add_model(&mut self, name: Algorithm, score: CrossValidationResult<f32>) {
+        self.comparison.push(Model { score, name });
         self.sort()
     }
 
     fn sort(&mut self) {
-        match self.settings.sort_by {
-            Metric::Accuracy => {
-                self.comparison
-                    .sort_by(|a, b| b.accuracy.partial_cmp(&a.accuracy).unwrap_or(Equal));
-            }
-        }
+        self.comparison.sort_by(|a, b| {
+            a.score
+                .mean_test_score()
+                .partial_cmp(&b.score.mean_test_score())
+                .unwrap_or(Equal)
+        });
     }
 
+    /// Establish a new classifier with settings
     pub fn new(settings: Settings) -> Self {
         Self {
             settings,
@@ -189,6 +198,7 @@ impl Classifier {
             comparison: vec![],
             final_model: vec![],
             number_of_classes: 0,
+            status: Status::Starting,
         }
     }
 
@@ -197,6 +207,7 @@ impl Classifier {
         self.x = x;
         self.y = y;
         self.count_classes();
+        self.status = Status::DataLoaded;
     }
 
     /// Add a dataset to regressor object
@@ -204,6 +215,7 @@ impl Classifier {
         self.x = DenseMatrix::from_array(dataset.num_samples, dataset.num_features, &dataset.data);
         self.y = dataset.target;
         self.count_classes();
+        self.status = Status::DataLoaded;
     }
 
     fn count_classes(&mut self) {
@@ -215,64 +227,99 @@ impl Classifier {
 
     /// This function compares all of the classification models available in the package.
     pub fn compare_models(&mut self) {
-        let (x_test, x_train, y_test, y_train) = train_test_split(
-            &self.x,
-            &self.y,
-            self.settings.testing_fraction,
-            self.settings.shuffle,
-        );
+        if self.status == Status::DataLoaded {
+            if !self
+                .settings
+                .skiplist
+                .contains(&Algorithm::LogisticRegression)
+            {
+                self.add_model(
+                    Algorithm::LogisticRegression,
+                    cross_validate(
+                        LogisticRegression::fit,
+                        &self.x,
+                        &self.y,
+                        self.settings.logistic_settings.clone(),
+                        KFold::default().with_n_splits(self.settings.number_of_folds),
+                        match self.settings.sort_by {
+                            Metric::Accuracy => accuracy,
+                        },
+                    )
+                    .unwrap(),
+                );
+            }
 
-        if !self
-            .settings
-            .skiplist
-            .contains(&Algorithm::LogisticRegression)
-        {
-            // Do the standard linear model
-            let model = LogisticRegression::fit(
-                &x_train,
-                &y_train,
-                self.settings.logistic_settings.clone(),
-            )
-            .unwrap();
-            let y_pred = model.predict(&x_test).unwrap();
-            self.add_model(Algorithm::LogisticRegression, &y_test, &y_pred);
-        }
+            if !self.settings.skiplist.contains(&Algorithm::RandomForest) {
+                self.add_model(
+                    Algorithm::RandomForest,
+                    cross_validate(
+                        RandomForestClassifier::fit,
+                        &self.x,
+                        &self.y,
+                        self.settings.random_forest_settings.clone(),
+                        KFold::default().with_n_splits(self.settings.number_of_folds),
+                        match self.settings.sort_by {
+                            Metric::Accuracy => accuracy,
+                        },
+                    )
+                    .unwrap(),
+                );
+            }
 
-        if !self.settings.skiplist.contains(&Algorithm::RandomForest) {
-            // Do the standard linear model
-            let model = RandomForestClassifier::fit(
-                &x_train,
-                &y_train,
-                self.settings.random_forest_settings.clone(),
-            )
-            .unwrap();
-            let y_pred = model.predict(&x_test).unwrap();
-            self.add_model(Algorithm::RandomForest, &y_test, &y_pred);
-        }
+            if !self.settings.skiplist.contains(&Algorithm::KNN) {
+                self.add_model(
+                    Algorithm::KNN,
+                    cross_validate(
+                        KNNClassifier::fit,
+                        &self.x,
+                        &self.y,
+                        self.settings.knn_settings.clone(),
+                        KFold::default().with_n_splits(self.settings.number_of_folds),
+                        match self.settings.sort_by {
+                            Metric::Accuracy => accuracy,
+                        },
+                    )
+                    .unwrap(),
+                );
+            }
 
-        if !self.settings.skiplist.contains(&Algorithm::KNN) {
-            // Do the standard linear model
-            let model =
-                KNNClassifier::fit(&x_train, &y_train, self.settings.knn_settings.clone()).unwrap();
-            let y_pred = model.predict(&x_test).unwrap();
-            self.add_model(Algorithm::KNN, &y_test, &y_pred);
-        }
+            if !self.settings.skiplist.contains(&Algorithm::DecisionTree) {
+                self.add_model(
+                    Algorithm::DecisionTree,
+                    cross_validate(
+                        DecisionTreeClassifier::fit,
+                        &self.x,
+                        &self.y,
+                        self.settings.decision_tree_settings.clone(),
+                        KFold::default().with_n_splits(self.settings.number_of_folds),
+                        match self.settings.sort_by {
+                            Metric::Accuracy => accuracy,
+                        },
+                    )
+                    .unwrap(),
+                );
+            }
 
-        if !self.settings.skiplist.contains(&Algorithm::DecisionTree) {
-            let model = DecisionTreeClassifier::fit(
-                &x_train,
-                &y_train,
-                self.settings.decision_tree_settings.clone(),
-            )
-            .unwrap();
-            let y_pred = model.predict(&x_test).unwrap();
-            self.add_model(Algorithm::DecisionTree, &y_test, &y_pred);
-        }
+            if self.number_of_classes == 2 && !self.settings.skiplist.contains(&Algorithm::SVC) {
+                self.add_model(
+                    Algorithm::SVC,
+                    cross_validate(
+                        SVC::fit,
+                        &self.x,
+                        &self.y,
+                        self.settings.svc_settings.clone(),
+                        KFold::default().with_n_splits(3),
+                        match self.settings.sort_by {
+                            Metric::Accuracy => accuracy,
+                        },
+                    )
+                    .unwrap(),
+                );
+            }
 
-        if self.number_of_classes == 2 && !self.settings.skiplist.contains(&Algorithm::SVC) {
-            let model = SVC::fit(&x_train, &y_train, self.settings.svc_settings.clone()).unwrap();
-            let y_pred = model.predict(&x_test).unwrap();
-            self.add_model(Algorithm::SVC, &y_test, &y_pred);
+            self.status = Status::ModelsCompared;
+        } else {
+            panic!("You must load data before trying to compare models.")
         }
     }
 }
@@ -282,20 +329,47 @@ impl Display for Classifier {
         let mut table = Table::new();
         table.load_preset(UTF8_FULL);
         table.apply_modifier(UTF8_SOLID_INNER_BORDERS);
-        table.set_header(vec!["Model", "Accuracy"]);
+        table.set_header(vec![
+            "Model",
+            &*format!("Training {}", self.settings.sort_by),
+            &*format!("Testing {}", self.settings.sort_by),
+        ]);
         for model in &self.comparison {
-            table.add_row(vec![
-                format!("{}", &model.name),
-                format!("{}", model.accuracy),
-            ]);
+            let mut row_vec = vec![];
+            row_vec.push(format!("{}", &model.name));
+            let decider =
+                ((model.score.mean_train_score() + model.score.mean_test_score()) / 2.0).abs();
+            if decider > 0.01 && decider < 1000.0 {
+                row_vec.push(format!("{:.2}", &model.score.mean_train_score()));
+                row_vec.push(format!("{:.2}", &model.score.mean_test_score()));
+            } else {
+                row_vec.push(format!("{:.3e}", &model.score.mean_train_score()));
+                row_vec.push(format!("{:.3e}", &model.score.mean_test_score()));
+            }
+
+            table.add_row(row_vec);
         }
         write!(f, "{}\n", table)
     }
 }
 
+impl Default for Classifier {
+    fn default() -> Self {
+        Self {
+            settings: Default::default(),
+            x: DenseMatrix::new(0, 0, vec![]),
+            y: vec![],
+            comparison: vec![],
+            final_model: vec![],
+            number_of_classes: 0,
+            status: Status::Starting,
+        }
+    }
+}
+
 /// This contains the results of a single model
 struct Model {
-    accuracy: f32,
+    score: CrossValidationResult<f32>,
     name: Algorithm,
 }
 
@@ -303,7 +377,7 @@ struct Model {
 pub struct Settings {
     skiplist: Vec<Algorithm>,
     sort_by: Metric,
-    testing_fraction: f32,
+    number_of_folds: usize,
     shuffle: bool,
     logistic_settings: LogisticRegressionParameters,
     random_forest_settings: RandomForestClassifierParameters,
@@ -317,18 +391,30 @@ impl Default for Settings {
         Settings {
             skiplist: vec![],
             sort_by: Metric::Accuracy,
-            testing_fraction: 0.3,
             shuffle: true,
             logistic_settings: LogisticRegressionParameters::default(),
             random_forest_settings: RandomForestClassifierParameters::default(),
             knn_settings: KNNClassifierParameters::default(),
             svc_settings: SVCParameters::default(),
             decision_tree_settings: DecisionTreeClassifierParameters::default(),
+            number_of_folds: 10,
         }
     }
 }
 
 impl Settings {
+    /// Specify number of folds for cross-validation
+    pub fn with_number_of_folds(mut self, n: usize) -> Self {
+        self.number_of_folds = n;
+        self
+    }
+
+    /// Specify whether or not data should be shuffled
+    pub fn shuffle_data(mut self, shuffle: bool) -> Self {
+        self.shuffle = shuffle;
+        self
+    }
+
     /// Specify algorithms that shouldn't be included in comparison
     pub fn skip(mut self, skip: Vec<Algorithm>) -> Self {
         self.skiplist = skip;
@@ -380,3 +466,9 @@ impl Settings {
         self
     }
 }
+
+// impl Display for Settings {
+//     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+//         todo!()
+//     }
+// }
