@@ -10,12 +10,10 @@ and provides some utilities to quickly train and compare models.
 # Usage
 For instance, running the following:
 ```rust
-fn main() {
-  let mut regressor = automl::regression::Regressor::default();
-  regressor.with_dataset(smartcore::dataset::diabetes::load_dataset());
-  regressor.compare_models();
-  print!("{}", regressor);
-}
+let mut regressor = automl::regression::Regressor::default();
+regressor.with_dataset(smartcore::dataset::diabetes::load_dataset());
+regressor.compare_models();
+print!("{}", regressor);
 ```
 Will output this:
 ```text
