@@ -3,7 +3,7 @@ mod classification_tests {
     #[test]
     fn print_settings() {
         let settings = automl::classification::Settings::default()
-            .skip_algorithm(vec![
+            .skip_algorithms(vec![
                 automl::classification::Algorithm::DecisionTree,
                 automl::classification::Algorithm::LogisticRegression,
             ])

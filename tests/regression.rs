@@ -3,7 +3,7 @@ mod regression_tests {
     #[test]
     fn print_settings() {
         let settings = automl::regression::Settings::default()
-            .skip_algorithm(vec![
+            .skip_algorithms(vec![
                 automl::regression::Algorithm::DecisionTree,
                 automl::regression::Algorithm::Ridge,
             ])
@@ -28,7 +28,7 @@ mod regression_tests {
         let settings = Settings::default()
             .sorted_by(Metric::MeanAbsoluteError)
             .with_svr_settings(SVRParameters::default().with_eps(2.0).with_c(10.0))
-            .skip_algorithm(vec![Algorithm::ElasticNet]);
+            .skip_algorithms(vec![Algorithm::ElasticNet]);
         let mut regressor = Regressor::new(settings);
         regressor.with_data(x, y);
 
@@ -57,7 +57,7 @@ mod regression_tests {
         let settings = Settings::default()
             .sorted_by(Metric::MeanSquaredError)
             .with_svr_settings(SVRParameters::default().with_eps(2.0).with_c(10.0))
-            .skip_algorithm(vec![Algorithm::ElasticNet]);
+            .skip_algorithms(vec![Algorithm::ElasticNet]);
 
         let mut regressor = Regressor::new(settings);
         regressor.with_data_from_csv(file_name, 10, true);

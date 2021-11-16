@@ -628,7 +628,7 @@ impl Settings {
     }
 
     /// Specify algorithms that shouldn't be included in comparison
-    pub fn skip_algorithm(mut self, skip: Vec<Algorithm>) -> Self {
+    pub fn skip_algorithms(mut self, skip: Vec<Algorithm>) -> Self {
         self.skiplist = skip;
         self
     }
