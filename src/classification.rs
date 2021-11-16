@@ -1,7 +1,9 @@
 //! Auto-ML for regression models
 
 use crate::utils::Status;
-use comfy_table::{modifiers::UTF8_SOLID_INNER_BORDERS, presets::UTF8_FULL, Table};
+use comfy_table::{
+    modifiers::UTF8_SOLID_INNER_BORDERS, presets::UTF8_FULL, Attribute, Cell, Table,
+};
 use smartcore::{
     dataset::Dataset,
     ensemble::random_forest_classifier::{
@@ -330,9 +332,9 @@ impl Display for Classifier {
         table.load_preset(UTF8_FULL);
         table.apply_modifier(UTF8_SOLID_INNER_BORDERS);
         table.set_header(vec![
-            "Model",
-            &*format!("Training {}", self.settings.sort_by),
-            &*format!("Testing {}", self.settings.sort_by),
+            Cell::new("Model").add_attribute(Attribute::Bold),
+            Cell::new(format!("Training {}", self.settings.sort_by)).add_attribute(Attribute::Bold),
+            Cell::new(format!("Testing {}", self.settings.sort_by)).add_attribute(Attribute::Bold),
         ]);
         for model in &self.comparison {
             let mut row_vec = vec![];
@@ -467,8 +469,43 @@ impl Settings {
     }
 }
 
-// impl Display for Settings {
-//     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-//         todo!()
-//     }
-// }
+impl Display for Settings {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        // Prep new table
+        let mut table = Table::new();
+
+        // Get list of algorithms to skip
+        let mut skiplist = String::new();
+        if self.skiplist.len() == 0 {
+            skiplist.push_str("None");
+        } else {
+            for algorithm_to_skip in &self.skiplist {
+                skiplist.push_str(&*format!("{}\n", algorithm_to_skip));
+            }
+        }
+
+        // Build out the table
+        table
+            .load_preset(UTF8_FULL)
+            .apply_modifier(UTF8_SOLID_INNER_BORDERS)
+            .set_header(vec![
+                Cell::new("Settings").add_attribute(Attribute::Bold),
+                Cell::new("Value").add_attribute(Attribute::Bold),
+            ])
+            .add_row(vec![
+                "Sorting Metric".to_owned(),
+                format!("{}", self.sort_by),
+            ])
+            .add_row(vec!["Shuffle Data".to_owned(), format!("{}", self.shuffle)])
+            .add_row(vec![
+                "Number of CV Folds".to_owned(),
+                format!("{}", self.number_of_folds),
+            ])
+            .add_row(vec![
+                "Skipped Algorithms".to_owned(),
+                format!("{}", &skiplist[0..skiplist.len() - 1]),
+            ]);
+
+        write!(f, "{}\n", table)
+    }
+}

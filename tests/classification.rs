@@ -1,6 +1,17 @@
 #[cfg(test)]
 mod classification_tests {
     #[test]
+    fn print_settings() {
+        let settings = automl::classification::Settings::default()
+            .skip_algorithm(vec![
+                automl::classification::Algorithm::DecisionTree,
+                automl::classification::Algorithm::LogisticRegression,
+            ])
+            .with_number_of_folds(3);
+        println!("{}", &settings);
+    }
+
+    #[test]
     fn test_step_by_step() {
         use automl::classification::{Classifier, Settings};
         use smartcore::dataset::breast_cancer::load_dataset;
