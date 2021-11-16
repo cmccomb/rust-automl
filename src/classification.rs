@@ -182,9 +182,9 @@ impl Classifier {
 
     fn sort(&mut self) {
         self.comparison.sort_by(|a, b| {
-            a.score
+            b.score
                 .mean_test_score()
-                .partial_cmp(&b.score.mean_test_score())
+                .partial_cmp(&a.score.mean_test_score())
                 .unwrap_or(Equal)
         });
     }
