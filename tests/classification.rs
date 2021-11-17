@@ -18,7 +18,8 @@ mod classification_tests {
 
         // Set up the regressor settings and load data
         let settings = automl::classification::Settings::default().with_number_of_folds(2);
-        let mut regressor = automl::classification::Classifier::new(settings);
+        let mut regressor = automl::classification::Classifier::default();
+        regressor.with_settings(settings);
         regressor.with_dataset(dataset);
 
         // Compare models

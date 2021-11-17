@@ -91,159 +91,28 @@ pub struct Classifier {
 }
 
 impl Classifier {
-    /// [Zhu Li, do the thing!](https://www.youtube.com/watch?v=mofRHlO1E_A)
-    pub fn auto(settings: Settings, x: DenseMatrix<f32>, y: Vec<f32>) -> Self {
-        let mut classifier = Self::new(settings);
-        classifier.with_data(x, y);
-        classifier.compare_models();
-        classifier.train_final_model();
-        classifier
-    }
-
-    /// Predict values using the best model
-    pub fn predict(&self, x: &DenseMatrix<f32>) -> Vec<f32> {
-        match self.comparison[0].name {
-            Algorithm::LogisticRegression => {
-                let model: LogisticRegression<f32, DenseMatrix<f32>> =
-                    bincode::deserialize(&*self.final_model).unwrap();
-                model.predict(x).unwrap()
-            }
-            Algorithm::RandomForest => {
-                let model: RandomForestClassifier<f32> =
-                    bincode::deserialize(&*self.final_model).unwrap();
-                model.predict(x).unwrap()
-            }
-            Algorithm::DecisionTree => {
-                let model: DecisionTreeClassifier<f32> =
-                    bincode::deserialize(&*self.final_model).unwrap();
-                model.predict(x).unwrap()
-            }
-            Algorithm::KNN => {
-                let model: KNNClassifier<f32, Euclidian> =
-                    bincode::deserialize(&*self.final_model).unwrap();
-                model.predict(x).unwrap()
-            }
-            Algorithm::SVC => {
-                let model: SVC<f32, DenseMatrix<f32>, LinearKernel> =
-                    bincode::deserialize(&*self.final_model).unwrap();
-                model.predict(x).unwrap()
-            }
-            Algorithm::GaussianNaiveBayes => {
-                let model: GaussianNB<f32, DenseMatrix<f32>> =
-                    bincode::deserialize(&*self.final_model).unwrap();
-                model.predict(x).unwrap()
-            }
-            Algorithm::CategoricalNaiveBayes => {
-                let model: CategoricalNB<f32, DenseMatrix<f32>> =
-                    bincode::deserialize(&*self.final_model).unwrap();
-                model.predict(x).unwrap()
-            }
-        }
-    }
-
-    /// Trains the best model found during comparison
-    pub fn train_final_model(&mut self) {
-        match self.comparison[0].name {
-            Algorithm::LogisticRegression => {
-                self.final_model = bincode::serialize(
-                    &LogisticRegression::fit(
-                        &self.x,
-                        &self.y,
-                        self.settings.logistic_settings.clone(),
-                    )
-                    .unwrap(),
-                )
-                .unwrap()
-            }
-            Algorithm::KNN => {
-                self.final_model = bincode::serialize(
-                    &KNNClassifier::fit(&self.x, &self.y, self.settings.knn_settings.clone())
-                        .unwrap(),
-                )
-                .unwrap()
-            }
-            Algorithm::RandomForest => {
-                self.final_model = bincode::serialize(
-                    &RandomForestClassifier::fit(
-                        &self.x,
-                        &self.y,
-                        self.settings.random_forest_settings.clone(),
-                    )
-                    .unwrap(),
-                )
-                .unwrap()
-            }
-            Algorithm::DecisionTree => {
-                self.final_model = bincode::serialize(
-                    &DecisionTreeClassifier::fit(
-                        &self.x,
-                        &self.y,
-                        self.settings.decision_tree_settings.clone(),
-                    )
-                    .unwrap(),
-                )
-                .unwrap()
-            }
-            Algorithm::SVC => {
-                self.final_model = bincode::serialize(
-                    &SVC::fit(&self.x, &self.y, self.settings.svc_settings.clone()).unwrap(),
-                )
-                .unwrap()
-            }
-
-            Algorithm::GaussianNaiveBayes => {
-                self.final_model = bincode::serialize(
-                    &GaussianNB::fit(&self.x, &self.y, self.settings.gaussian_nb_settings.clone())
-                        .unwrap(),
-                )
-                .unwrap()
-            }
-
-            Algorithm::CategoricalNaiveBayes => {
-                self.final_model = bincode::serialize(
-                    &CategoricalNB::fit(
-                        &self.x,
-                        &self.y,
-                        self.settings.categorical_nb_settings.clone(),
-                    )
-                    .unwrap(),
-                )
-                .unwrap()
-            }
-        }
-        self.status = Status::FinalModelTrained;
-    }
-
-    /// Returns a serialized version of the best model
-    pub fn get_best_model(&self) -> Vec<u8> {
-        self.final_model.clone()
-    }
-
-    fn add_model(&mut self, name: Algorithm, score: CrossValidationResult<f32>) {
-        self.comparison.push(Model { score, name });
-        self.sort()
-    }
-
-    fn sort(&mut self) {
-        self.comparison.sort_by(|a, b| {
-            b.score
-                .mean_test_score()
-                .partial_cmp(&a.score.mean_test_score())
-                .unwrap_or(Equal)
-        });
-    }
-
     /// Establish a new classifier with settings
-    pub fn new(settings: Settings) -> Self {
+    pub fn new(x: DenseMatrix<f32>, y: Vec<f32>, settings: Settings) -> Self {
         Self {
             settings,
-            x: DenseMatrix::new(0, 0, vec![]),
-            y: vec![],
+            x,
+            y,
             comparison: vec![],
             final_model: vec![],
             number_of_classes: 0,
-            status: Status::Starting,
+            status: Status::DataLoaded,
         }
+    }
+
+    /// Add settings to the classifier
+    pub fn with_settings(&mut self, settings: Settings) {
+        self.settings = settings;
+    }
+
+    /// Runs a model comparison and trains a final model. [Zhu Li, do the thing!](https://www.youtube.com/watch?v=mofRHlO1E_A)
+    pub fn auto(&mut self) {
+        self.compare_models();
+        self.train_final_model();
     }
 
     /// Add data to regressor object
@@ -260,13 +129,6 @@ impl Classifier {
         self.y = dataset.target;
         self.count_classes();
         self.status = Status::DataLoaded;
-    }
-
-    fn count_classes(&mut self) {
-        let mut sorted_targets = self.y.clone();
-        sorted_targets.sort_by(|a, b| a.partial_cmp(&b).unwrap_or(Equal));
-        sorted_targets.dedup();
-        self.number_of_classes = sorted_targets.len();
     }
 
     /// This function compares all of the classification models available in the package.
@@ -407,6 +269,144 @@ impl Classifier {
         } else {
             panic!("You must load data before trying to compare models.")
         }
+    }
+
+    /// Trains the best model found during comparison
+    pub fn train_final_model(&mut self) {
+        match self.comparison[0].name {
+            Algorithm::LogisticRegression => {
+                self.final_model = bincode::serialize(
+                    &LogisticRegression::fit(
+                        &self.x,
+                        &self.y,
+                        self.settings.logistic_settings.clone(),
+                    )
+                    .unwrap(),
+                )
+                .unwrap()
+            }
+            Algorithm::KNN => {
+                self.final_model = bincode::serialize(
+                    &KNNClassifier::fit(&self.x, &self.y, self.settings.knn_settings.clone())
+                        .unwrap(),
+                )
+                .unwrap()
+            }
+            Algorithm::RandomForest => {
+                self.final_model = bincode::serialize(
+                    &RandomForestClassifier::fit(
+                        &self.x,
+                        &self.y,
+                        self.settings.random_forest_settings.clone(),
+                    )
+                    .unwrap(),
+                )
+                .unwrap()
+            }
+            Algorithm::DecisionTree => {
+                self.final_model = bincode::serialize(
+                    &DecisionTreeClassifier::fit(
+                        &self.x,
+                        &self.y,
+                        self.settings.decision_tree_settings.clone(),
+                    )
+                    .unwrap(),
+                )
+                .unwrap()
+            }
+            Algorithm::SVC => {
+                self.final_model = bincode::serialize(
+                    &SVC::fit(&self.x, &self.y, self.settings.svc_settings.clone()).unwrap(),
+                )
+                .unwrap()
+            }
+
+            Algorithm::GaussianNaiveBayes => {
+                self.final_model = bincode::serialize(
+                    &GaussianNB::fit(&self.x, &self.y, self.settings.gaussian_nb_settings.clone())
+                        .unwrap(),
+                )
+                .unwrap()
+            }
+
+            Algorithm::CategoricalNaiveBayes => {
+                self.final_model = bincode::serialize(
+                    &CategoricalNB::fit(
+                        &self.x,
+                        &self.y,
+                        self.settings.categorical_nb_settings.clone(),
+                    )
+                    .unwrap(),
+                )
+                .unwrap()
+            }
+        }
+        self.status = Status::FinalModelTrained;
+    }
+
+    /// Predict values using the best model
+    pub fn predict(&self, x: &DenseMatrix<f32>) -> Vec<f32> {
+        match self.comparison[0].name {
+            Algorithm::LogisticRegression => {
+                let model: LogisticRegression<f32, DenseMatrix<f32>> =
+                    bincode::deserialize(&*self.final_model).unwrap();
+                model.predict(x).unwrap()
+            }
+            Algorithm::RandomForest => {
+                let model: RandomForestClassifier<f32> =
+                    bincode::deserialize(&*self.final_model).unwrap();
+                model.predict(x).unwrap()
+            }
+            Algorithm::DecisionTree => {
+                let model: DecisionTreeClassifier<f32> =
+                    bincode::deserialize(&*self.final_model).unwrap();
+                model.predict(x).unwrap()
+            }
+            Algorithm::KNN => {
+                let model: KNNClassifier<f32, Euclidian> =
+                    bincode::deserialize(&*self.final_model).unwrap();
+                model.predict(x).unwrap()
+            }
+            Algorithm::SVC => {
+                let model: SVC<f32, DenseMatrix<f32>, LinearKernel> =
+                    bincode::deserialize(&*self.final_model).unwrap();
+                model.predict(x).unwrap()
+            }
+            Algorithm::GaussianNaiveBayes => {
+                let model: GaussianNB<f32, DenseMatrix<f32>> =
+                    bincode::deserialize(&*self.final_model).unwrap();
+                model.predict(x).unwrap()
+            }
+            Algorithm::CategoricalNaiveBayes => {
+                let model: CategoricalNB<f32, DenseMatrix<f32>> =
+                    bincode::deserialize(&*self.final_model).unwrap();
+                model.predict(x).unwrap()
+            }
+        }
+    }
+}
+
+/// Private functions go here
+impl Classifier {
+    fn add_model(&mut self, name: Algorithm, score: CrossValidationResult<f32>) {
+        self.comparison.push(Model { score, name });
+        self.sort()
+    }
+
+    fn sort(&mut self) {
+        self.comparison.sort_by(|a, b| {
+            b.score
+                .mean_test_score()
+                .partial_cmp(&a.score.mean_test_score())
+                .unwrap_or(Equal)
+        });
+    }
+
+    fn count_classes(&mut self) {
+        let mut sorted_targets = self.y.clone();
+        sorted_targets.sort_by(|a, b| a.partial_cmp(&b).unwrap_or(Equal));
+        sorted_targets.dedup();
+        self.number_of_classes = sorted_targets.len();
     }
 }
 

@@ -30,8 +30,7 @@ mod regression_tests {
             .with_svr_settings(SVRParameters::default().with_eps(2.0).with_c(10.0))
             .skip_algorithms(vec![Algorithm::ElasticNet])
             .with_number_of_folds(2);
-        let mut regressor = Regressor::new(settings);
-        regressor.with_data(x, y);
+        let mut regressor = Regressor::new(x, y, settings);
 
         // Compare models
         println!("Comparing models...");
@@ -61,7 +60,8 @@ mod regression_tests {
             .skip_algorithms(vec![Algorithm::ElasticNet])
             .with_number_of_folds(2);
 
-        let mut regressor = Regressor::new(settings);
+        let mut regressor = Regressor::default();
+        regressor.with_settings(settings);
         regressor.with_data_from_csv(file_name, 10, true);
 
         regressor.compare_models();

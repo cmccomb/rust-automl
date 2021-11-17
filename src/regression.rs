@@ -99,163 +99,27 @@ pub struct Regressor {
 }
 
 impl Regressor {
-    /// [Zhu Li, do the thing!](https://www.youtube.com/watch?v=mofRHlO1E_A)
-    pub fn auto(settings: Settings, x: DenseMatrix<f32>, y: Vec<f32>) -> Self {
-        let mut regressor = Self::new(settings);
-        regressor.with_data(x, y);
-        regressor.compare_models();
-        regressor.train_final_model();
-        regressor
-    }
-
     /// Create a new regressor based on settings
-    pub fn new(settings: Settings) -> Self {
+    pub fn new(x: DenseMatrix<f32>, y: Vec<f32>, settings: Settings) -> Self {
         Self {
             settings,
-            x: DenseMatrix::new(0, 0, vec![]),
-            y: vec![],
+            x,
+            y,
             comparison: vec![],
             final_model: vec![],
-            status: Status::Starting,
+            status: Status::DataLoaded,
         }
     }
 
-    /// Predict values using the best model
-    pub fn predict(&self, x: &DenseMatrix<f32>) -> Vec<f32> {
-        match self.comparison[0].name {
-            Algorithm::Linear => {
-                let model: LinearRegression<f32, DenseMatrix<f32>> =
-                    bincode::deserialize(&*self.final_model).unwrap();
-                model.predict(x).unwrap()
-            }
-            Algorithm::Lasso => {
-                let model: Lasso<f32, DenseMatrix<f32>> =
-                    bincode::deserialize(&*self.final_model).unwrap();
-                model.predict(x).unwrap()
-            }
-            Algorithm::Ridge => {
-                let model: RidgeRegression<f32, DenseMatrix<f32>> =
-                    bincode::deserialize(&*self.final_model).unwrap();
-                model.predict(x).unwrap()
-            }
-            Algorithm::ElasticNet => {
-                let model: ElasticNet<f32, DenseMatrix<f32>> =
-                    bincode::deserialize(&*self.final_model).unwrap();
-                model.predict(x).unwrap()
-            }
-            Algorithm::RandomForest => {
-                let model: RandomForestRegressor<f32> =
-                    bincode::deserialize(&*self.final_model).unwrap();
-                model.predict(x).unwrap()
-            }
-            Algorithm::KNN => {
-                let model: KNNRegressor<f32, Euclidian> =
-                    bincode::deserialize(&*self.final_model).unwrap();
-                model.predict(x).unwrap()
-            }
-            Algorithm::SVR => {
-                let model: SVR<f32, DenseMatrix<f32>, LinearKernel> =
-                    bincode::deserialize(&*self.final_model).unwrap();
-                model.predict(x).unwrap()
-            }
-            Algorithm::DecisionTree => {
-                let model: DecisionTreeRegressor<f32> =
-                    bincode::deserialize(&*self.final_model).unwrap();
-                model.predict(x).unwrap()
-            }
-        }
+    /// Add settings to the regressor
+    pub fn with_settings(&mut self, settings: Settings) {
+        self.settings = settings;
     }
 
-    /// Trains the best model found during comparison
-    pub fn train_final_model(&mut self) {
-        match self.comparison[0].name {
-            Algorithm::Linear => {
-                self.final_model = bincode::serialize(
-                    &LinearRegression::fit(&self.x, &self.y, self.settings.linear_settings.clone())
-                        .unwrap(),
-                )
-                .unwrap()
-            }
-            Algorithm::Lasso => {
-                self.final_model = bincode::serialize(
-                    &Lasso::fit(&self.x, &self.y, self.settings.lasso_settings.clone()).unwrap(),
-                )
-                .unwrap()
-            }
-            Algorithm::Ridge => {
-                self.final_model = bincode::serialize(
-                    &RidgeRegression::fit(&self.x, &self.y, self.settings.ridge_settings.clone())
-                        .unwrap(),
-                )
-                .unwrap()
-            }
-            Algorithm::ElasticNet => {
-                self.final_model = bincode::serialize(
-                    &ElasticNet::fit(&self.x, &self.y, self.settings.elastic_net_settings.clone())
-                        .unwrap(),
-                )
-                .unwrap()
-            }
-            Algorithm::RandomForest => {
-                self.final_model = bincode::serialize(
-                    &RandomForestRegressor::fit(
-                        &self.x,
-                        &self.y,
-                        self.settings.random_forest_settings.clone(),
-                    )
-                    .unwrap(),
-                )
-                .unwrap()
-            }
-            Algorithm::KNN => {
-                self.final_model = bincode::serialize(
-                    &KNNRegressor::fit(&self.x, &self.y, self.settings.knn_settings.clone())
-                        .unwrap(),
-                )
-                .unwrap()
-            }
-            Algorithm::SVR => {
-                self.final_model = bincode::serialize(
-                    &SVR::fit(&self.x, &self.y, self.settings.svr_settings.clone()).unwrap(),
-                )
-                .unwrap()
-            }
-            Algorithm::DecisionTree => {
-                self.final_model = bincode::serialize(
-                    &DecisionTreeRegressor::fit(
-                        &self.x,
-                        &self.y,
-                        self.settings.decision_tree_settings.clone(),
-                    )
-                    .unwrap(),
-                )
-                .unwrap()
-            }
-        }
-
-        self.status = Status::FinalModelTrained;
-    }
-
-    /// Returns a serialized version of the best model
-    pub fn get_best_model(&self) -> Vec<u8> {
-        self.final_model.clone()
-    }
-
-    fn add_model(&mut self, name: Algorithm, score: CrossValidationResult<f32>) {
-        self.comparison.push(Model { score, name });
-        self.sort()
-    }
-
-    fn sort(&mut self) {
-        self.comparison.sort_by(|a, b| {
-            a.score
-                .mean_test_score()
-                .partial_cmp(&b.score.mean_test_score())
-                .unwrap_or(Equal)
-        });
-        if self.settings.sort_by == Metric::RSquared {
-            self.comparison.reverse();
-        }
+    /// Runs a model comparison and trains a final model. [Zhu Li, do the thing!](https://www.youtube.com/watch?v=mofRHlO1E_A)
+    pub fn auto(&mut self) {
+        self.compare_models();
+        self.train_final_model();
     }
 
     /// Add data to regressor object
@@ -531,6 +395,142 @@ impl Regressor {
             panic!("You must load data before trying to compare models.")
         }
     }
+
+    /// Trains the best model found during comparison
+    pub fn train_final_model(&mut self) {
+        match self.comparison[0].name {
+            Algorithm::Linear => {
+                self.final_model = bincode::serialize(
+                    &LinearRegression::fit(&self.x, &self.y, self.settings.linear_settings.clone())
+                        .unwrap(),
+                )
+                .unwrap()
+            }
+            Algorithm::Lasso => {
+                self.final_model = bincode::serialize(
+                    &Lasso::fit(&self.x, &self.y, self.settings.lasso_settings.clone()).unwrap(),
+                )
+                .unwrap()
+            }
+            Algorithm::Ridge => {
+                self.final_model = bincode::serialize(
+                    &RidgeRegression::fit(&self.x, &self.y, self.settings.ridge_settings.clone())
+                        .unwrap(),
+                )
+                .unwrap()
+            }
+            Algorithm::ElasticNet => {
+                self.final_model = bincode::serialize(
+                    &ElasticNet::fit(&self.x, &self.y, self.settings.elastic_net_settings.clone())
+                        .unwrap(),
+                )
+                .unwrap()
+            }
+            Algorithm::RandomForest => {
+                self.final_model = bincode::serialize(
+                    &RandomForestRegressor::fit(
+                        &self.x,
+                        &self.y,
+                        self.settings.random_forest_settings.clone(),
+                    )
+                    .unwrap(),
+                )
+                .unwrap()
+            }
+            Algorithm::KNN => {
+                self.final_model = bincode::serialize(
+                    &KNNRegressor::fit(&self.x, &self.y, self.settings.knn_settings.clone())
+                        .unwrap(),
+                )
+                .unwrap()
+            }
+            Algorithm::SVR => {
+                self.final_model = bincode::serialize(
+                    &SVR::fit(&self.x, &self.y, self.settings.svr_settings.clone()).unwrap(),
+                )
+                .unwrap()
+            }
+            Algorithm::DecisionTree => {
+                self.final_model = bincode::serialize(
+                    &DecisionTreeRegressor::fit(
+                        &self.x,
+                        &self.y,
+                        self.settings.decision_tree_settings.clone(),
+                    )
+                    .unwrap(),
+                )
+                .unwrap()
+            }
+        }
+
+        self.status = Status::FinalModelTrained;
+    }
+
+    /// Predict values using the best model
+    pub fn predict(&self, x: &DenseMatrix<f32>) -> Vec<f32> {
+        match self.comparison[0].name {
+            Algorithm::Linear => {
+                let model: LinearRegression<f32, DenseMatrix<f32>> =
+                    bincode::deserialize(&*self.final_model).unwrap();
+                model.predict(x).unwrap()
+            }
+            Algorithm::Lasso => {
+                let model: Lasso<f32, DenseMatrix<f32>> =
+                    bincode::deserialize(&*self.final_model).unwrap();
+                model.predict(x).unwrap()
+            }
+            Algorithm::Ridge => {
+                let model: RidgeRegression<f32, DenseMatrix<f32>> =
+                    bincode::deserialize(&*self.final_model).unwrap();
+                model.predict(x).unwrap()
+            }
+            Algorithm::ElasticNet => {
+                let model: ElasticNet<f32, DenseMatrix<f32>> =
+                    bincode::deserialize(&*self.final_model).unwrap();
+                model.predict(x).unwrap()
+            }
+            Algorithm::RandomForest => {
+                let model: RandomForestRegressor<f32> =
+                    bincode::deserialize(&*self.final_model).unwrap();
+                model.predict(x).unwrap()
+            }
+            Algorithm::KNN => {
+                let model: KNNRegressor<f32, Euclidian> =
+                    bincode::deserialize(&*self.final_model).unwrap();
+                model.predict(x).unwrap()
+            }
+            Algorithm::SVR => {
+                let model: SVR<f32, DenseMatrix<f32>, LinearKernel> =
+                    bincode::deserialize(&*self.final_model).unwrap();
+                model.predict(x).unwrap()
+            }
+            Algorithm::DecisionTree => {
+                let model: DecisionTreeRegressor<f32> =
+                    bincode::deserialize(&*self.final_model).unwrap();
+                model.predict(x).unwrap()
+            }
+        }
+    }
+}
+
+/// Private regressor functions go here
+impl Regressor {
+    fn add_model(&mut self, name: Algorithm, score: CrossValidationResult<f32>) {
+        self.comparison.push(Model { score, name });
+        self.sort()
+    }
+
+    fn sort(&mut self) {
+        self.comparison.sort_by(|a, b| {
+            a.score
+                .mean_test_score()
+                .partial_cmp(&b.score.mean_test_score())
+                .unwrap_or(Equal)
+        });
+        if self.settings.sort_by == Metric::RSquared {
+            self.comparison.reverse();
+        }
+    }
 }
 
 impl Display for Regressor {
@@ -587,6 +587,7 @@ pub struct Settings {
     skiplist: Vec<Algorithm>,
     number_of_folds: usize,
     shuffle: bool,
+    verbose: bool,
     linear_settings: LinearRegressionParameters,
     svr_settings: SVRParameters<f32, DenseMatrix<f32>, LinearKernel>,
     lasso_settings: LassoParameters<f32>,
@@ -604,6 +605,7 @@ impl Default for Settings {
             skiplist: vec![],
             number_of_folds: 10,
             shuffle: true,
+            verbose: true,
             linear_settings: LinearRegressionParameters::default(),
             svr_settings: SVRParameters::default(),
             lasso_settings: LassoParameters::default(),
@@ -626,6 +628,12 @@ impl Settings {
     /// Specify whether or not data should be shuffled
     pub fn shuffle_data(mut self, shuffle: bool) -> Self {
         self.shuffle = shuffle;
+        self
+    }
+
+    /// Specify whether or not to be verbose
+    pub fn verbose(mut self, verbose: bool) -> Self {
+        self.verbose = verbose;
         self
     }
 
@@ -734,7 +742,8 @@ impl Display for Settings {
             .add_row(vec![
                 "Skipped Algorithms".to_owned(),
                 format!("{}", &skiplist[0..skiplist.len() - 1]),
-            ]);
+            ])
+            .add_row(vec!["Verbose".to_owned(), format!("{}", self.verbose)]);
 
         write!(f, "{}\n", table)
     }
