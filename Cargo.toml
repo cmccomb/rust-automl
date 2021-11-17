@@ -19,3 +19,4 @@ serde = "1.0.130"
 bincode = "1.3.3"
 ndarray = "0.15.3"
 polars = {version = "0.17.0", features = ["ndarray"]}
+structopt = "0.3.25"
