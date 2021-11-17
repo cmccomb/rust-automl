@@ -3,10 +3,8 @@ mod classification_tests {
     #[test]
     fn print_settings() {
         let settings = automl::classification::Settings::default()
-            .skip_algorithms(vec![
-                automl::classification::Algorithm::DecisionTree,
-                automl::classification::Algorithm::LogisticRegression,
-            ])
+            .skip(automl::classification::Algorithm::DecisionTree)
+            .skip(automl::classification::Algorithm::LogisticRegression)
             .with_number_of_folds(3);
         println!("{}", &settings);
     }

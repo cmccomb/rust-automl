@@ -3,10 +3,8 @@ mod regression_tests {
     #[test]
     fn print_settings() {
         let settings = automl::regression::Settings::default()
-            .skip_algorithms(vec![
-                automl::regression::Algorithm::DecisionTree,
-                automl::regression::Algorithm::Ridge,
-            ])
+            .skip(automl::regression::Algorithm::DecisionTree)
+            .skip(automl::regression::Algorithm::Ridge)
             .with_number_of_folds(3);
         println!("{}", &settings);
     }
@@ -28,7 +26,7 @@ mod regression_tests {
         let settings = Settings::default()
             .sorted_by(Metric::MeanAbsoluteError)
             .with_svr_settings(SVRParameters::default().with_eps(2.0).with_c(10.0))
-            .skip_algorithms(vec![Algorithm::ElasticNet])
+            .skip(Algorithm::ElasticNet)
             .with_number_of_folds(2);
         let mut regressor = Regressor::new(x, y, settings);
 
@@ -57,7 +55,7 @@ mod regression_tests {
         let settings = Settings::default()
             .sorted_by(Metric::MeanSquaredError)
             .with_svr_settings(SVRParameters::default().with_eps(2.0).with_c(10.0))
-            .skip_algorithms(vec![Algorithm::ElasticNet])
+            .skip(Algorithm::ElasticNet)
             .with_number_of_folds(2);
 
         let mut regressor = Regressor::default();
