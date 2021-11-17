@@ -13,15 +13,12 @@ mod classification_tests {
 
     #[test]
     fn test_step_by_step() {
-        use automl::classification::{Classifier, Settings};
-        use smartcore::dataset::breast_cancer::load_dataset;
-
         // Check training
-        let dataset = load_dataset();
+        let dataset = smartcore::dataset::breast_cancer::load_dataset();
 
         // Set up the regressor settings and load data
-        let settings = Settings::default().with_number_of_folds(2);
-        let mut regressor = Classifier::new(settings);
+        let settings = automl::classification::Settings::default().with_number_of_folds(2);
+        let mut regressor = automl::classification::Classifier::new(settings);
         regressor.with_dataset(dataset);
 
         // Compare models

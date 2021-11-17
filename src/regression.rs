@@ -25,8 +25,10 @@ use smartcore::{
     },
     tree::decision_tree_regressor::{DecisionTreeRegressor, DecisionTreeRegressorParameters},
 };
-use std::cmp::Ordering::Equal;
-use std::fmt::{Display, Formatter};
+use std::{
+    cmp::Ordering::Equal,
+    fmt::{Display, Formatter},
+};
 
 /// An enum for sorting
 #[non_exhaustive]
