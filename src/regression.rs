@@ -5,6 +5,7 @@ use comfy_table::{
     modifiers::UTF8_SOLID_INNER_BORDERS, presets::UTF8_FULL, Attribute, Cell, Table,
 };
 use polars::prelude::*;
+use polars::prelude::{CsvReader, DataType, Float32Type, SerReader};
 use smartcore::{
     dataset::Dataset,
     ensemble::random_forest_regressor::{RandomForestRegressor, RandomForestRegressorParameters},
