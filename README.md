@@ -10,34 +10,32 @@ and provides some utilities to quickly train and compare models.
 # Usage
 For instance, running the following:
 ```rust
-let mut regressor = automl::regression::Regressor::default();
-regressor.with_dataset(smartcore::dataset::diabetes::load_dataset());
-regressor.compare_models();
-print!("{}", regressor);
+let mut classifier = automl::classification::Classifier::default();
+classifier.with_dataset(smartcore::dataset::breast_cancer::load_dataset());
+classifier.compare_models();
+print!("{}", classifier);
 ```
-Will output this:
+Will output this comparison of models usign cross-validation:
 ```text
-┌──────────────────────────┬──────────────┬─────────────┐
-│ Model                    │ Training R^2 │ Testing R^2 │
-╞══════════════════════════╪══════════════╪═════════════╡
-│ LASSO Regressor          │ 0.52         │ 0.49        │
-├──────────────────────────┼──────────────┼─────────────┤
-│ Linear Regressor         │ 0.52         │ 0.48        │
-├──────────────────────────┼──────────────┼─────────────┤
-│ Ridge Regressor          │ 0.52         │ 0.47        │
-├──────────────────────────┼──────────────┼─────────────┤
-│ Elastic Net Regressor    │ 0.47         │ 0.45        │
-├──────────────────────────┼──────────────┼─────────────┤
-│ Random Forest Regressor  │ 0.90         │ 0.40        │
-├──────────────────────────┼──────────────┼─────────────┤
-│ KNN Regressor            │ 0.66         │ 0.29        │
-├──────────────────────────┼──────────────┼─────────────┤
-│ Support Vector Regressor │ -0.01        │ -0.03       │
-├──────────────────────────┼──────────────┼─────────────┤
-│ Decision Tree Regressor  │ 1.00         │ -0.17       │
-└──────────────────────────┴──────────────┴─────────────┘
+┌────────────────────────────────┬───────────────────┬──────────────────┐
+│ Model                          │ Training Accuracy │ Testing Accuracy │
+╞════════════════════════════════╪═══════════════════╪══════════════════╡
+│ Random Forest Classifier       │ 1.00              │ 0.96             │
+├────────────────────────────────┼───────────────────┼──────────────────┤
+│ Logistic Regression Classifier │ 0.97              │ 0.95             │
+├────────────────────────────────┼───────────────────┼──────────────────┤
+│ Gaussian Naive Bayes           │ 0.95              │ 0.93             │
+├────────────────────────────────┼───────────────────┼──────────────────┤
+│ KNN Classifier                 │ 0.96              │ 0.92             │
+├────────────────────────────────┼───────────────────┼──────────────────┤
+│ Categorical Naive Bayes        │ 0.96              │ 0.91             │
+├────────────────────────────────┼───────────────────┼──────────────────┤
+│ Decision Tree Classifier       │ 1.00              │ 0.90             │
+├────────────────────────────────┼───────────────────┼──────────────────┤
+│ Support Vector Classifier      │ 0.87              │ 0.85             │
+└────────────────────────────────┴───────────────────┴──────────────────┘
 ```
-Based on this output, you can then select the best model for the task.
+You can then train a final model using `classifier.train_final_model()` and perform inference using that model with the `predict` method.
 
 ## Features
 Currently this crate only has AutoML features for regression and classification. This includes the following models:

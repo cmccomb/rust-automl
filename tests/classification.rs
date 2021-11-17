@@ -10,6 +10,14 @@ mod classification_tests {
     }
 
     #[test]
+    fn readme_test() {
+        let mut classifier = automl::classification::Classifier::default();
+        classifier.with_dataset(smartcore::dataset::breast_cancer::load_dataset());
+        classifier.compare_models();
+        print!("{}", classifier);
+    }
+
+    #[test]
     fn test_step_by_step() {
         // Check training
         let dataset = smartcore::dataset::breast_cancer::load_dataset();
