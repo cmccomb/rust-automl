@@ -20,7 +20,7 @@ mod classification_tests {
         let dataset = load_dataset();
 
         // Set up the regressor settings and load data
-        let settings = Settings::default();
+        let settings = Settings::default().with_number_of_folds(2);
         let mut regressor = Classifier::new(settings);
         regressor.with_dataset(dataset);
 

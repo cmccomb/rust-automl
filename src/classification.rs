@@ -14,6 +14,10 @@ use smartcore::{
     math::distance::euclidian::Euclidian,
     metrics::accuracy,
     model_selection::{cross_validate, CrossValidationResult, KFold},
+    naive_bayes::{
+        categorical::{CategoricalNB, CategoricalNBParameters},
+        gaussian::{GaussianNB, GaussianNBParameters},
+    },
     neighbors::knn_classifier::{KNNClassifier, KNNClassifierParameters},
     svm::{
         svc::{SVCParameters, SVC},
@@ -53,6 +57,10 @@ pub enum Algorithm {
     SVC,
     /// Logistic regression classifier
     LogisticRegression,
+    /// Gaussian Naive Bayes classifier
+    GaussianNaiveBayes,
+    /// Categorical Naive Bayes classifier
+    CategoricalNaiveBayes,
 }
 
 impl Display for Algorithm {
@@ -63,6 +71,8 @@ impl Display for Algorithm {
             Algorithm::RandomForest => write!(f, "Random Forest Classifier"),
             Algorithm::LogisticRegression => write!(f, "Logistic Regression Classifier"),
             Algorithm::SVC => write!(f, "Support Vector Classifier"),
+            Algorithm::GaussianNaiveBayes => write!(f, "Gaussian Naive Bayes"),
+            Algorithm::CategoricalNaiveBayes => write!(f, "Categorical Naive Bayes"),
         }
     }
 }
@@ -116,6 +126,16 @@ impl Classifier {
                     bincode::deserialize(&*self.final_model).unwrap();
                 model.predict(x).unwrap()
             }
+            Algorithm::GaussianNaiveBayes => {
+                let model: GaussianNB<f32, DenseMatrix<f32>> =
+                    bincode::deserialize(&*self.final_model).unwrap();
+                model.predict(x).unwrap()
+            }
+            Algorithm::CategoricalNaiveBayes => {
+                let model: CategoricalNB<f32, DenseMatrix<f32>> =
+                    bincode::deserialize(&*self.final_model).unwrap();
+                model.predict(x).unwrap()
+            }
         }
     }
 
@@ -165,6 +185,26 @@ impl Classifier {
             Algorithm::SVC => {
                 self.final_model = bincode::serialize(
                     &SVC::fit(&self.x, &self.y, self.settings.svc_settings.clone()).unwrap(),
+                )
+                .unwrap()
+            }
+
+            Algorithm::GaussianNaiveBayes => {
+                self.final_model = bincode::serialize(
+                    &GaussianNB::fit(&self.x, &self.y, self.settings.gaussian_nb_settings.clone())
+                        .unwrap(),
+                )
+                .unwrap()
+            }
+
+            Algorithm::CategoricalNaiveBayes => {
+                self.final_model = bincode::serialize(
+                    &CategoricalNB::fit(
+                        &self.x,
+                        &self.y,
+                        self.settings.categorical_nb_settings.clone(),
+                    )
+                    .unwrap(),
                 )
                 .unwrap()
             }
@@ -302,6 +342,48 @@ impl Classifier {
                 );
             }
 
+            if !self
+                .settings
+                .skiplist
+                .contains(&Algorithm::GaussianNaiveBayes)
+            {
+                self.add_model(
+                    Algorithm::GaussianNaiveBayes,
+                    cross_validate(
+                        GaussianNB::fit,
+                        &self.x,
+                        &self.y,
+                        self.settings.gaussian_nb_settings.clone(),
+                        KFold::default().with_n_splits(self.settings.number_of_folds),
+                        match self.settings.sort_by {
+                            Metric::Accuracy => accuracy,
+                        },
+                    )
+                    .unwrap(),
+                );
+            }
+
+            if !self
+                .settings
+                .skiplist
+                .contains(&Algorithm::CategoricalNaiveBayes)
+            {
+                self.add_model(
+                    Algorithm::CategoricalNaiveBayes,
+                    cross_validate(
+                        CategoricalNB::fit,
+                        &self.x,
+                        &self.y,
+                        self.settings.categorical_nb_settings.clone(),
+                        KFold::default().with_n_splits(self.settings.number_of_folds),
+                        match self.settings.sort_by {
+                            Metric::Accuracy => accuracy,
+                        },
+                    )
+                    .unwrap(),
+                );
+            }
+
             if self.number_of_classes == 2 && !self.settings.skiplist.contains(&Algorithm::SVC) {
                 self.add_model(
                     Algorithm::SVC,
@@ -386,6 +468,8 @@ pub struct Settings {
     knn_settings: KNNClassifierParameters<f32, Euclidian>,
     svc_settings: SVCParameters<f32, DenseMatrix<f32>, LinearKernel>,
     decision_tree_settings: DecisionTreeClassifierParameters,
+    gaussian_nb_settings: GaussianNBParameters<f32>,
+    categorical_nb_settings: CategoricalNBParameters<f32>,
 }
 
 impl Default for Settings {
@@ -399,6 +483,8 @@ impl Default for Settings {
             knn_settings: KNNClassifierParameters::default(),
             svc_settings: SVCParameters::default(),
             decision_tree_settings: DecisionTreeClassifierParameters::default(),
+            gaussian_nb_settings: GaussianNBParameters::default(),
+            categorical_nb_settings: CategoricalNBParameters::default(),
             number_of_folds: 10,
         }
     }
@@ -465,6 +551,12 @@ impl Settings {
     /// Specify settings for logistic regression
     pub fn with_knn_settings(mut self, settings: KNNClassifierParameters<f32, Euclidian>) -> Self {
         self.knn_settings = settings;
+        self
+    }
+
+    /// Specify settings for Gaussian Naive Bayes
+    pub fn with_gaussian_nb_settings(mut self, settings: GaussianNBParameters<f32>) -> Self {
+        self.gaussian_nb_settings = settings;
         self
     }
 }
