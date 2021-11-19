@@ -4,6 +4,8 @@ use crate::utils::Status;
 use comfy_table::{
     modifiers::UTF8_SOLID_INNER_BORDERS, presets::UTF8_FULL, Attribute, Cell, Table,
 };
+use polars::prelude::{CsvReader, DataFrame, DataType, Float32Type, SerReader};
+
 use smartcore::{
     dataset::Dataset,
     ensemble::random_forest_classifier::{
@@ -128,6 +130,32 @@ impl Classifier {
         self.x = DenseMatrix::from_array(dataset.num_samples, dataset.num_features, &dataset.data);
         self.y = dataset.target;
         self.count_classes();
+        self.status = Status::DataLoaded;
+    }
+
+    /// Add data from a csv
+    pub fn with_data_from_csv(&mut self, filepath: &str, target: usize, header: bool) {
+        let df = CsvReader::from_path(filepath)
+            .unwrap()
+            .infer_schema(None)
+            .has_header(header)
+            .finish()
+            .unwrap();
+
+        // Get target variables
+        let target_column_name = df.get_column_names()[target];
+        let series = df.column(target_column_name).unwrap().clone();
+        let target_df = DataFrame::new(vec![series]).unwrap();
+        let ndarray = target_df.to_ndarray::<Float32Type>().unwrap();
+        self.y = ndarray.into_raw_vec();
+
+        // Get the rest of the data
+        let features = df.drop(target_column_name).unwrap();
+        let (height, width) = features.shape();
+        let ndarray = features.to_ndarray::<Float32Type>().unwrap();
+        self.x = DenseMatrix::from_array(height, width, ndarray.as_slice().unwrap());
+
+        // Set status
         self.status = Status::DataLoaded;
     }
 
@@ -465,6 +493,7 @@ pub struct Settings {
     sort_by: Metric,
     number_of_folds: usize,
     shuffle: bool,
+    verbose: bool,
     logistic_settings: LogisticRegressionParameters,
     random_forest_settings: RandomForestClassifierParameters,
     knn_settings: KNNClassifierParameters<f32, Euclidian>,
@@ -480,6 +509,7 @@ impl Default for Settings {
             skiplist: vec![],
             sort_by: Metric::Accuracy,
             shuffle: true,
+            verbose: true,
             logistic_settings: LogisticRegressionParameters::default(),
             random_forest_settings: RandomForestClassifierParameters::default(),
             knn_settings: KNNClassifierParameters::default(),
@@ -586,20 +616,18 @@ impl Display for Settings {
                 Cell::new("Settings").add_attribute(Attribute::Bold),
                 Cell::new("Value").add_attribute(Attribute::Bold),
             ])
+            .add_row(vec![Cell::new("General").add_attribute(Attribute::Italic)])
+            .add_row(vec!["    Verbose", &*format!("{}", self.verbose)])
+            .add_row(vec!["    Sorting Metric", &*format!("{}", self.sort_by)])
+            .add_row(vec!["    Shuffle Data", &*format!("{}", self.shuffle)])
             .add_row(vec![
-                "Sorting Metric".to_owned(),
-                format!("{}", self.sort_by),
+                "    Number of CV Folds",
+                &*format!("{}", self.number_of_folds),
             ])
-            .add_row(vec!["Shuffle Data".to_owned(), format!("{}", self.shuffle)])
             .add_row(vec![
-                "Number of CV Folds".to_owned(),
-                format!("{}", self.number_of_folds),
-            ])
-            .add_row(vec![
-                "Skipped Algorithms".to_owned(),
-                format!("{}", &skiplist[0..skiplist.len() - 1]),
+                "    Skipped Algorithms",
+                &*format!("{}", &skiplist[0..skiplist.len() - 1]),
             ]);
-
         write!(f, "{}\n", table)
     }
 }
