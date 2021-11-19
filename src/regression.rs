@@ -5,7 +5,7 @@ use crate::utils::{print_knn_search_algorithm, print_knn_weight_function};
 use comfy_table::{
     modifiers::UTF8_SOLID_INNER_BORDERS, presets::UTF8_FULL, Attribute, Cell, Table,
 };
-use polars::prelude::{CsvReader, DataFrame, DataType, Float32Type, SerReader};
+use polars::prelude::{CsvReader, DataFrame, Float32Type, SerReader};
 use smartcore::math::distance::hamming::Hamming;
 use smartcore::math::distance::mahalanobis::Mahalanobis;
 use smartcore::math::distance::manhattan::Manhattan;
@@ -1041,7 +1041,7 @@ impl Display for Settings {
         // Get list of algorithms to skip
         let mut skiplist = String::new();
         if self.skiplist.len() == 0 {
-            skiplist.push_str("None");
+            skiplist.push_str("None ");
         } else {
             for algorithm_to_skip in &self.skiplist {
                 skiplist.push_str(&*format!("{}\n", algorithm_to_skip));
@@ -1289,11 +1289,21 @@ impl Default for KNNParameters {
     }
 }
 
+/// Distance metrics for us with KNN regrssion
 pub enum Distance {
+    /// Euclidean distance
     Euclidean,
+
+    /// Manhattan distance
     Manhattan,
+
+    /// Minkowski distance, parameterized by p
     Minkowski(u16),
+
+    /// Mahalanobis distance
     Mahalanobis,
+
+    /// Hamming distance
     Hamming,
 }
 
@@ -1323,16 +1333,19 @@ impl SVRParameters {
         self
     }
 
+    /// Define the regulation penalty to use with the SVR Model
     pub fn with_c(mut self, c: f32) -> Self {
         self.c = c;
         self
     }
 
+    /// Define the convergence tolereance to use with the SVR model
     pub fn with_tol(mut self, tol: f32) -> Self {
         self.tol = tol;
         self
     }
 
+    /// Define which kernel to use with the SVR model
     pub fn with_kernel(mut self, kernel: Kernel) -> Self {
         self.kernel = kernel;
         self
@@ -1350,6 +1363,7 @@ impl Default for SVRParameters {
     }
 }
 
+/// Kernel options for support vector machines
 pub enum Kernel {
     /// Linear Kernel
     Linear,

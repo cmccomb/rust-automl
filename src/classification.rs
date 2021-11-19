@@ -4,7 +4,7 @@ use crate::utils::Status;
 use comfy_table::{
     modifiers::UTF8_SOLID_INNER_BORDERS, presets::UTF8_FULL, Attribute, Cell, Table,
 };
-use polars::prelude::{CsvReader, DataFrame, DataType, Float32Type, SerReader};
+use polars::prelude::{CsvReader, DataFrame, Float32Type, SerReader};
 
 use smartcore::{
     dataset::Dataset,

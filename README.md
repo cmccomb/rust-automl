@@ -44,7 +44,7 @@ Currently this crate only has AutoML features for regression and classification.
   - KNN Regression
   - Random Forest Regression
   - Linear Regression
-  - Rdige Regression
+  - Ridge Regression
   - LASSO
   - Elastic Net
   - Support Vector Regression
