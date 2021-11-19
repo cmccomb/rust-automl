@@ -1,22 +1,16 @@
 #[cfg(test)]
 mod regression_tests {
+    use automl::regression::{Algorithm, Metric, Regressor, SVRParameters, Settings};
+    use smartcore::{dataset::diabetes::load_dataset, linalg::naive::dense_matrix::DenseMatrix};
+
     #[test]
     fn print_settings() {
-        let settings = automl::regression::Settings::default()
-            .skip(automl::regression::Algorithm::DecisionTree)
-            .skip(automl::regression::Algorithm::Ridge)
-            .with_number_of_folds(3);
+        let settings = automl::regression::Settings::default().with_number_of_folds(3);
         println!("{}", &settings);
     }
 
     #[test]
     fn test_step_by_step() {
-        use automl::regression::{Algorithm, Metric, Regressor, Settings};
-        use smartcore::svm::svr::SVRParameters;
-        use smartcore::{
-            dataset::diabetes::load_dataset, linalg::naive::dense_matrix::DenseMatrix,
-        };
-
         // Check training
         let dataset = load_dataset();
         let x = DenseMatrix::from_array(dataset.num_samples, dataset.num_features, &dataset.data);
@@ -45,10 +39,6 @@ mod regression_tests {
 
     #[test]
     fn test_read_from_csv() {
-        use automl::regression::{Algorithm, Metric, Regressor, Settings};
-        use smartcore::linalg::naive::dense_matrix::DenseMatrix;
-        use smartcore::svm::svr::SVRParameters;
-
         let file_name = "data/diabetes.csv";
 
         // Set up the regressor settings and load data

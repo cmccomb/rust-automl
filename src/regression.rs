@@ -1,29 +1,46 @@
 //! Auto-ML for regression models
 
-use super::utils::Status;
+use super::utils::{print_option, Status};
+use crate::utils::{print_knn_search_algorithm, print_knn_weight_function};
 use comfy_table::{
     modifiers::UTF8_SOLID_INNER_BORDERS, presets::UTF8_FULL, Attribute, Cell, Table,
 };
-use polars::prelude::{CsvReader, DataType, Float32Type, SerReader};
+use polars::prelude::{CsvReader, DataFrame, DataType, Float32Type, SerReader};
+use smartcore::math::distance::hamming::Hamming;
+use smartcore::math::distance::mahalanobis::Mahalanobis;
+use smartcore::math::distance::manhattan::Manhattan;
+use smartcore::math::distance::minkowski::Minkowski;
+use smartcore::math::distance::Distances;
+use smartcore::svm::{PolynomialKernel, RBFKernel, SigmoidKernel};
+pub use smartcore::{
+    algorithm::neighbour::KNNAlgorithmName,
+    ensemble::random_forest_regressor::RandomForestRegressorParameters,
+    linear::{
+        elastic_net::ElasticNetParameters,
+        lasso::LassoParameters,
+        linear_regression::{LinearRegressionParameters, LinearRegressionSolverName},
+        ridge_regression::{RidgeRegressionParameters, RidgeRegressionSolverName},
+    },
+    neighbors::KNNWeightFunction,
+    tree::decision_tree_regressor::DecisionTreeRegressorParameters,
+};
 use smartcore::{
     dataset::Dataset,
-    ensemble::random_forest_regressor::{RandomForestRegressor, RandomForestRegressorParameters},
+    ensemble::random_forest_regressor::RandomForestRegressor,
     linalg::naive::dense_matrix::DenseMatrix,
     linear::{
-        elastic_net::{ElasticNet, ElasticNetParameters},
-        lasso::{Lasso, LassoParameters},
-        linear_regression::{LinearRegression, LinearRegressionParameters},
-        ridge_regression::{RidgeRegression, RidgeRegressionParameters},
+        elastic_net::ElasticNet, lasso::Lasso, linear_regression::LinearRegression,
+        ridge_regression::RidgeRegression,
     },
     math::distance::euclidian::Euclidian,
     metrics::{mean_absolute_error, mean_squared_error, r2},
     model_selection::{cross_validate, CrossValidationResult, KFold},
     neighbors::knn_regressor::{KNNRegressor, KNNRegressorParameters},
     svm::{
-        svr::{SVRParameters, SVR},
-        LinearKernel,
+        svr::{SVRParameters as SmartcoreSVRParameters, SVR},
+        Kernels, LinearKernel,
     },
-    tree::decision_tree_regressor::{DecisionTreeRegressor, DecisionTreeRegressorParameters},
+    tree::decision_tree_regressor::DecisionTreeRegressor,
 };
 use std::{
     cmp::Ordering::Equal,
@@ -138,85 +155,16 @@ impl Regressor {
             .finish()
             .unwrap();
 
+        if self.settings.verbose {
+            println!("{}", df);
+        }
+
         // Get target variables
         let target_column_name = df.get_column_names()[target];
-        let series = df.column(target_column_name).unwrap();
-        match series.dtype() {
-            DataType::Boolean => series
-                .bool()
-                .unwrap()
-                .into_no_null_iter()
-                .for_each(|v| self.y.push(if v { 1.0 as f32 } else { 0.0 as f32 })),
-            DataType::UInt8 => series
-                .u8()
-                .unwrap()
-                .into_no_null_iter()
-                .for_each(|v| self.y.push(v as f32)),
-            DataType::UInt16 => series
-                .u64()
-                .unwrap()
-                .into_no_null_iter()
-                .for_each(|v| self.y.push(v as f32)),
-            DataType::UInt32 => series
-                .u32()
-                .unwrap()
-                .into_no_null_iter()
-                .for_each(|v| self.y.push(v as f32)),
-            DataType::UInt64 => series
-                .u64()
-                .unwrap()
-                .into_no_null_iter()
-                .for_each(|v| self.y.push(v as f32)),
-            DataType::Int8 => series
-                .i8()
-                .unwrap()
-                .into_no_null_iter()
-                .for_each(|v| self.y.push(v as f32)),
-            DataType::Int16 => series
-                .i16()
-                .unwrap()
-                .into_no_null_iter()
-                .for_each(|v| self.y.push(v as f32)),
-            DataType::Int32 => series
-                .i32()
-                .unwrap()
-                .into_no_null_iter()
-                .for_each(|v| self.y.push(v as f32)),
-            DataType::Int64 => series
-                .i64()
-                .unwrap()
-                .into_no_null_iter()
-                .for_each(|v| self.y.push(v as f32)),
-            DataType::Float32 => series
-                .f32()
-                .unwrap()
-                .into_no_null_iter()
-                .for_each(|v| self.y.push(v as f32)),
-            DataType::Float64 => series
-                .f64()
-                .unwrap()
-                .into_no_null_iter()
-                .for_each(|v| self.y.push(v as f32)),
-            DataType::Utf8 => {
-                panic!("Text data encountered")
-            }
-            DataType::Date => {
-                panic!("No idea how to handle dates or times yet")
-            }
-            DataType::Datetime => {
-                panic!("No idea how to handle dates or times yet")
-            }
-            DataType::Time => {
-                panic!("No idea how to handle dates or times yet")
-            }
-            DataType::List(_) => {
-                panic!("Super weird failure")
-            }
-            DataType::Null => panic!("Null data encountered"),
-
-            DataType::Categorical => panic!("Categorical data is bad mmk"),
-            _ => panic!("Idk what happened"),
-        }
+        let series = df.column(target_column_name).unwrap().clone();
+        let target_df = DataFrame::new(vec![series]).unwrap();
+        let ndarray = target_df.to_ndarray::<Float32Type>().unwrap();
+        self.y = ndarray.into_raw_vec();
 
         // Get the rest of the data
         let features = df.drop(target_column_name).unwrap();
@@ -259,22 +207,100 @@ impl Regressor {
             }
 
             if !self.settings.skiplist.contains(&Algorithm::SVR) {
-                self.add_model(
-                    Algorithm::SVR,
-                    cross_validate(
-                        SVR::fit,
-                        &self.x,
-                        &self.y,
-                        self.settings.svr_settings.clone(),
-                        KFold::default().with_n_splits(self.settings.number_of_folds),
-                        match self.settings.sort_by {
-                            Metric::RSquared => r2,
-                            Metric::MeanAbsoluteError => mean_absolute_error,
-                            Metric::MeanSquaredError => mean_squared_error,
-                        },
-                    )
-                    .unwrap(),
-                );
+                match self.settings.svr_settings.kernel {
+                    Kernel::Linear => {
+                        let params = SmartcoreSVRParameters::default()
+                            .with_tol(self.settings.svr_settings.tol)
+                            .with_c(self.settings.svr_settings.c)
+                            .with_eps(self.settings.svr_settings.c)
+                            .with_kernel(Kernels::linear());
+                        self.add_model(
+                            Algorithm::SVR,
+                            cross_validate(
+                                SVR::fit,
+                                &self.x,
+                                &self.y,
+                                params,
+                                KFold::default().with_n_splits(self.settings.number_of_folds),
+                                match self.settings.sort_by {
+                                    Metric::RSquared => r2,
+                                    Metric::MeanAbsoluteError => mean_absolute_error,
+                                    Metric::MeanSquaredError => mean_squared_error,
+                                },
+                            )
+                            .unwrap(),
+                        );
+                    }
+                    Kernel::Polynomial(degree, gamma, coef) => {
+                        let params = SmartcoreSVRParameters::default()
+                            .with_tol(self.settings.svr_settings.tol)
+                            .with_c(self.settings.svr_settings.c)
+                            .with_eps(self.settings.svr_settings.c)
+                            .with_kernel(Kernels::polynomial(degree, gamma, coef));
+                        self.add_model(
+                            Algorithm::SVR,
+                            cross_validate(
+                                SVR::fit,
+                                &self.x,
+                                &self.y,
+                                params,
+                                KFold::default().with_n_splits(self.settings.number_of_folds),
+                                match self.settings.sort_by {
+                                    Metric::RSquared => r2,
+                                    Metric::MeanAbsoluteError => mean_absolute_error,
+                                    Metric::MeanSquaredError => mean_squared_error,
+                                },
+                            )
+                            .unwrap(),
+                        );
+                    }
+                    Kernel::RBF(gamma) => {
+                        let params = SmartcoreSVRParameters::default()
+                            .with_tol(self.settings.svr_settings.tol)
+                            .with_c(self.settings.svr_settings.c)
+                            .with_eps(self.settings.svr_settings.c)
+                            .with_kernel(Kernels::rbf(gamma));
+                        self.add_model(
+                            Algorithm::SVR,
+                            cross_validate(
+                                SVR::fit,
+                                &self.x,
+                                &self.y,
+                                params,
+                                KFold::default().with_n_splits(self.settings.number_of_folds),
+                                match self.settings.sort_by {
+                                    Metric::RSquared => r2,
+                                    Metric::MeanAbsoluteError => mean_absolute_error,
+                                    Metric::MeanSquaredError => mean_squared_error,
+                                },
+                            )
+                            .unwrap(),
+                        );
+                    }
+                    Kernel::Sigmoid(gamma, coef) => {
+                        let params = SmartcoreSVRParameters::default()
+                            .with_tol(self.settings.svr_settings.tol)
+                            .with_c(self.settings.svr_settings.c)
+                            .with_eps(self.settings.svr_settings.c)
+                            .with_kernel(Kernels::sigmoid(gamma, coef));
+                        self.add_model(
+                            Algorithm::SVR,
+                            cross_validate(
+                                SVR::fit,
+                                &self.x,
+                                &self.y,
+                                params,
+                                KFold::default().with_n_splits(self.settings.number_of_folds),
+                                match self.settings.sort_by {
+                                    Metric::RSquared => r2,
+                                    Metric::MeanAbsoluteError => mean_absolute_error,
+                                    Metric::MeanSquaredError => mean_squared_error,
+                                },
+                            )
+                            .unwrap(),
+                        );
+                    }
+                }
             }
 
             if !self.settings.skiplist.contains(&Algorithm::Lasso) {
@@ -375,19 +401,93 @@ impl Regressor {
             if !self.settings.skiplist.contains(&Algorithm::KNN) {
                 self.add_model(
                     Algorithm::KNN,
-                    cross_validate(
-                        KNNRegressor::fit,
-                        &self.x,
-                        &self.y,
-                        self.settings.knn_settings.clone(),
-                        KFold::default().with_n_splits(self.settings.number_of_folds),
-                        match self.settings.sort_by {
-                            Metric::RSquared => r2,
-                            Metric::MeanAbsoluteError => mean_absolute_error,
-                            Metric::MeanSquaredError => mean_squared_error,
-                        },
-                    )
-                    .unwrap(),
+                    match self.settings.knn_settings.distance {
+                        Distance::Euclidean => cross_validate(
+                            KNNRegressor::fit,
+                            &self.x,
+                            &self.y,
+                            KNNRegressorParameters::default()
+                                .with_k(self.settings.knn_settings.k)
+                                .with_algorithm(self.settings.knn_settings.algorithm.clone())
+                                .with_weight(self.settings.knn_settings.weight.clone())
+                                .with_distance(Distances::euclidian()),
+                            KFold::default().with_n_splits(self.settings.number_of_folds),
+                            match self.settings.sort_by {
+                                Metric::RSquared => r2,
+                                Metric::MeanAbsoluteError => mean_absolute_error,
+                                Metric::MeanSquaredError => mean_squared_error,
+                            },
+                        )
+                        .unwrap(),
+                        Distance::Manhattan => cross_validate(
+                            KNNRegressor::fit,
+                            &self.x,
+                            &self.y,
+                            KNNRegressorParameters::default()
+                                .with_k(self.settings.knn_settings.k)
+                                .with_algorithm(self.settings.knn_settings.algorithm.clone())
+                                .with_weight(self.settings.knn_settings.weight.clone())
+                                .with_distance(Distances::manhattan()),
+                            KFold::default().with_n_splits(self.settings.number_of_folds),
+                            match self.settings.sort_by {
+                                Metric::RSquared => r2,
+                                Metric::MeanAbsoluteError => mean_absolute_error,
+                                Metric::MeanSquaredError => mean_squared_error,
+                            },
+                        )
+                        .unwrap(),
+                        Distance::Minkowski(p) => cross_validate(
+                            KNNRegressor::fit,
+                            &self.x,
+                            &self.y,
+                            KNNRegressorParameters::default()
+                                .with_k(self.settings.knn_settings.k)
+                                .with_algorithm(self.settings.knn_settings.algorithm.clone())
+                                .with_weight(self.settings.knn_settings.weight.clone())
+                                .with_distance(Distances::minkowski(p)),
+                            KFold::default().with_n_splits(self.settings.number_of_folds),
+                            match self.settings.sort_by {
+                                Metric::RSquared => r2,
+                                Metric::MeanAbsoluteError => mean_absolute_error,
+                                Metric::MeanSquaredError => mean_squared_error,
+                            },
+                        )
+                        .unwrap(),
+                        Distance::Mahalanobis => cross_validate(
+                            KNNRegressor::fit,
+                            &self.x,
+                            &self.y,
+                            KNNRegressorParameters::default()
+                                .with_k(self.settings.knn_settings.k)
+                                .with_algorithm(self.settings.knn_settings.algorithm.clone())
+                                .with_weight(self.settings.knn_settings.weight.clone())
+                                .with_distance(Distances::mahalanobis(&self.x)),
+                            KFold::default().with_n_splits(self.settings.number_of_folds),
+                            match self.settings.sort_by {
+                                Metric::RSquared => r2,
+                                Metric::MeanAbsoluteError => mean_absolute_error,
+                                Metric::MeanSquaredError => mean_squared_error,
+                            },
+                        )
+                        .unwrap(),
+                        Distance::Hamming => cross_validate(
+                            KNNRegressor::fit,
+                            &self.x,
+                            &self.y,
+                            KNNRegressorParameters::default()
+                                .with_k(self.settings.knn_settings.k)
+                                .with_algorithm(self.settings.knn_settings.algorithm.clone())
+                                .with_weight(self.settings.knn_settings.weight.clone())
+                                .with_distance(Distances::hamming()),
+                            KFold::default().with_n_splits(self.settings.number_of_folds),
+                            match self.settings.sort_by {
+                                Metric::RSquared => r2,
+                                Metric::MeanAbsoluteError => mean_absolute_error,
+                                Metric::MeanSquaredError => mean_squared_error,
+                            },
+                        )
+                        .unwrap(),
+                    },
                 );
             }
             self.status = Status::ModelsCompared;
@@ -437,19 +537,101 @@ impl Regressor {
                 )
                 .unwrap()
             }
-            Algorithm::KNN => {
-                self.final_model = bincode::serialize(
-                    &KNNRegressor::fit(&self.x, &self.y, self.settings.knn_settings.clone())
-                        .unwrap(),
-                )
-                .unwrap()
-            }
-            Algorithm::SVR => {
-                self.final_model = bincode::serialize(
-                    &SVR::fit(&self.x, &self.y, self.settings.svr_settings.clone()).unwrap(),
-                )
-                .unwrap()
-            }
+            Algorithm::KNN => match self.settings.knn_settings.distance {
+                Distance::Euclidean => {
+                    let params = KNNRegressorParameters::default()
+                        .with_k(self.settings.knn_settings.k)
+                        .with_algorithm(self.settings.knn_settings.algorithm.clone())
+                        .with_weight(self.settings.knn_settings.weight.clone())
+                        .with_distance(Distances::euclidian());
+
+                    self.final_model =
+                        bincode::serialize(&KNNRegressor::fit(&self.x, &self.y, params).unwrap())
+                            .unwrap()
+                }
+                Distance::Manhattan => {
+                    let params = KNNRegressorParameters::default()
+                        .with_k(self.settings.knn_settings.k)
+                        .with_algorithm(self.settings.knn_settings.algorithm.clone())
+                        .with_weight(self.settings.knn_settings.weight.clone())
+                        .with_distance(Distances::manhattan());
+
+                    self.final_model =
+                        bincode::serialize(&KNNRegressor::fit(&self.x, &self.y, params).unwrap())
+                            .unwrap()
+                }
+                Distance::Minkowski(p) => {
+                    let params = KNNRegressorParameters::default()
+                        .with_k(self.settings.knn_settings.k)
+                        .with_algorithm(self.settings.knn_settings.algorithm.clone())
+                        .with_weight(self.settings.knn_settings.weight.clone())
+                        .with_distance(Distances::minkowski(p));
+
+                    self.final_model =
+                        bincode::serialize(&KNNRegressor::fit(&self.x, &self.y, params).unwrap())
+                            .unwrap()
+                }
+                Distance::Mahalanobis => {
+                    let params = KNNRegressorParameters::default()
+                        .with_k(self.settings.knn_settings.k)
+                        .with_algorithm(self.settings.knn_settings.algorithm.clone())
+                        .with_weight(self.settings.knn_settings.weight.clone())
+                        .with_distance(Distances::mahalanobis(&self.x));
+
+                    self.final_model =
+                        bincode::serialize(&KNNRegressor::fit(&self.x, &self.y, params).unwrap())
+                            .unwrap()
+                }
+                Distance::Hamming => {
+                    let params = KNNRegressorParameters::default()
+                        .with_k(self.settings.knn_settings.k)
+                        .with_algorithm(self.settings.knn_settings.algorithm.clone())
+                        .with_weight(self.settings.knn_settings.weight.clone())
+                        .with_distance(Distances::hamming());
+
+                    self.final_model =
+                        bincode::serialize(&KNNRegressor::fit(&self.x, &self.y, params).unwrap())
+                            .unwrap()
+                }
+            },
+            Algorithm::SVR => match self.settings.svr_settings.kernel {
+                Kernel::Linear => {
+                    let params = SmartcoreSVRParameters::default()
+                        .with_tol(self.settings.svr_settings.tol)
+                        .with_c(self.settings.svr_settings.c)
+                        .with_eps(self.settings.svr_settings.c)
+                        .with_kernel(Kernels::linear());
+                    self.final_model =
+                        bincode::serialize(&SVR::fit(&self.x, &self.y, params).unwrap()).unwrap()
+                }
+                Kernel::Polynomial(degree, gamma, coef) => {
+                    let params = SmartcoreSVRParameters::default()
+                        .with_tol(self.settings.svr_settings.tol)
+                        .with_c(self.settings.svr_settings.c)
+                        .with_eps(self.settings.svr_settings.c)
+                        .with_kernel(Kernels::polynomial(degree, gamma, coef));
+                    self.final_model =
+                        bincode::serialize(&SVR::fit(&self.x, &self.y, params).unwrap()).unwrap()
+                }
+                Kernel::RBF(gamma) => {
+                    let params = SmartcoreSVRParameters::default()
+                        .with_tol(self.settings.svr_settings.tol)
+                        .with_c(self.settings.svr_settings.c)
+                        .with_eps(self.settings.svr_settings.c)
+                        .with_kernel(Kernels::rbf(gamma));
+                    self.final_model =
+                        bincode::serialize(&SVR::fit(&self.x, &self.y, params).unwrap()).unwrap()
+                }
+                Kernel::Sigmoid(gamma, coef) => {
+                    let params = SmartcoreSVRParameters::default()
+                        .with_tol(self.settings.svr_settings.tol)
+                        .with_c(self.settings.svr_settings.c)
+                        .with_eps(self.settings.svr_settings.c)
+                        .with_kernel(Kernels::sigmoid(gamma, coef));
+                    self.final_model =
+                        bincode::serialize(&SVR::fit(&self.x, &self.y, params).unwrap()).unwrap()
+                }
+            },
             Algorithm::DecisionTree => {
                 self.final_model = bincode::serialize(
                     &DecisionTreeRegressor::fit(
@@ -494,16 +676,55 @@ impl Regressor {
                     bincode::deserialize(&*self.final_model).unwrap();
                 model.predict(x).unwrap()
             }
-            Algorithm::KNN => {
-                let model: KNNRegressor<f32, Euclidian> =
-                    bincode::deserialize(&*self.final_model).unwrap();
-                model.predict(x).unwrap()
-            }
-            Algorithm::SVR => {
-                let model: SVR<f32, DenseMatrix<f32>, LinearKernel> =
-                    bincode::deserialize(&*self.final_model).unwrap();
-                model.predict(x).unwrap()
-            }
+            Algorithm::KNN => match self.settings.knn_settings.distance {
+                Distance::Euclidean => {
+                    let model: KNNRegressor<f32, Euclidian> =
+                        bincode::deserialize(&*self.final_model).unwrap();
+                    model.predict(x).unwrap()
+                }
+                Distance::Manhattan => {
+                    let model: KNNRegressor<f32, Manhattan> =
+                        bincode::deserialize(&*self.final_model).unwrap();
+                    model.predict(x).unwrap()
+                }
+                Distance::Minkowski(_) => {
+                    let model: KNNRegressor<f32, Minkowski> =
+                        bincode::deserialize(&*self.final_model).unwrap();
+                    model.predict(x).unwrap()
+                }
+                Distance::Mahalanobis => {
+                    let model: KNNRegressor<f32, Mahalanobis<f32, DenseMatrix<f32>>> =
+                        bincode::deserialize(&*self.final_model).unwrap();
+                    model.predict(x).unwrap()
+                }
+                Distance::Hamming => {
+                    let model: KNNRegressor<f32, Hamming> =
+                        bincode::deserialize(&*self.final_model).unwrap();
+                    model.predict(x).unwrap()
+                }
+            },
+            Algorithm::SVR => match self.settings.svr_settings.kernel {
+                Kernel::Linear => {
+                    let model: SVR<f32, DenseMatrix<f32>, LinearKernel> =
+                        bincode::deserialize(&*self.final_model).unwrap();
+                    model.predict(x).unwrap()
+                }
+                Kernel::Polynomial(_, _, _) => {
+                    let model: SVR<f32, DenseMatrix<f32>, PolynomialKernel<f32>> =
+                        bincode::deserialize(&*self.final_model).unwrap();
+                    model.predict(x).unwrap()
+                }
+                Kernel::RBF(_) => {
+                    let model: SVR<f32, DenseMatrix<f32>, RBFKernel<f32>> =
+                        bincode::deserialize(&*self.final_model).unwrap();
+                    model.predict(x).unwrap()
+                }
+                Kernel::Sigmoid(_, _) => {
+                    let model: SVR<f32, DenseMatrix<f32>, SigmoidKernel<f32>> =
+                        bincode::deserialize(&*self.final_model).unwrap();
+                    model.predict(x).unwrap()
+                }
+            },
             Algorithm::DecisionTree => {
                 let model: DecisionTreeRegressor<f32> =
                     bincode::deserialize(&*self.final_model).unwrap();
@@ -589,13 +810,13 @@ pub struct Settings {
     shuffle: bool,
     verbose: bool,
     linear_settings: LinearRegressionParameters,
-    svr_settings: SVRParameters<f32, DenseMatrix<f32>, LinearKernel>,
+    svr_settings: SVRParameters,
     lasso_settings: LassoParameters<f32>,
     ridge_settings: RidgeRegressionParameters<f32>,
     elastic_net_settings: ElasticNetParameters<f32>,
     decision_tree_settings: DecisionTreeRegressorParameters,
     random_forest_settings: RandomForestRegressorParameters,
-    knn_settings: KNNRegressorParameters<f32, Euclidian>,
+    knn_settings: KNNParameters,
 }
 
 impl Default for Settings {
@@ -613,82 +834,177 @@ impl Default for Settings {
             elastic_net_settings: ElasticNetParameters::default(),
             decision_tree_settings: DecisionTreeRegressorParameters::default(),
             random_forest_settings: RandomForestRegressorParameters::default(),
-            knn_settings: KNNRegressorParameters::default(),
+            knn_settings: KNNParameters::default(),
         }
     }
 }
 
 impl Settings {
     /// Specify number of folds for cross-validation
+    /// ```
+    /// # use automl::regression::Settings;
+    /// let settings = Settings::default().with_number_of_folds(3);
+    /// ```
     pub fn with_number_of_folds(mut self, n: usize) -> Self {
         self.number_of_folds = n;
         self
     }
 
     /// Specify whether or not data should be shuffled
+    /// ```
+    /// # use automl::regression::Settings;
+    /// let settings = Settings::default().shuffle_data(true);
+    /// ```
     pub fn shuffle_data(mut self, shuffle: bool) -> Self {
         self.shuffle = shuffle;
         self
     }
 
     /// Specify whether or not to be verbose
+    /// ```
+    /// # use automl::regression::Settings;
+    /// let settings = Settings::default().verbose(true);
+    /// ```
     pub fn verbose(mut self, verbose: bool) -> Self {
         self.verbose = verbose;
         self
     }
 
     /// Specify algorithms that shouldn't be included in comparison
+    /// ```
+    /// # use automl::regression::Settings;
+    /// use automl::regression::Algorithm;
+    /// let settings = Settings::default().skip(Algorithm::RandomForest);
+    /// ```
     pub fn skip(mut self, skip: Algorithm) -> Self {
         self.skiplist.push(skip);
         self
     }
 
     /// Adds a specific sorting function to the settings
+    /// ```
+    /// # use automl::regression::Settings;
+    /// use automl::regression::Metric;
+    /// let settings = Settings::default().sorted_by(Metric::RSquared);
+    /// ```
     pub fn sorted_by(mut self, sort_by: Metric) -> Self {
         self.sort_by = sort_by;
         self
     }
 
     /// Specify settings for linear regression
+    /// ```
+    /// # use automl::regression::Settings;
+    /// use automl::regression::{LinearRegressionParameters, LinearRegressionSolverName};
+    /// let settings = Settings::default()
+    ///     .with_linear_settings(LinearRegressionParameters::default()
+    ///         .with_solver(LinearRegressionSolverName::QR)
+    ///     );
+    /// ```
     pub fn with_linear_settings(mut self, settings: LinearRegressionParameters) -> Self {
         self.linear_settings = settings;
         self
     }
 
     /// Specify settings for lasso regression
+    /// ```
+    /// # use automl::regression::Algorithm::Lasso;
+    /// use automl::regression::Settings;
+    /// use automl::regression::LassoParameters;
+    /// let settings = Settings::default()
+    ///     .with_lasso_settings(LassoParameters::default()
+    ///         .with_alpha(10.0)
+    ///         .with_tol(1e-10)
+    ///         .with_normalize(true)
+    ///         .with_max_iter(10_000)
+    ///     );
+    /// ```
     pub fn with_lasso_settings(mut self, settings: LassoParameters<f32>) -> Self {
         self.lasso_settings = settings;
         self
     }
 
     /// Specify settings for ridge regression
+    /// ```
+    /// # use automl::regression::Settings;
+    /// use automl::regression::{RidgeRegressionParameters, RidgeRegressionSolverName};
+    /// let settings = Settings::default()
+    ///     .with_ridge_settings(RidgeRegressionParameters::default()
+    ///         .with_alpha(10.0)
+    ///         .with_normalize(true)
+    ///         .with_solver(RidgeRegressionSolverName::Cholesky)
+    ///     );
+    /// ```
     pub fn with_ridge_settings(mut self, settings: RidgeRegressionParameters<f32>) -> Self {
         self.ridge_settings = settings;
         self
     }
 
     /// Specify settings for elastic net
+    /// ```
+    /// # use automl::regression::Settings;
+    /// use automl::regression::ElasticNetParameters;
+    /// let settings = Settings::default()
+    ///     .with_elastic_net_settings(ElasticNetParameters::default()
+    ///         .with_tol(1e-10)
+    ///         .with_normalize(true)
+    ///         .with_alpha(1.0)
+    ///         .with_max_iter(10_000)
+    ///         .with_l1_ratio(0.5)    
+    ///     );
+    /// ```
     pub fn with_elastic_net_settings(mut self, settings: ElasticNetParameters<f32>) -> Self {
         self.elastic_net_settings = settings;
         self
     }
 
     /// Specify settings for KNN regressor
-    pub fn with_knn_settings(mut self, settings: KNNRegressorParameters<f32, Euclidian>) -> Self {
+    /// ```
+    /// # use automl::regression::Settings;
+    /// use automl::regression::{KNNParameters, KNNAlgorithmName, KNNWeightFunction, Distance};
+    /// let settings = Settings::default()
+    ///     .with_knn_settings(KNNParameters::default()
+    ///         .with_algorithm(KNNAlgorithmName::CoverTree)
+    ///         .with_k(3)
+    ///         .with_distance(Distance::Euclidean)
+    ///         .with_weight(KNNWeightFunction::Uniform)
+    ///     );
+    /// ```
+    pub fn with_knn_settings(mut self, settings: KNNParameters) -> Self {
         self.knn_settings = settings;
         self
     }
 
     /// Specify settings for support vector regressor
-    pub fn with_svr_settings(
-        mut self,
-        settings: SVRParameters<f32, DenseMatrix<f32>, LinearKernel>,
-    ) -> Self {
+    /// ```
+    /// # use automl::regression::Settings;
+    /// use automl::regression::{SVRParameters, Kernel};
+    /// let settings = Settings::default()    
+    ///     .with_svr_settings(SVRParameters::default()
+    ///         .with_eps(1e-10)
+    ///         .with_tol(1e-10)
+    ///         .with_c(1.0)
+    ///         .with_kernel(Kernel::Linear)
+    ///     );
+    /// ```
+    pub fn with_svr_settings(mut self, settings: SVRParameters) -> Self {
         self.svr_settings = settings;
         self
     }
 
     /// Specify settings for random forest
+    /// ```
+    /// # use automl::regression::Settings;
+    /// use automl::regression::RandomForestRegressorParameters;
+    /// let settings = Settings::default()
+    ///     .with_random_forest_settings(RandomForestRegressorParameters::default()
+    ///         .with_m(100)
+    ///         .with_max_depth(5)
+    ///         .with_min_samples_leaf(20)
+    ///         .with_n_trees(100)
+    ///         .with_min_samples_split(20)
+    ///     );
+    /// ```
     pub fn with_random_forest_settings(
         mut self,
         settings: RandomForestRegressorParameters,
@@ -698,6 +1014,16 @@ impl Settings {
     }
 
     /// Specify settings for decision tree
+    /// ```
+    /// # use automl::regression::Settings;
+    /// use automl::regression::DecisionTreeRegressorParameters;
+    /// let settings = Settings::default()
+    ///     .with_decision_tree_settings(DecisionTreeRegressorParameters::default()
+    ///         .with_min_samples_split(20)
+    ///         .with_max_depth(5)
+    ///         .with_min_samples_leaf(20)
+    ///     );
+    /// ```
     pub fn with_decision_tree_settings(
         mut self,
         settings: DecisionTreeRegressorParameters,
@@ -730,21 +1056,327 @@ impl Display for Settings {
                 Cell::new("Settings").add_attribute(Attribute::Bold),
                 Cell::new("Value").add_attribute(Attribute::Bold),
             ])
+            .add_row(vec![Cell::new("General").add_attribute(Attribute::Italic)])
+            .add_row(vec!["    Verbose", &*format!("{}", self.verbose)])
+            .add_row(vec!["    Sorting Metric", &*format!("{}", self.sort_by)])
+            .add_row(vec!["    Shuffle Data", &*format!("{}", self.shuffle)])
             .add_row(vec![
-                "Sorting Metric".to_owned(),
-                format!("{}", self.sort_by),
-            ])
-            .add_row(vec!["Shuffle Data".to_owned(), format!("{}", self.shuffle)])
-            .add_row(vec![
-                "Number of CV Folds".to_owned(),
-                format!("{}", self.number_of_folds),
+                "    Number of CV Folds",
+                &*format!("{}", self.number_of_folds),
             ])
             .add_row(vec![
-                "Skipped Algorithms".to_owned(),
-                format!("{}", &skiplist[0..skiplist.len() - 1]),
-            ])
-            .add_row(vec!["Verbose".to_owned(), format!("{}", self.verbose)]);
+                "    Skipped Algorithms",
+                &*format!("{}", &skiplist[0..skiplist.len() - 1]),
+            ]);
+        if !self.skiplist.contains(&Algorithm::Linear) {
+            table
+                .add_row(vec![
+                    Cell::new(Algorithm::Linear).add_attribute(Attribute::Italic)
+                ])
+                .add_row(vec![
+                    "    Solver",
+                    match self.linear_settings.solver {
+                        LinearRegressionSolverName::QR => "QR",
+                        LinearRegressionSolverName::SVD => "SVD",
+                    },
+                ]);
+        }
+        if !self.skiplist.contains(&Algorithm::Ridge) {
+            table
+                .add_row(vec![
+                    Cell::new(Algorithm::Ridge).add_attribute(Attribute::Italic)
+                ])
+                .add_row(vec![
+                    "    Solver",
+                    match self.ridge_settings.solver {
+                        RidgeRegressionSolverName::Cholesky => "Cholesky",
+                        RidgeRegressionSolverName::SVD => "SVD",
+                    },
+                ])
+                .add_row(vec![
+                    "    Alpha",
+                    &*format!("{}", self.ridge_settings.alpha),
+                ])
+                .add_row(vec![
+                    "    Normalize",
+                    &*format!("{}", self.ridge_settings.normalize),
+                ]);
+        }
+
+        if !self.skiplist.contains(&Algorithm::Lasso) {
+            table
+                .add_row(vec![
+                    Cell::new(Algorithm::Lasso).add_attribute(Attribute::Italic)
+                ])
+                .add_row(vec![
+                    "    Alpha",
+                    &*format!("{}", self.lasso_settings.alpha),
+                ])
+                .add_row(vec![
+                    "    Normalize",
+                    &*format!("{}", self.lasso_settings.normalize),
+                ])
+                .add_row(vec![
+                    "    Maximum Iterations",
+                    &*format!("{}", self.lasso_settings.max_iter),
+                ])
+                .add_row(vec![
+                    "    Tolerance",
+                    &*format!("{}", self.lasso_settings.tol),
+                ]);
+        }
+
+        if !self.skiplist.contains(&Algorithm::ElasticNet) {
+            table
+                .add_row(vec![
+                    Cell::new(Algorithm::ElasticNet).add_attribute(Attribute::Italic)
+                ])
+                .add_row(vec![
+                    "    Alpha",
+                    &*format!("{}", self.elastic_net_settings.alpha),
+                ])
+                .add_row(vec![
+                    "    Normalize",
+                    &*format!("{}", self.elastic_net_settings.normalize),
+                ])
+                .add_row(vec![
+                    "    Maximum Iterations",
+                    &*format!("{}", self.elastic_net_settings.max_iter),
+                ])
+                .add_row(vec![
+                    "    Tolerance",
+                    &*format!("{}", self.elastic_net_settings.tol),
+                ])
+                .add_row(vec![
+                    "    L1 Ratio",
+                    &*format!("{}", self.elastic_net_settings.l1_ratio),
+                ]);
+        }
+
+        if !self.skiplist.contains(&Algorithm::DecisionTree) {
+            table
+                .add_row(vec![
+                    Cell::new(Algorithm::DecisionTree).add_attribute(Attribute::Italic)
+                ])
+                .add_row(vec![
+                    "    Max Depth",
+                    &*print_option(self.decision_tree_settings.max_depth),
+                ])
+                .add_row(vec![
+                    "    Min samples for leaf",
+                    &*format!("{}", self.decision_tree_settings.min_samples_leaf),
+                ])
+                .add_row(vec![
+                    "    Min samples for split",
+                    &*format!("{}", self.decision_tree_settings.min_samples_split),
+                ]);
+        }
+
+        if !self.skiplist.contains(&Algorithm::RandomForest) {
+            table
+                .add_row(vec![
+                    Cell::new(Algorithm::RandomForest).add_attribute(Attribute::Italic)
+                ])
+                .add_row(vec![
+                    "    Max Depth",
+                    &*print_option(self.random_forest_settings.max_depth),
+                ])
+                .add_row(vec![
+                    "    Min samples for leaf",
+                    &*format!("{}", self.random_forest_settings.min_samples_leaf),
+                ])
+                .add_row(vec![
+                    "    Min samples for split",
+                    &*format!("{}", self.random_forest_settings.min_samples_split),
+                ])
+                .add_row(vec![
+                    "    Min samples for split",
+                    &*format!("{}", self.random_forest_settings.n_trees),
+                ])
+                .add_row(vec![
+                    "    Number of split candidates",
+                    &*print_option(self.random_forest_settings.m),
+                ]);
+        }
+
+        if !self.skiplist.contains(&Algorithm::KNN) {
+            table
+                .add_row(vec![
+                    Cell::new(Algorithm::KNN).add_attribute(Attribute::Italic)
+                ])
+                .add_row(vec![
+                    "    Number of neighbors",
+                    &*format!("{}", self.knn_settings.k),
+                ])
+                .add_row(vec![
+                    "    Search algorithm",
+                    &*format!(
+                        "{}",
+                        print_knn_search_algorithm(&self.knn_settings.algorithm)
+                    ),
+                ])
+                .add_row(vec![
+                    "    Weighting function",
+                    &*format!("{}", print_knn_weight_function(&self.knn_settings.weight)),
+                ])
+                .add_row(vec![
+                    "    Distance function",
+                    &*format!("{}", &self.knn_settings.distance),
+                ]);
+        }
+
+        if !self.skiplist.contains(&Algorithm::SVR) {
+            table
+                .add_row(vec![
+                    Cell::new(Algorithm::SVR).add_attribute(Attribute::Italic)
+                ])
+                .add_row(vec![
+                    "    Regularization parameter",
+                    &*format!("{}", self.svr_settings.c),
+                ])
+                .add_row(vec![
+                    "    Tolerance",
+                    &*format!("{}", self.svr_settings.tol),
+                ])
+                .add_row(vec!["    Epsilon", &*format!("{}", self.svr_settings.eps)])
+                .add_row(vec![
+                    "    Kernel",
+                    &*format!("{}", self.svr_settings.kernel),
+                ]);
+        }
 
         write!(f, "{}\n", table)
+    }
+}
+
+pub struct KNNParameters {
+    k: usize,
+    weight: KNNWeightFunction,
+    algorithm: KNNAlgorithmName,
+    distance: Distance,
+}
+
+impl KNNParameters {
+    pub fn with_k(mut self, k: usize) -> Self {
+        self.k = k;
+        self
+    }
+
+    pub fn with_weight(mut self, weight: KNNWeightFunction) -> Self {
+        self.weight = weight;
+        self
+    }
+
+    pub fn with_algorithm(mut self, algorithm: KNNAlgorithmName) -> Self {
+        self.algorithm = algorithm;
+        self
+    }
+
+    pub fn with_distance(mut self, distance: Distance) -> Self {
+        self.distance = distance;
+        self
+    }
+}
+
+impl Default for KNNParameters {
+    fn default() -> Self {
+        Self {
+            k: 3,
+            weight: KNNWeightFunction::Uniform,
+            algorithm: KNNAlgorithmName::CoverTree,
+            distance: Distance::Euclidean,
+        }
+    }
+}
+
+pub enum Distance {
+    Euclidean,
+    Manhattan,
+    Minkowski(u16),
+    Mahalanobis,
+    Hamming,
+}
+
+impl Display for Distance {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Distance::Euclidean => write!(f, "Euclidean"),
+            Distance::Manhattan => write!(f, "Manhattan"),
+            Distance::Minkowski(n) => write!(f, "Minkowski\n    p = {}", n),
+            Distance::Mahalanobis => write!(f, "Mahalanobis"),
+            Distance::Hamming => write!(f, "Hamming"),
+        }
+    }
+}
+
+/// A struct for
+pub struct SVRParameters {
+    eps: f32,
+    c: f32,
+    tol: f32,
+    kernel: Kernel,
+}
+
+impl SVRParameters {
+    pub fn with_eps(mut self, eps: f32) -> Self {
+        self.eps = eps;
+        self
+    }
+
+    pub fn with_c(mut self, c: f32) -> Self {
+        self.c = c;
+        self
+    }
+
+    pub fn with_tol(mut self, tol: f32) -> Self {
+        self.tol = tol;
+        self
+    }
+
+    pub fn with_kernel(mut self, kernel: Kernel) -> Self {
+        self.kernel = kernel;
+        self
+    }
+}
+
+impl Default for SVRParameters {
+    fn default() -> Self {
+        Self {
+            eps: 0.1,
+            c: 1.0,
+            tol: 1e-3,
+            kernel: Kernel::Linear,
+        }
+    }
+}
+
+pub enum Kernel {
+    /// Linear Kernel
+    Linear,
+
+    /// Polynomial kernel
+    Polynomial(f32, f32, f32),
+
+    /// Radial basis function kernel
+    RBF(f32),
+
+    /// Sigmoid kernel
+    Sigmoid(f32, f32),
+}
+
+impl Display for Kernel {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Kernel::Linear => write!(f, "Linear"),
+            Kernel::Polynomial(degree, gamma, coef) => write!(
+                f,
+                "Polynomial\n    degree = {}\n    gamma = {}\n    coef = {}",
+                degree, gamma, coef
+            ),
+            Kernel::RBF(gamma) => write!(f, "RBF\n    gamma = {}", gamma),
+            Kernel::Sigmoid(gamma, coef) => {
+                write!(f, "Sigmoid\n    gamma = {}\n    coef = {}", gamma, coef)
+            }
+        }
     }
 }
