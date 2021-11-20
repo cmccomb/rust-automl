@@ -4,12 +4,6 @@ mod regression_tests {
     use smartcore::{dataset::diabetes::load_dataset, linalg::naive::dense_matrix::DenseMatrix};
 
     #[test]
-    fn print_settings() {
-        let settings = automl::regression::Settings::default().with_number_of_folds(3);
-        println!("{}", &settings);
-    }
-
-    #[test]
     fn test_step_by_step() {
         // Check training
         let dataset = load_dataset();
