@@ -1,23 +1,6 @@
 #[cfg(test)]
 mod classification_tests {
     #[test]
-    fn print_settings() {
-        let settings = automl::classification::Settings::default()
-            .skip(automl::classification::Algorithm::DecisionTree)
-            .skip(automl::classification::Algorithm::LogisticRegression)
-            .with_number_of_folds(3);
-        println!("{}", &settings);
-    }
-
-    #[test]
-    fn readme_test() {
-        let mut classifier = automl::classification::Classifier::default();
-        classifier.with_dataset(smartcore::dataset::breast_cancer::load_dataset());
-        classifier.compare_models();
-        print!("{}", classifier);
-    }
-
-    #[test]
     fn test_step_by_step() {
         // Check training
         let dataset = smartcore::dataset::breast_cancer::load_dataset();
