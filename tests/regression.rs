@@ -1,6 +1,9 @@
 #[cfg(test)]
 mod regression_tests {
-    use automl::regression::{Algorithm, Metric, Regressor, SVRParameters, Settings};
+    use automl::regression::{
+        settings::{Algorithm, Metric, SVRParameters},
+        Regressor, Settings,
+    };
     use smartcore::{dataset::diabetes::load_dataset, linalg::naive::dense_matrix::DenseMatrix};
 
     #[test]
