@@ -7,8 +7,18 @@ AutoML is _Automated Machine Learning_, referring to processes and methods to ma
 a general audience. This crate builds on top of the [smartcore](https://docs.rs/smartcore/) machine learning framework, 
 and provides some utilities to quickly train and compare models. 
 
+# Install
+To use the latest released version of `AutoML`, add this to your `Cargo.toml`:
+```toml
+automl = "0.2.2"
+```
+To use the bleeding edge instead, add this:
+```toml
+automl = { git = "https://github.com/cmccomb/rust-automl" }
+```
+
 # Usage
-For instance, running the following:
+Running the following:
 ```rust
 let mut classifier = automl::classification::Classifier::default();
 classifier.with_dataset(smartcore::dataset::breast_cancer::load_dataset());

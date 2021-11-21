@@ -92,3 +92,15 @@ impl Display for Distance {
         }
     }
 }
+
+/// Options for constructing a final model
+enum FinalModel {
+    /// Use the single best model
+    Single,
+
+    /// Product a stacked metamodel
+    Stacked,
+
+    /// Produce a blended metamodel
+    Blended(f32),
+}
