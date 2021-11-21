@@ -14,7 +14,7 @@ let mut classifier = automl::classification::Classifier::default();
 classifier.with_dataset(smartcore::dataset::breast_cancer::load_dataset());
 classifier.compare_models();
 ```
-Will output this comparison of models usign cross-validation:
+will output this comparison of models using cross-validation:
 ```text
 ┌────────────────────────────────┬─────────────────────┬───────────────────┬──────────────────┐
 │ Model                          │ Time                │ Training Accuracy │ Testing Accuracy │
@@ -53,3 +53,5 @@ Currently this crate only has AutoML features for regression and classification.
   - Support Vector Classification
   - Logistic Regression
   - KNN Classification
+  - Gaussian Naive Bayes
+  - Categorical Naive Bayes
