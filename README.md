@@ -13,7 +13,6 @@ For instance, running the following:
 let mut classifier = automl::classification::Classifier::default();
 classifier.with_dataset(smartcore::dataset::breast_cancer::load_dataset());
 classifier.compare_models();
-print!("{}", classifier);
 ```
 Will output this comparison of models usign cross-validation:
 ```text
