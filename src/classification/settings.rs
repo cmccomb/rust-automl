@@ -47,19 +47,30 @@
 //!     .with_categorical_nb_settings(CategoricalNBParameters::default().with_alpha(1.0));
 //! ```
 pub use crate::utils::{Distance, Kernel};
-
-pub use smartcore::{
-    algorithm::neighbour::KNNAlgorithmName,
-    ensemble::random_forest_classifier::RandomForestClassifierParameters,
-    linear::logistic_regression::LogisticRegressionParameters,
-    naive_bayes::{categorical::CategoricalNBParameters, gaussian::GaussianNBParameters},
-    neighbors::KNNWeightFunction,
-    tree::decision_tree_classifier::DecisionTreeClassifierParameters,
-};
-
 use std::fmt::{Display, Formatter};
 
-/// A struct for
+/// Weighting functions for k-nearest neighbor (KNN) classification (re-export from [Smartcore](https://docs.rs/smartcore/))
+pub use smartcore::neighbors::KNNWeightFunction;
+
+/// Search algorithms for k-nearest neighbor (KNN) classification (re-export from [Smartcore](https://docs.rs/smartcore/))
+pub use smartcore::algorithm::neighbour::KNNAlgorithmName;
+
+/// Parameters for Gaussian naive bayes (re-export from [Smartcore](https://docs.rs/smartcore/))
+pub use smartcore::naive_bayes::gaussian::GaussianNBParameters;
+
+/// Parameters for categorical naive bayes (re-export from [Smartcore](https://docs.rs/smartcore/))
+pub use smartcore::naive_bayes::categorical::CategoricalNBParameters;
+
+/// Parameters for random forest classification (re-export from [Smartcore](https://docs.rs/smartcore/))
+pub use smartcore::ensemble::random_forest_classifier::RandomForestClassifierParameters;
+
+/// Parameters for logistic regression (re-export from [Smartcore](https://docs.rs/smartcore/))
+pub use smartcore::linear::logistic_regression::LogisticRegressionParameters;
+
+/// Parameters for decision tree classification (re-export from [Smartcore](https://docs.rs/smartcore/))
+pub use smartcore::tree::decision_tree_classifier::DecisionTreeClassifierParameters;
+
+/// Parameters for support vector classification
 pub struct SVCParameters {
     pub(crate) epoch: usize,
     pub(crate) c: f32,
@@ -104,7 +115,7 @@ impl Default for SVCParameters {
     }
 }
 
-/// Parameters for KNN Regression
+/// Parameters for k-nearest neighbors (KNN) classification
 pub struct KNNClassifierParameters {
     pub(crate) k: usize,
     pub(crate) weight: KNNWeightFunction,
@@ -149,7 +160,7 @@ impl Default for KNNClassifierParameters {
     }
 }
 
-/// An enum for sorting
+/// Metrics for evaluating algorithms
 #[non_exhaustive]
 #[derive(PartialEq)]
 pub enum Metric {
@@ -165,7 +176,7 @@ impl Display for Metric {
     }
 }
 
-/// An enum containing possible  classification algorithms
+/// Classification algorithm options
 #[derive(PartialEq)]
 pub enum Algorithm {
     /// Decision tree classifier

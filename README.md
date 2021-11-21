@@ -4,7 +4,7 @@
 
 # AutoML with SmartCore
 AutoML is _Automated Machine Learning_, referring to processes and methods to make machine learning more accessible for 
-a general audience. This crate builds on top of the [smartcore](https://smartcorelib.org/) machine learning framework, 
+a general audience. This crate builds on top of the [smartcore](https://docs.rs/smartcore/) machine learning framework, 
 and provides some utilities to quickly train and compare models. 
 
 # Usage

@@ -31,7 +31,7 @@ pub(crate) fn print_knn_search_algorithm(a: &KNNAlgorithmName) -> String {
     }
 }
 
-/// Kernel options for support vector machines
+/// Kernel options for use with support vector machines
 pub enum Kernel {
     /// Linear Kernel
     Linear,
@@ -63,7 +63,7 @@ impl Display for Kernel {
     }
 }
 
-/// Distance metrics for us with KNN regrssion
+/// Distance metrics
 pub enum Distance {
     /// Euclidean distance
     Euclidean,

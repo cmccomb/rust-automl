@@ -70,22 +70,40 @@
 //!     );
 //! ```
 pub use crate::utils::{Distance, Kernel};
-pub use smartcore::{
-    algorithm::neighbour::KNNAlgorithmName,
-    ensemble::random_forest_regressor::RandomForestRegressorParameters,
-    linear::{
-        elastic_net::ElasticNetParameters,
-        lasso::LassoParameters,
-        linear_regression::{LinearRegressionParameters, LinearRegressionSolverName},
-        ridge_regression::{RidgeRegressionParameters, RidgeRegressionSolverName},
-    },
-    neighbors::KNNWeightFunction,
-    tree::decision_tree_regressor::DecisionTreeRegressorParameters,
-};
+
+/// Weighting functions for k-nearest neighbor (KNN) regression (re-export from [Smartcore](https://docs.rs/smartcore/))
+pub use smartcore::neighbors::KNNWeightFunction;
+
+/// Search algorithms for k-nearest neighbor (KNN) regression (re-export from [Smartcore](https://docs.rs/smartcore/))
+pub use smartcore::algorithm::neighbour::KNNAlgorithmName;
+
+/// Parameters for random forest regression (re-export from [Smartcore](https://docs.rs/smartcore/))
+pub use smartcore::ensemble::random_forest_regressor::RandomForestRegressorParameters;
+
+/// Parameters for decision tree regression (re-export from [Smartcore](https://docs.rs/smartcore/))
+pub use smartcore::tree::decision_tree_regressor::DecisionTreeRegressorParameters;
+
+/// Parameters for elastic net regression (re-export from [Smartcore](https://docs.rs/smartcore/))
+pub use smartcore::linear::elastic_net::ElasticNetParameters;
+
+/// Parameters for LASSO regression (re-export from [Smartcore](https://docs.rs/smartcore/))
+pub use smartcore::linear::lasso::LassoParameters;
+
+/// Solvers for linear regression (re-export from [Smartcore](https://docs.rs/smartcore/))
+pub use smartcore::linear::linear_regression::LinearRegressionSolverName;
+
+/// Parameters for linear regression (re-export from [Smartcore](https://docs.rs/smartcore/))
+pub use smartcore::linear::linear_regression::LinearRegressionParameters;
+
+/// Parameters for ridge regression (re-export from [Smartcore](https://docs.rs/smartcore/))
+pub use smartcore::linear::ridge_regression::RidgeRegressionParameters;
+
+/// Solvers for ridge regression (re-export from [Smartcore](https://docs.rs/smartcore/))
+pub use smartcore::linear::ridge_regression::RidgeRegressionSolverName;
 
 use std::fmt::{Display, Formatter};
 
-/// Parameters for KNN Regression
+/// Parameters for k-nearest neighbor (KNN) regression
 pub struct KNNRegressorParameters {
     pub(crate) k: usize,
     pub(crate) weight: KNNWeightFunction,
@@ -130,7 +148,7 @@ impl Default for KNNRegressorParameters {
     }
 }
 
-/// A struct for
+/// Parameters for support vector regression
 pub struct SVRParameters {
     pub(crate) eps: f32,
     pub(crate) c: f32,
@@ -175,7 +193,7 @@ impl Default for SVRParameters {
     }
 }
 
-/// An enum for sorting
+/// Metrics for evaluating algorithms
 #[non_exhaustive]
 #[derive(PartialEq)]
 pub enum Metric {
@@ -197,7 +215,7 @@ impl Display for Metric {
     }
 }
 
-/// An enum containing possible regression algorithms
+/// Regression algorithm options
 #[derive(PartialEq)]
 pub enum Algorithm {
     /// Decision tree regressor
