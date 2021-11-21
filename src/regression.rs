@@ -8,8 +8,8 @@ use comfy_table::{
 use humantime::format_duration;
 use polars::prelude::{CsvReader, DataFrame, Float32Type, SerReader};
 use smartcore::math::distance::{
-    hamming::Hamming, mahalanobis::Mahalanobis, manhattan::Manhattan, minkowski::Minkowski,
-    Distances,
+    euclidian::Euclidian, hamming::Hamming, mahalanobis::Mahalanobis, manhattan::Manhattan,
+    minkowski::Minkowski, Distances,
 };
 use smartcore::svm::{LinearKernel, PolynomialKernel, RBFKernel, SigmoidKernel};
 pub use smartcore::{
@@ -32,7 +32,6 @@ use smartcore::{
         elastic_net::ElasticNet, lasso::Lasso, linear_regression::LinearRegression,
         ridge_regression::RidgeRegression,
     },
-    math::distance::euclidian::Euclidian,
     metrics::{mean_absolute_error, mean_squared_error, r2},
     model_selection::{cross_validate, CrossValidationResult, KFold},
     neighbors::knn_regressor::{
