@@ -1,17 +1,17 @@
 //! Auto-ML for regression models
 
 use crate::utils::{print_knn_search_algorithm, print_knn_weight_function, print_option, Status};
+pub use crate::utils::{Distance, Kernel};
 use comfy_table::{
     modifiers::UTF8_SOLID_INNER_BORDERS, presets::UTF8_FULL, Attribute, Cell, Table,
 };
 use humantime::format_duration;
 use polars::prelude::{CsvReader, DataFrame, Float32Type, SerReader};
-use smartcore::math::distance::hamming::Hamming;
-use smartcore::math::distance::mahalanobis::Mahalanobis;
-use smartcore::math::distance::manhattan::Manhattan;
-use smartcore::math::distance::minkowski::Minkowski;
-use smartcore::math::distance::Distances;
-use smartcore::svm::{PolynomialKernel, RBFKernel, SigmoidKernel};
+use smartcore::math::distance::{
+    hamming::Hamming, mahalanobis::Mahalanobis, manhattan::Manhattan, minkowski::Minkowski,
+    Distances,
+};
+use smartcore::svm::{LinearKernel, PolynomialKernel, RBFKernel, SigmoidKernel};
 pub use smartcore::{
     algorithm::neighbour::KNNAlgorithmName,
     ensemble::random_forest_regressor::RandomForestRegressorParameters,
@@ -40,7 +40,7 @@ use smartcore::{
     },
     svm::{
         svr::{SVRParameters as SmartcoreSVRParameters, SVR},
-        Kernels, LinearKernel,
+        Kernels,
     },
     tree::decision_tree_regressor::DecisionTreeRegressor,
 };
@@ -1308,36 +1308,6 @@ impl Default for KNNRegressorParameters {
     }
 }
 
-/// Distance metrics for us with KNN regrssion
-pub enum Distance {
-    /// Euclidean distance
-    Euclidean,
-
-    /// Manhattan distance
-    Manhattan,
-
-    /// Minkowski distance, parameterized by p
-    Minkowski(u16),
-
-    /// Mahalanobis distance
-    Mahalanobis,
-
-    /// Hamming distance
-    Hamming,
-}
-
-impl Display for Distance {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Distance::Euclidean => write!(f, "Euclidean"),
-            Distance::Manhattan => write!(f, "Manhattan"),
-            Distance::Minkowski(n) => write!(f, "Minkowski\n    p = {}", n),
-            Distance::Mahalanobis => write!(f, "Mahalanobis"),
-            Distance::Hamming => write!(f, "Hamming"),
-        }
-    }
-}
-
 /// A struct for
 pub struct SVRParameters {
     eps: f32,
@@ -1379,38 +1349,6 @@ impl Default for SVRParameters {
             c: 1.0,
             tol: 1e-3,
             kernel: Kernel::Linear,
-        }
-    }
-}
-
-/// Kernel options for support vector machines
-pub enum Kernel {
-    /// Linear Kernel
-    Linear,
-
-    /// Polynomial kernel
-    Polynomial(f32, f32, f32),
-
-    /// Radial basis function kernel
-    RBF(f32),
-
-    /// Sigmoid kernel
-    Sigmoid(f32, f32),
-}
-
-impl Display for Kernel {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Kernel::Linear => write!(f, "Linear"),
-            Kernel::Polynomial(degree, gamma, coef) => write!(
-                f,
-                "Polynomial\n    degree = {}\n    gamma = {}\n    coef = {}",
-                degree, gamma, coef
-            ),
-            Kernel::RBF(gamma) => write!(f, "RBF\n    gamma = {}", gamma),
-            Kernel::Sigmoid(gamma, coef) => {
-                write!(f, "Sigmoid\n    gamma = {}\n    coef = {}", gamma, coef)
-            }
         }
     }
 }
