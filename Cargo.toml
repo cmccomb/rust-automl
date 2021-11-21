@@ -1,8 +1,8 @@
 [package]
 name = "automl"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["Chris McComb <ccmcc2012@gmail.com>"]
-description = "Machine learning for the rest of us"
+description = "Automated machine learning for classification and regression"
 edition = "2021"
 readme = "README.md"
 repository = "https://github.com/cmccomb/rust-automl"
