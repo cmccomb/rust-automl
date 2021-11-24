@@ -39,12 +39,14 @@ use settings::{
     RidgeRegressionSolverName, SVRParameters,
 };
 
-use crate::utils::{print_knn_search_algorithm, print_knn_weight_function, print_option, Status};
+use crate::utils::{print_knn_search_algorithm, print_knn_weight_function, print_option};
+
 use comfy_table::{
     modifiers::UTF8_SOLID_INNER_BORDERS, presets::UTF8_FULL, Attribute, Cell, Table,
 };
 use humantime::format_duration;
 use polars::prelude::{CsvReader, DataFrame, Float32Type, SerReader};
+use smartcore::linalg::BaseMatrix;
 use smartcore::math::distance::{
     euclidian::Euclidian, hamming::Hamming, mahalanobis::Mahalanobis, manhattan::Manhattan,
     minkowski::Minkowski, Distances,
@@ -75,6 +77,10 @@ use std::{
     fmt::{Display, Formatter},
 };
 
+use eframe::{egui, epi};
+
+use ndarray::{Array1, Array2};
+
 /// Trains and compares regression models
 pub struct Regressor {
     settings: Settings,
@@ -82,19 +88,19 @@ pub struct Regressor {
     y: Vec<f32>,
     comparison: Vec<Model>,
     final_model: Vec<u8>,
-    status: Status,
+    current_x: Vec<f32>,
 }
 
 impl Regressor {
-    /// Create a new regressor based on settings
+    /// Create a new regressor
     pub fn new(x: DenseMatrix<f32>, y: Vec<f32>, settings: Settings) -> Self {
         Self {
             settings,
-            x,
+            x: x.clone(),
             y,
             comparison: vec![],
             final_model: vec![],
-            status: Status::DataLoaded,
+            current_x: vec![0.0; x.shape().1],
         }
     }
 
@@ -107,13 +113,6 @@ impl Regressor {
     pub fn auto(&mut self) {
         self.compare_models();
         self.train_final_model();
-    }
-
-    /// Add data to regressor object
-    pub fn with_data(&mut self, x: DenseMatrix<f32>, y: Vec<f32>) {
-        self.x = x;
-        self.y = y;
-        self.status = Status::DataLoaded;
     }
 
     /// Add data from a csv
@@ -142,28 +141,64 @@ impl Regressor {
         let ndarray = features.to_ndarray::<Float32Type>().unwrap();
         self.x = DenseMatrix::from_array(height, width, ndarray.as_slice().unwrap());
 
-        // Set status
-        self.status = Status::DataLoaded;
+        self.current_x = vec![0.0; self.x.shape().1]
+    }
+
+    /// Add data to regressor object
+    pub fn with_data_from_vec(&mut self, x: Vec<Vec<f32>>, y: Vec<f32>) {
+        self.x = DenseMatrix::from_2d_vec(&x);
+        self.y = y;
+        self.current_x = vec![0.0; self.x.shape().1]
+    }
+
+    /// Add data to regressor object
+    pub fn with_data_from_ndarray(&mut self, x: Array2<f32>, y: Array1<f32>) {
+        self.x = DenseMatrix::from_array(x.shape()[0], x.shape()[1], x.as_slice().unwrap());
+        self.y = y.to_vec();
+
+        self.current_x = vec![0.0; self.x.shape().1]
     }
 
     /// Add a dataset to regressor object
     pub fn with_dataset(&mut self, dataset: Dataset<f32, f32>) {
         self.x = DenseMatrix::from_array(dataset.num_samples, dataset.num_features, &dataset.data);
         self.y = dataset.target;
-        // Set status
-        self.status = Status::DataLoaded;
+        self.current_x = vec![0.0; self.x.shape().1];
     }
 
     /// This function compares all of the regression models available in the package.
     pub fn compare_models(&mut self) {
-        if self.status == Status::DataLoaded {
-            if !self.settings.skiplist.contains(&Algorithm::Linear) {
-                let start = Instant::now();
-                let cv = cross_validate(
-                    LinearRegression::fit,
+        if !self.settings.skiplist.contains(&Algorithm::Linear) {
+            let start = Instant::now();
+            let cv = cross_validate(
+                LinearRegression::fit,
+                &self.x,
+                &self.y,
+                self.settings.linear_settings.clone(),
+                self.get_kfolds(),
+                match self.settings.sort_by {
+                    Metric::RSquared => r2,
+                    Metric::MeanAbsoluteError => mean_absolute_error,
+                    Metric::MeanSquaredError => mean_squared_error,
+                },
+            )
+            .unwrap();
+            let end = Instant::now();
+            self.add_model(Algorithm::Linear, cv, end.duration_since(start));
+        }
+
+        if !self.settings.skiplist.contains(&Algorithm::SVR) {
+            let start = Instant::now();
+            let cv = match self.settings.svr_settings.kernel {
+                Kernel::Linear => cross_validate(
+                    SVR::fit,
                     &self.x,
                     &self.y,
-                    self.settings.linear_settings.clone(),
+                    SmartcoreSVRParameters::default()
+                        .with_tol(self.settings.svr_settings.tol)
+                        .with_c(self.settings.svr_settings.c)
+                        .with_eps(self.settings.svr_settings.c)
+                        .with_kernel(Kernels::linear()),
                     self.get_kfolds(),
                     match self.settings.sort_by {
                         Metric::RSquared => r2,
@@ -171,96 +206,16 @@ impl Regressor {
                         Metric::MeanSquaredError => mean_squared_error,
                     },
                 )
-                .unwrap();
-                let end = Instant::now();
-                self.add_model(Algorithm::Linear, cv, end.duration_since(start));
-            }
-
-            if !self.settings.skiplist.contains(&Algorithm::SVR) {
-                let start = Instant::now();
-                let cv = match self.settings.svr_settings.kernel {
-                    Kernel::Linear => cross_validate(
-                        SVR::fit,
-                        &self.x,
-                        &self.y,
-                        SmartcoreSVRParameters::default()
-                            .with_tol(self.settings.svr_settings.tol)
-                            .with_c(self.settings.svr_settings.c)
-                            .with_eps(self.settings.svr_settings.c)
-                            .with_kernel(Kernels::linear()),
-                        self.get_kfolds(),
-                        match self.settings.sort_by {
-                            Metric::RSquared => r2,
-                            Metric::MeanAbsoluteError => mean_absolute_error,
-                            Metric::MeanSquaredError => mean_squared_error,
-                        },
-                    )
-                    .unwrap(),
-                    Kernel::Polynomial(degree, gamma, coef) => cross_validate(
-                        SVR::fit,
-                        &self.x,
-                        &self.y,
-                        SmartcoreSVRParameters::default()
-                            .with_tol(self.settings.svr_settings.tol)
-                            .with_c(self.settings.svr_settings.c)
-                            .with_eps(self.settings.svr_settings.c)
-                            .with_kernel(Kernels::polynomial(degree, gamma, coef)),
-                        self.get_kfolds(),
-                        match self.settings.sort_by {
-                            Metric::RSquared => r2,
-                            Metric::MeanAbsoluteError => mean_absolute_error,
-                            Metric::MeanSquaredError => mean_squared_error,
-                        },
-                    )
-                    .unwrap(),
-                    Kernel::RBF(gamma) => cross_validate(
-                        SVR::fit,
-                        &self.x,
-                        &self.y,
-                        SmartcoreSVRParameters::default()
-                            .with_tol(self.settings.svr_settings.tol)
-                            .with_c(self.settings.svr_settings.c)
-                            .with_eps(self.settings.svr_settings.c)
-                            .with_kernel(Kernels::rbf(gamma)),
-                        self.get_kfolds(),
-                        match self.settings.sort_by {
-                            Metric::RSquared => r2,
-                            Metric::MeanAbsoluteError => mean_absolute_error,
-                            Metric::MeanSquaredError => mean_squared_error,
-                        },
-                    )
-                    .unwrap(),
-                    Kernel::Sigmoid(gamma, coef) => cross_validate(
-                        SVR::fit,
-                        &self.x,
-                        &self.y,
-                        SmartcoreSVRParameters::default()
-                            .with_tol(self.settings.svr_settings.tol)
-                            .with_c(self.settings.svr_settings.c)
-                            .with_eps(self.settings.svr_settings.c)
-                            .with_kernel(Kernels::sigmoid(gamma, coef)),
-                        self.get_kfolds(),
-                        match self.settings.sort_by {
-                            Metric::RSquared => r2,
-                            Metric::MeanAbsoluteError => mean_absolute_error,
-                            Metric::MeanSquaredError => mean_squared_error,
-                        },
-                    )
-                    .unwrap(),
-                };
-                let end = Instant::now();
-                let d = end.duration_since(start);
-                self.add_model(Algorithm::SVR, cv, d);
-            }
-
-            if !self.settings.skiplist.contains(&Algorithm::Lasso) {
-                let start = Instant::now();
-
-                let cv = cross_validate(
-                    Lasso::fit,
+                .unwrap(),
+                Kernel::Polynomial(degree, gamma, coef) => cross_validate(
+                    SVR::fit,
                     &self.x,
                     &self.y,
-                    self.settings.lasso_settings.clone(),
+                    SmartcoreSVRParameters::default()
+                        .with_tol(self.settings.svr_settings.tol)
+                        .with_c(self.settings.svr_settings.c)
+                        .with_eps(self.settings.svr_settings.c)
+                        .with_kernel(Kernels::polynomial(degree, gamma, coef)),
                     self.get_kfolds(),
                     match self.settings.sort_by {
                         Metric::RSquared => r2,
@@ -268,19 +223,16 @@ impl Regressor {
                         Metric::MeanSquaredError => mean_squared_error,
                     },
                 )
-                .unwrap();
-
-                let end = Instant::now();
-                self.add_model(Algorithm::Lasso, cv, end.duration_since(start));
-            }
-
-            if !self.settings.skiplist.contains(&Algorithm::Ridge) {
-                let start = Instant::now();
-                let cv = cross_validate(
-                    RidgeRegression::fit,
+                .unwrap(),
+                Kernel::RBF(gamma) => cross_validate(
+                    SVR::fit,
                     &self.x,
                     &self.y,
-                    self.settings.ridge_settings.clone(),
+                    SmartcoreSVRParameters::default()
+                        .with_tol(self.settings.svr_settings.tol)
+                        .with_c(self.settings.svr_settings.c)
+                        .with_eps(self.settings.svr_settings.c)
+                        .with_kernel(Kernels::rbf(gamma)),
                     self.get_kfolds(),
                     match self.settings.sort_by {
                         Metric::RSquared => r2,
@@ -288,19 +240,16 @@ impl Regressor {
                         Metric::MeanSquaredError => mean_squared_error,
                     },
                 )
-                .unwrap();
-                let end = Instant::now();
-                let d = end.duration_since(start);
-                self.add_model(Algorithm::Ridge, cv, d);
-            }
-
-            if !self.settings.skiplist.contains(&Algorithm::ElasticNet) {
-                let start = Instant::now();
-                let cv = cross_validate(
-                    ElasticNet::fit,
+                .unwrap(),
+                Kernel::Sigmoid(gamma, coef) => cross_validate(
+                    SVR::fit,
                     &self.x,
                     &self.y,
-                    self.settings.elastic_net_settings.clone(),
+                    SmartcoreSVRParameters::default()
+                        .with_tol(self.settings.svr_settings.tol)
+                        .with_c(self.settings.svr_settings.c)
+                        .with_eps(self.settings.svr_settings.c)
+                        .with_kernel(Kernels::sigmoid(gamma, coef)),
                     self.get_kfolds(),
                     match self.settings.sort_by {
                         Metric::RSquared => r2,
@@ -308,19 +257,126 @@ impl Regressor {
                         Metric::MeanSquaredError => mean_squared_error,
                     },
                 )
-                .unwrap();
-                let end = Instant::now();
-                let d = end.duration_since(start);
-                self.add_model(Algorithm::ElasticNet, cv, d);
-            }
+                .unwrap(),
+            };
+            let end = Instant::now();
+            let d = end.duration_since(start);
+            self.add_model(Algorithm::SVR, cv, d);
+        }
 
-            if !self.settings.skiplist.contains(&Algorithm::DecisionTree) {
-                let start = Instant::now();
-                let cv = cross_validate(
-                    DecisionTreeRegressor::fit,
+        if !self.settings.skiplist.contains(&Algorithm::Lasso) {
+            let start = Instant::now();
+
+            let cv = cross_validate(
+                Lasso::fit,
+                &self.x,
+                &self.y,
+                self.settings.lasso_settings.clone(),
+                self.get_kfolds(),
+                match self.settings.sort_by {
+                    Metric::RSquared => r2,
+                    Metric::MeanAbsoluteError => mean_absolute_error,
+                    Metric::MeanSquaredError => mean_squared_error,
+                },
+            )
+            .unwrap();
+
+            let end = Instant::now();
+            self.add_model(Algorithm::Lasso, cv, end.duration_since(start));
+        }
+
+        if !self.settings.skiplist.contains(&Algorithm::Ridge) {
+            let start = Instant::now();
+            let cv = cross_validate(
+                RidgeRegression::fit,
+                &self.x,
+                &self.y,
+                self.settings.ridge_settings.clone(),
+                self.get_kfolds(),
+                match self.settings.sort_by {
+                    Metric::RSquared => r2,
+                    Metric::MeanAbsoluteError => mean_absolute_error,
+                    Metric::MeanSquaredError => mean_squared_error,
+                },
+            )
+            .unwrap();
+            let end = Instant::now();
+            let d = end.duration_since(start);
+            self.add_model(Algorithm::Ridge, cv, d);
+        }
+
+        if !self.settings.skiplist.contains(&Algorithm::ElasticNet) {
+            let start = Instant::now();
+            let cv = cross_validate(
+                ElasticNet::fit,
+                &self.x,
+                &self.y,
+                self.settings.elastic_net_settings.clone(),
+                self.get_kfolds(),
+                match self.settings.sort_by {
+                    Metric::RSquared => r2,
+                    Metric::MeanAbsoluteError => mean_absolute_error,
+                    Metric::MeanSquaredError => mean_squared_error,
+                },
+            )
+            .unwrap();
+            let end = Instant::now();
+            let d = end.duration_since(start);
+            self.add_model(Algorithm::ElasticNet, cv, d);
+        }
+
+        if !self.settings.skiplist.contains(&Algorithm::DecisionTree) {
+            let start = Instant::now();
+            let cv = cross_validate(
+                DecisionTreeRegressor::fit,
+                &self.x,
+                &self.y,
+                self.settings.decision_tree_settings.clone(),
+                self.get_kfolds(),
+                match self.settings.sort_by {
+                    Metric::RSquared => r2,
+                    Metric::MeanAbsoluteError => mean_absolute_error,
+                    Metric::MeanSquaredError => mean_squared_error,
+                },
+            )
+            .unwrap();
+            let end = Instant::now();
+            let d = end.duration_since(start);
+            self.add_model(Algorithm::DecisionTree, cv, d);
+        }
+
+        if !self.settings.skiplist.contains(&Algorithm::RandomForest) {
+            let start = Instant::now();
+            let cv = cross_validate(
+                RandomForestRegressor::fit,
+                &self.x,
+                &self.y,
+                self.settings.random_forest_settings.clone(),
+                self.get_kfolds(),
+                match self.settings.sort_by {
+                    Metric::RSquared => r2,
+                    Metric::MeanAbsoluteError => mean_absolute_error,
+                    Metric::MeanSquaredError => mean_squared_error,
+                },
+            )
+            .unwrap();
+            let end = Instant::now();
+            let d = end.duration_since(start);
+            self.add_model(Algorithm::RandomForest, cv, d);
+        }
+
+        if !self.settings.skiplist.contains(&Algorithm::KNN) {
+            let start = Instant::now();
+            let cv = match self.settings.knn_settings.distance {
+                Distance::Euclidean => cross_validate(
+                    KNNRegressor::fit,
                     &self.x,
                     &self.y,
-                    self.settings.decision_tree_settings.clone(),
+                    SmartcoreKNNRegressorParameters::default()
+                        .with_k(self.settings.knn_settings.k)
+                        .with_algorithm(self.settings.knn_settings.algorithm.clone())
+                        .with_weight(self.settings.knn_settings.weight.clone())
+                        .with_distance(Distances::euclidian()),
                     self.get_kfolds(),
                     match self.settings.sort_by {
                         Metric::RSquared => r2,
@@ -328,19 +384,16 @@ impl Regressor {
                         Metric::MeanSquaredError => mean_squared_error,
                     },
                 )
-                .unwrap();
-                let end = Instant::now();
-                let d = end.duration_since(start);
-                self.add_model(Algorithm::DecisionTree, cv, d);
-            }
-
-            if !self.settings.skiplist.contains(&Algorithm::RandomForest) {
-                let start = Instant::now();
-                let cv = cross_validate(
-                    RandomForestRegressor::fit,
+                .unwrap(),
+                Distance::Manhattan => cross_validate(
+                    KNNRegressor::fit,
                     &self.x,
                     &self.y,
-                    self.settings.random_forest_settings.clone(),
+                    SmartcoreKNNRegressorParameters::default()
+                        .with_k(self.settings.knn_settings.k)
+                        .with_algorithm(self.settings.knn_settings.algorithm.clone())
+                        .with_weight(self.settings.knn_settings.weight.clone())
+                        .with_distance(Distances::manhattan()),
                     self.get_kfolds(),
                     match self.settings.sort_by {
                         Metric::RSquared => r2,
@@ -348,109 +401,63 @@ impl Regressor {
                         Metric::MeanSquaredError => mean_squared_error,
                     },
                 )
-                .unwrap();
-                let end = Instant::now();
-                let d = end.duration_since(start);
-                self.add_model(Algorithm::RandomForest, cv, d);
-            }
+                .unwrap(),
+                Distance::Minkowski(p) => cross_validate(
+                    KNNRegressor::fit,
+                    &self.x,
+                    &self.y,
+                    SmartcoreKNNRegressorParameters::default()
+                        .with_k(self.settings.knn_settings.k)
+                        .with_algorithm(self.settings.knn_settings.algorithm.clone())
+                        .with_weight(self.settings.knn_settings.weight.clone())
+                        .with_distance(Distances::minkowski(p)),
+                    self.get_kfolds(),
+                    match self.settings.sort_by {
+                        Metric::RSquared => r2,
+                        Metric::MeanAbsoluteError => mean_absolute_error,
+                        Metric::MeanSquaredError => mean_squared_error,
+                    },
+                )
+                .unwrap(),
+                Distance::Mahalanobis => cross_validate(
+                    KNNRegressor::fit,
+                    &self.x,
+                    &self.y,
+                    SmartcoreKNNRegressorParameters::default()
+                        .with_k(self.settings.knn_settings.k)
+                        .with_algorithm(self.settings.knn_settings.algorithm.clone())
+                        .with_weight(self.settings.knn_settings.weight.clone())
+                        .with_distance(Distances::mahalanobis(&self.x)),
+                    self.get_kfolds(),
+                    match self.settings.sort_by {
+                        Metric::RSquared => r2,
+                        Metric::MeanAbsoluteError => mean_absolute_error,
+                        Metric::MeanSquaredError => mean_squared_error,
+                    },
+                )
+                .unwrap(),
+                Distance::Hamming => cross_validate(
+                    KNNRegressor::fit,
+                    &self.x,
+                    &self.y,
+                    SmartcoreKNNRegressorParameters::default()
+                        .with_k(self.settings.knn_settings.k)
+                        .with_algorithm(self.settings.knn_settings.algorithm.clone())
+                        .with_weight(self.settings.knn_settings.weight.clone())
+                        .with_distance(Distances::hamming()),
+                    self.get_kfolds(),
+                    match self.settings.sort_by {
+                        Metric::RSquared => r2,
+                        Metric::MeanAbsoluteError => mean_absolute_error,
+                        Metric::MeanSquaredError => mean_squared_error,
+                    },
+                )
+                .unwrap(),
+            };
+            let end = Instant::now();
+            let d = end.duration_since(start);
 
-            if !self.settings.skiplist.contains(&Algorithm::KNN) {
-                let start = Instant::now();
-                let cv = match self.settings.knn_settings.distance {
-                    Distance::Euclidean => cross_validate(
-                        KNNRegressor::fit,
-                        &self.x,
-                        &self.y,
-                        SmartcoreKNNRegressorParameters::default()
-                            .with_k(self.settings.knn_settings.k)
-                            .with_algorithm(self.settings.knn_settings.algorithm.clone())
-                            .with_weight(self.settings.knn_settings.weight.clone())
-                            .with_distance(Distances::euclidian()),
-                        self.get_kfolds(),
-                        match self.settings.sort_by {
-                            Metric::RSquared => r2,
-                            Metric::MeanAbsoluteError => mean_absolute_error,
-                            Metric::MeanSquaredError => mean_squared_error,
-                        },
-                    )
-                    .unwrap(),
-                    Distance::Manhattan => cross_validate(
-                        KNNRegressor::fit,
-                        &self.x,
-                        &self.y,
-                        SmartcoreKNNRegressorParameters::default()
-                            .with_k(self.settings.knn_settings.k)
-                            .with_algorithm(self.settings.knn_settings.algorithm.clone())
-                            .with_weight(self.settings.knn_settings.weight.clone())
-                            .with_distance(Distances::manhattan()),
-                        self.get_kfolds(),
-                        match self.settings.sort_by {
-                            Metric::RSquared => r2,
-                            Metric::MeanAbsoluteError => mean_absolute_error,
-                            Metric::MeanSquaredError => mean_squared_error,
-                        },
-                    )
-                    .unwrap(),
-                    Distance::Minkowski(p) => cross_validate(
-                        KNNRegressor::fit,
-                        &self.x,
-                        &self.y,
-                        SmartcoreKNNRegressorParameters::default()
-                            .with_k(self.settings.knn_settings.k)
-                            .with_algorithm(self.settings.knn_settings.algorithm.clone())
-                            .with_weight(self.settings.knn_settings.weight.clone())
-                            .with_distance(Distances::minkowski(p)),
-                        self.get_kfolds(),
-                        match self.settings.sort_by {
-                            Metric::RSquared => r2,
-                            Metric::MeanAbsoluteError => mean_absolute_error,
-                            Metric::MeanSquaredError => mean_squared_error,
-                        },
-                    )
-                    .unwrap(),
-                    Distance::Mahalanobis => cross_validate(
-                        KNNRegressor::fit,
-                        &self.x,
-                        &self.y,
-                        SmartcoreKNNRegressorParameters::default()
-                            .with_k(self.settings.knn_settings.k)
-                            .with_algorithm(self.settings.knn_settings.algorithm.clone())
-                            .with_weight(self.settings.knn_settings.weight.clone())
-                            .with_distance(Distances::mahalanobis(&self.x)),
-                        self.get_kfolds(),
-                        match self.settings.sort_by {
-                            Metric::RSquared => r2,
-                            Metric::MeanAbsoluteError => mean_absolute_error,
-                            Metric::MeanSquaredError => mean_squared_error,
-                        },
-                    )
-                    .unwrap(),
-                    Distance::Hamming => cross_validate(
-                        KNNRegressor::fit,
-                        &self.x,
-                        &self.y,
-                        SmartcoreKNNRegressorParameters::default()
-                            .with_k(self.settings.knn_settings.k)
-                            .with_algorithm(self.settings.knn_settings.algorithm.clone())
-                            .with_weight(self.settings.knn_settings.weight.clone())
-                            .with_distance(Distances::hamming()),
-                        self.get_kfolds(),
-                        match self.settings.sort_by {
-                            Metric::RSquared => r2,
-                            Metric::MeanAbsoluteError => mean_absolute_error,
-                            Metric::MeanSquaredError => mean_squared_error,
-                        },
-                    )
-                    .unwrap(),
-                };
-                let end = Instant::now();
-                let d = end.duration_since(start);
-
-                self.add_model(Algorithm::KNN, cv, d);
-            }
-            self.status = Status::ModelsCompared;
-        } else {
-            panic!("You must load data before trying to compare models.")
+            self.add_model(Algorithm::KNN, cv, d);
         }
     }
 
@@ -602,8 +609,6 @@ impl Regressor {
                 .unwrap()
             }
         }
-
-        self.status = Status::FinalModelTrained;
     }
 
     /// Predict values using the best model
@@ -771,7 +776,7 @@ impl Default for Regressor {
             y: vec![],
             comparison: vec![],
             final_model: vec![],
-            status: Status::Starting,
+            current_x: vec![],
         }
     }
 }
@@ -1227,5 +1232,50 @@ impl Display for Settings {
         }
 
         write!(f, "{}\n", table)
+    }
+}
+
+impl epi::App for Regressor {
+    fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            let value_to_predict = vec![self.current_x.to_vec(); 1];
+
+            ui.heading(format!("{}", self.comparison[0].name));
+            ui.label(format!(
+                "Prediction: y = {:?}",
+                self.predict(&DenseMatrix::from_2d_vec(&value_to_predict))[0]
+            ));
+            ui.separator();
+
+            for i in 0..self.current_x.len() {
+                let maxx = self
+                    .x
+                    .get_col_as_vec(i)
+                    .iter()
+                    .cloned()
+                    .fold(0. / 0., f32::max);
+
+                let minn = self
+                    .x
+                    .get_col_as_vec(i)
+                    .iter()
+                    .cloned()
+                    .fold(0. / 0., f32::min);
+                ui.add(
+                    egui::Slider::new(&mut self.current_x[i], minn..=maxx).text(format!("x_{}", i)),
+                );
+            }
+        });
+    }
+
+    fn name(&self) -> &str {
+        "Model Demo"
+    }
+}
+
+impl Regressor {
+    pub fn run_demo(self) {
+        let native_options = eframe::NativeOptions::default();
+        eframe::run_native(Box::new(self), native_options);
     }
 }

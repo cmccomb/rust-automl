@@ -1,9 +1,11 @@
+use polars::prelude::{CsvReader, DataFrame, Float32Type, SerReader};
 use smartcore::algorithm::neighbour::KNNAlgorithmName;
+use smartcore::linalg::naive::dense_matrix::DenseMatrix;
 use smartcore::neighbors::KNNWeightFunction;
 use std::fmt::{Display, Formatter};
 
 #[derive(PartialEq)]
-pub(crate) enum Status {
+pub enum Status {
     Starting,
     DataLoaded,
     ModelsCompared,

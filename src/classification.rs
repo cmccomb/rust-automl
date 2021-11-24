@@ -36,7 +36,6 @@ use settings::{
     RandomForestClassifierParameters, SVCParameters,
 };
 
-use crate::utils::Status;
 use comfy_table::{
     modifiers::UTF8_SOLID_INNER_BORDERS, presets::UTF8_FULL, Attribute, Cell, Table,
 };
@@ -62,21 +61,25 @@ use smartcore::{
 };
 
 use humantime::format_duration;
+use ndarray::{Array1, Array2};
 use std::time::{Duration, Instant};
 use std::{
     cmp::Ordering::Equal,
     fmt::{Display, Formatter},
 };
 
+use eframe::{egui, epi};
+use smartcore::linalg::BaseMatrix;
+
 /// Trains and compares classification models
 pub struct Classifier {
     settings: Settings,
-    x: DenseMatrix<f32>,
+    pub(crate) x: DenseMatrix<f32>,
     y: Vec<f32>,
     comparison: Vec<Model>,
     final_model: Vec<u8>,
     number_of_classes: usize,
-    status: Status,
+    current_x: Vec<f32>,
 }
 
 impl Classifier {
@@ -84,12 +87,12 @@ impl Classifier {
     pub fn new(x: DenseMatrix<f32>, y: Vec<f32>, settings: Settings) -> Self {
         Self {
             settings,
-            x,
+            x: x.clone(),
             y,
             comparison: vec![],
             final_model: vec![],
             number_of_classes: 0,
-            status: Status::DataLoaded,
+            current_x: vec![0.0; x.shape().1],
         }
     }
 
@@ -105,11 +108,19 @@ impl Classifier {
     }
 
     /// Add data to regressor object
-    pub fn with_data(&mut self, x: DenseMatrix<f32>, y: Vec<f32>) {
-        self.x = x;
+    pub fn with_data_from_vec(&mut self, x: Vec<Vec<f32>>, y: Vec<f32>) {
+        self.x = DenseMatrix::from_2d_vec(&x);
         self.y = y;
         self.count_classes();
-        self.status = Status::DataLoaded;
+        self.current_x = vec![0.0; self.x.shape().1];
+    }
+
+    /// Add data to regressor object
+    pub fn with_data_from_ndarray(&mut self, x: Array2<f32>, y: Array1<f32>) {
+        self.x = DenseMatrix::from_array(x.shape()[0], x.shape()[1], x.as_slice().unwrap());
+        self.y = y.to_vec();
+        self.count_classes();
+        self.current_x = vec![0.0; self.x.shape().1];
     }
 
     /// Add a dataset to regressor object
@@ -117,7 +128,7 @@ impl Classifier {
         self.x = DenseMatrix::from_array(dataset.num_samples, dataset.num_features, &dataset.data);
         self.y = dataset.target;
         self.count_classes();
-        self.status = Status::DataLoaded;
+        self.current_x = vec![0.0; self.x.shape().1];
     }
 
     /// Add data from a csv
@@ -146,293 +157,284 @@ impl Classifier {
         let (height, width) = features.shape();
         let ndarray = features.to_ndarray::<Float32Type>().unwrap();
         self.x = DenseMatrix::from_array(height, width, ndarray.as_slice().unwrap());
-
-        // Set status
-        self.status = Status::DataLoaded;
     }
 
     /// This function compares all of the classification models available in the package.
     pub fn compare_models(&mut self) {
-        if self.status == Status::DataLoaded {
-            if !self
-                .settings
-                .skiplist
-                .contains(&Algorithm::LogisticRegression)
-            {
-                let start = Instant::now();
-                let cv = cross_validate(
-                    LogisticRegression::fit,
-                    &self.x,
-                    &self.y,
-                    self.settings.logistic_settings.clone(),
-                    self.get_kfolds(),
-                    match self.settings.sort_by {
-                        Metric::Accuracy => accuracy,
-                    },
-                )
-                .unwrap();
-                let end = Instant::now();
-                self.add_model(Algorithm::LogisticRegression, cv, end.duration_since(start));
-            }
+        if !self
+            .settings
+            .skiplist
+            .contains(&Algorithm::LogisticRegression)
+        {
+            let start = Instant::now();
+            let cv = cross_validate(
+                LogisticRegression::fit,
+                &self.x,
+                &self.y,
+                self.settings.logistic_settings.clone(),
+                self.get_kfolds(),
+                match self.settings.sort_by {
+                    Metric::Accuracy => accuracy,
+                },
+            )
+            .unwrap();
+            let end = Instant::now();
+            self.add_model(Algorithm::LogisticRegression, cv, end.duration_since(start));
+        }
 
-            if !self.settings.skiplist.contains(&Algorithm::RandomForest) {
-                let start = Instant::now();
-                let cv = cross_validate(
-                    RandomForestClassifier::fit,
-                    &self.x,
-                    &self.y,
-                    self.settings.random_forest_settings.clone(),
-                    self.get_kfolds(),
-                    match self.settings.sort_by {
-                        Metric::Accuracy => accuracy,
-                    },
-                )
-                .unwrap();
-                let end = Instant::now();
-                self.add_model(Algorithm::RandomForest, cv, end.duration_since(start));
-            }
+        if !self.settings.skiplist.contains(&Algorithm::RandomForest) {
+            let start = Instant::now();
+            let cv = cross_validate(
+                RandomForestClassifier::fit,
+                &self.x,
+                &self.y,
+                self.settings.random_forest_settings.clone(),
+                self.get_kfolds(),
+                match self.settings.sort_by {
+                    Metric::Accuracy => accuracy,
+                },
+            )
+            .unwrap();
+            let end = Instant::now();
+            self.add_model(Algorithm::RandomForest, cv, end.duration_since(start));
+        }
 
-            if !self.settings.skiplist.contains(&Algorithm::KNN) {
-                match self.settings.knn_settings.distance {
-                    Distance::Euclidean => {
-                        let start = Instant::now();
-                        let cv = cross_validate(
-                            KNNClassifier::fit,
-                            &self.x,
-                            &self.y,
-                            SmartcoreKNNClassifierParameters::default()
-                                .with_k(self.settings.knn_settings.k)
-                                .with_weight(self.settings.knn_settings.weight.clone())
-                                .with_algorithm(self.settings.knn_settings.algorithm.clone())
-                                .with_distance(Distances::euclidian()),
-                            self.get_kfolds(),
-                            match self.settings.sort_by {
-                                Metric::Accuracy => accuracy,
-                            },
-                        )
-                        .unwrap();
-                        let end = Instant::now();
-                        self.add_model(Algorithm::KNN, cv, end.duration_since(start));
-                    }
-                    Distance::Manhattan => {
-                        let start = Instant::now();
-                        let cv = cross_validate(
-                            KNNClassifier::fit,
-                            &self.x,
-                            &self.y,
-                            SmartcoreKNNClassifierParameters::default()
-                                .with_k(self.settings.knn_settings.k)
-                                .with_weight(self.settings.knn_settings.weight.clone())
-                                .with_algorithm(self.settings.knn_settings.algorithm.clone())
-                                .with_distance(Distances::manhattan()),
-                            self.get_kfolds(),
-                            match self.settings.sort_by {
-                                Metric::Accuracy => accuracy,
-                            },
-                        )
-                        .unwrap();
-                        let end = Instant::now();
-                        self.add_model(Algorithm::KNN, cv, end.duration_since(start));
-                    }
-                    Distance::Minkowski(p) => {
-                        let start = Instant::now();
-                        let cv = cross_validate(
-                            KNNClassifier::fit,
-                            &self.x,
-                            &self.y,
-                            SmartcoreKNNClassifierParameters::default()
-                                .with_k(self.settings.knn_settings.k)
-                                .with_weight(self.settings.knn_settings.weight.clone())
-                                .with_algorithm(self.settings.knn_settings.algorithm.clone())
-                                .with_distance(Distances::minkowski(p)),
-                            self.get_kfolds(),
-                            match self.settings.sort_by {
-                                Metric::Accuracy => accuracy,
-                            },
-                        )
-                        .unwrap();
-                        let end = Instant::now();
-                        self.add_model(Algorithm::KNN, cv, end.duration_since(start));
-                    }
-                    Distance::Mahalanobis => {
-                        let start = Instant::now();
-                        let cv = cross_validate(
-                            KNNClassifier::fit,
-                            &self.x,
-                            &self.y,
-                            SmartcoreKNNClassifierParameters::default()
-                                .with_k(self.settings.knn_settings.k)
-                                .with_weight(self.settings.knn_settings.weight.clone())
-                                .with_algorithm(self.settings.knn_settings.algorithm.clone())
-                                .with_distance(Distances::mahalanobis(&self.x)),
-                            self.get_kfolds(),
-                            match self.settings.sort_by {
-                                Metric::Accuracy => accuracy,
-                            },
-                        )
-                        .unwrap();
-                        let end = Instant::now();
-                        self.add_model(Algorithm::KNN, cv, end.duration_since(start));
-                    }
-                    Distance::Hamming => {
-                        let start = Instant::now();
-                        let cv = cross_validate(
-                            KNNClassifier::fit,
-                            &self.x,
-                            &self.y,
-                            SmartcoreKNNClassifierParameters::default()
-                                .with_k(self.settings.knn_settings.k)
-                                .with_weight(self.settings.knn_settings.weight.clone())
-                                .with_algorithm(self.settings.knn_settings.algorithm.clone())
-                                .with_distance(Distances::hamming()),
-                            self.get_kfolds(),
-                            match self.settings.sort_by {
-                                Metric::Accuracy => accuracy,
-                            },
-                        )
-                        .unwrap();
-                        let end = Instant::now();
-                        self.add_model(Algorithm::KNN, cv, end.duration_since(start));
-                    }
+        if !self.settings.skiplist.contains(&Algorithm::KNN) {
+            match self.settings.knn_settings.distance {
+                Distance::Euclidean => {
+                    let start = Instant::now();
+                    let cv = cross_validate(
+                        KNNClassifier::fit,
+                        &self.x,
+                        &self.y,
+                        SmartcoreKNNClassifierParameters::default()
+                            .with_k(self.settings.knn_settings.k)
+                            .with_weight(self.settings.knn_settings.weight.clone())
+                            .with_algorithm(self.settings.knn_settings.algorithm.clone())
+                            .with_distance(Distances::euclidian()),
+                        self.get_kfolds(),
+                        match self.settings.sort_by {
+                            Metric::Accuracy => accuracy,
+                        },
+                    )
+                    .unwrap();
+                    let end = Instant::now();
+                    self.add_model(Algorithm::KNN, cv, end.duration_since(start));
+                }
+                Distance::Manhattan => {
+                    let start = Instant::now();
+                    let cv = cross_validate(
+                        KNNClassifier::fit,
+                        &self.x,
+                        &self.y,
+                        SmartcoreKNNClassifierParameters::default()
+                            .with_k(self.settings.knn_settings.k)
+                            .with_weight(self.settings.knn_settings.weight.clone())
+                            .with_algorithm(self.settings.knn_settings.algorithm.clone())
+                            .with_distance(Distances::manhattan()),
+                        self.get_kfolds(),
+                        match self.settings.sort_by {
+                            Metric::Accuracy => accuracy,
+                        },
+                    )
+                    .unwrap();
+                    let end = Instant::now();
+                    self.add_model(Algorithm::KNN, cv, end.duration_since(start));
+                }
+                Distance::Minkowski(p) => {
+                    let start = Instant::now();
+                    let cv = cross_validate(
+                        KNNClassifier::fit,
+                        &self.x,
+                        &self.y,
+                        SmartcoreKNNClassifierParameters::default()
+                            .with_k(self.settings.knn_settings.k)
+                            .with_weight(self.settings.knn_settings.weight.clone())
+                            .with_algorithm(self.settings.knn_settings.algorithm.clone())
+                            .with_distance(Distances::minkowski(p)),
+                        self.get_kfolds(),
+                        match self.settings.sort_by {
+                            Metric::Accuracy => accuracy,
+                        },
+                    )
+                    .unwrap();
+                    let end = Instant::now();
+                    self.add_model(Algorithm::KNN, cv, end.duration_since(start));
+                }
+                Distance::Mahalanobis => {
+                    let start = Instant::now();
+                    let cv = cross_validate(
+                        KNNClassifier::fit,
+                        &self.x,
+                        &self.y,
+                        SmartcoreKNNClassifierParameters::default()
+                            .with_k(self.settings.knn_settings.k)
+                            .with_weight(self.settings.knn_settings.weight.clone())
+                            .with_algorithm(self.settings.knn_settings.algorithm.clone())
+                            .with_distance(Distances::mahalanobis(&self.x)),
+                        self.get_kfolds(),
+                        match self.settings.sort_by {
+                            Metric::Accuracy => accuracy,
+                        },
+                    )
+                    .unwrap();
+                    let end = Instant::now();
+                    self.add_model(Algorithm::KNN, cv, end.duration_since(start));
+                }
+                Distance::Hamming => {
+                    let start = Instant::now();
+                    let cv = cross_validate(
+                        KNNClassifier::fit,
+                        &self.x,
+                        &self.y,
+                        SmartcoreKNNClassifierParameters::default()
+                            .with_k(self.settings.knn_settings.k)
+                            .with_weight(self.settings.knn_settings.weight.clone())
+                            .with_algorithm(self.settings.knn_settings.algorithm.clone())
+                            .with_distance(Distances::hamming()),
+                        self.get_kfolds(),
+                        match self.settings.sort_by {
+                            Metric::Accuracy => accuracy,
+                        },
+                    )
+                    .unwrap();
+                    let end = Instant::now();
+                    self.add_model(Algorithm::KNN, cv, end.duration_since(start));
                 }
             }
-
-            if !self.settings.skiplist.contains(&Algorithm::DecisionTree) {
-                let start = Instant::now();
-                let cv = cross_validate(
-                    DecisionTreeClassifier::fit,
-                    &self.x,
-                    &self.y,
-                    self.settings.decision_tree_settings.clone(),
-                    self.get_kfolds(),
-                    match self.settings.sort_by {
-                        Metric::Accuracy => accuracy,
-                    },
-                )
-                .unwrap();
-                let end = Instant::now();
-                self.add_model(Algorithm::DecisionTree, cv, end.duration_since(start));
-            }
-
-            if !self
-                .settings
-                .skiplist
-                .contains(&Algorithm::GaussianNaiveBayes)
-            {
-                let start = Instant::now();
-                let cv = cross_validate(
-                    GaussianNB::fit,
-                    &self.x,
-                    &self.y,
-                    self.settings.gaussian_nb_settings.clone(),
-                    self.get_kfolds(),
-                    match self.settings.sort_by {
-                        Metric::Accuracy => accuracy,
-                    },
-                )
-                .unwrap();
-                let end = Instant::now();
-                self.add_model(Algorithm::GaussianNaiveBayes, cv, end.duration_since(start));
-            }
-
-            if !self
-                .settings
-                .skiplist
-                .contains(&Algorithm::CategoricalNaiveBayes)
-            {
-                let start = Instant::now();
-                let cv = cross_validate(
-                    CategoricalNB::fit,
-                    &self.x,
-                    &self.y,
-                    self.settings.categorical_nb_settings.clone(),
-                    self.get_kfolds(),
-                    match self.settings.sort_by {
-                        Metric::Accuracy => accuracy,
-                    },
-                )
-                .unwrap();
-                let end = Instant::now();
-                self.add_model(
-                    Algorithm::CategoricalNaiveBayes,
-                    cv,
-                    end.duration_since(start),
-                );
-            }
-
-            if self.number_of_classes == 2 && !self.settings.skiplist.contains(&Algorithm::SVC) {
-                let start = Instant::now();
-
-                let cv = match self.settings.svc_settings.kernel {
-                    Kernel::Linear => cross_validate(
-                        SVC::fit,
-                        &self.x,
-                        &self.y,
-                        SmartcoreSVCParameters::default()
-                            .with_tol(self.settings.svc_settings.tol)
-                            .with_c(self.settings.svc_settings.c)
-                            .with_epoch(self.settings.svc_settings.epoch)
-                            .with_kernel(Kernels::linear()),
-                        self.get_kfolds(),
-                        match self.settings.sort_by {
-                            Metric::Accuracy => accuracy,
-                        },
-                    )
-                    .unwrap(),
-                    Kernel::Polynomial(degree, gamma, coef) => cross_validate(
-                        SVC::fit,
-                        &self.x,
-                        &self.y,
-                        SmartcoreSVCParameters::default()
-                            .with_tol(self.settings.svc_settings.tol)
-                            .with_c(self.settings.svc_settings.c)
-                            .with_epoch(self.settings.svc_settings.epoch)
-                            .with_kernel(Kernels::polynomial(degree, gamma, coef)),
-                        self.get_kfolds(),
-                        match self.settings.sort_by {
-                            Metric::Accuracy => accuracy,
-                        },
-                    )
-                    .unwrap(),
-                    Kernel::RBF(gamma) => cross_validate(
-                        SVC::fit,
-                        &self.x,
-                        &self.y,
-                        SmartcoreSVCParameters::default()
-                            .with_tol(self.settings.svc_settings.tol)
-                            .with_c(self.settings.svc_settings.c)
-                            .with_epoch(self.settings.svc_settings.epoch)
-                            .with_kernel(Kernels::rbf(gamma)),
-                        self.get_kfolds(),
-                        match self.settings.sort_by {
-                            Metric::Accuracy => accuracy,
-                        },
-                    )
-                    .unwrap(),
-                    Kernel::Sigmoid(gamma, coef) => cross_validate(
-                        SVC::fit,
-                        &self.x,
-                        &self.y,
-                        SmartcoreSVCParameters::default()
-                            .with_tol(self.settings.svc_settings.tol)
-                            .with_c(self.settings.svc_settings.c)
-                            .with_epoch(self.settings.svc_settings.epoch)
-                            .with_kernel(Kernels::sigmoid(gamma, coef)),
-                        self.get_kfolds(),
-                        match self.settings.sort_by {
-                            Metric::Accuracy => accuracy,
-                        },
-                    )
-                    .unwrap(),
-                };
-                let end = Instant::now();
-                self.add_model(Algorithm::SVC, cv, end.duration_since(start));
-            }
-
-            self.status = Status::ModelsCompared;
-        } else {
-            panic!("You must load data before trying to compare models.")
         }
+
+        if !self.settings.skiplist.contains(&Algorithm::DecisionTree) {
+            let start = Instant::now();
+            let cv = cross_validate(
+                DecisionTreeClassifier::fit,
+                &self.x,
+                &self.y,
+                self.settings.decision_tree_settings.clone(),
+                self.get_kfolds(),
+                match self.settings.sort_by {
+                    Metric::Accuracy => accuracy,
+                },
+            )
+            .unwrap();
+            let end = Instant::now();
+            self.add_model(Algorithm::DecisionTree, cv, end.duration_since(start));
+        }
+
+        if !self
+            .settings
+            .skiplist
+            .contains(&Algorithm::GaussianNaiveBayes)
+        {
+            let start = Instant::now();
+            let cv = cross_validate(
+                GaussianNB::fit,
+                &self.x,
+                &self.y,
+                self.settings.gaussian_nb_settings.clone(),
+                self.get_kfolds(),
+                match self.settings.sort_by {
+                    Metric::Accuracy => accuracy,
+                },
+            )
+            .unwrap();
+            let end = Instant::now();
+            self.add_model(Algorithm::GaussianNaiveBayes, cv, end.duration_since(start));
+        }
+
+        if !self
+            .settings
+            .skiplist
+            .contains(&Algorithm::CategoricalNaiveBayes)
+        {
+            let start = Instant::now();
+            let cv = cross_validate(
+                CategoricalNB::fit,
+                &self.x,
+                &self.y,
+                self.settings.categorical_nb_settings.clone(),
+                self.get_kfolds(),
+                match self.settings.sort_by {
+                    Metric::Accuracy => accuracy,
+                },
+            )
+            .unwrap();
+            let end = Instant::now();
+            self.add_model(
+                Algorithm::CategoricalNaiveBayes,
+                cv,
+                end.duration_since(start),
+            );
+        }
+
+        if self.number_of_classes == 2 && !self.settings.skiplist.contains(&Algorithm::SVC) {
+            let start = Instant::now();
+
+            let cv = match self.settings.svc_settings.kernel {
+                Kernel::Linear => cross_validate(
+                    SVC::fit,
+                    &self.x,
+                    &self.y,
+                    SmartcoreSVCParameters::default()
+                        .with_tol(self.settings.svc_settings.tol)
+                        .with_c(self.settings.svc_settings.c)
+                        .with_epoch(self.settings.svc_settings.epoch)
+                        .with_kernel(Kernels::linear()),
+                    self.get_kfolds(),
+                    match self.settings.sort_by {
+                        Metric::Accuracy => accuracy,
+                    },
+                )
+                .unwrap(),
+                Kernel::Polynomial(degree, gamma, coef) => cross_validate(
+                    SVC::fit,
+                    &self.x,
+                    &self.y,
+                    SmartcoreSVCParameters::default()
+                        .with_tol(self.settings.svc_settings.tol)
+                        .with_c(self.settings.svc_settings.c)
+                        .with_epoch(self.settings.svc_settings.epoch)
+                        .with_kernel(Kernels::polynomial(degree, gamma, coef)),
+                    self.get_kfolds(),
+                    match self.settings.sort_by {
+                        Metric::Accuracy => accuracy,
+                    },
+                )
+                .unwrap(),
+                Kernel::RBF(gamma) => cross_validate(
+                    SVC::fit,
+                    &self.x,
+                    &self.y,
+                    SmartcoreSVCParameters::default()
+                        .with_tol(self.settings.svc_settings.tol)
+                        .with_c(self.settings.svc_settings.c)
+                        .with_epoch(self.settings.svc_settings.epoch)
+                        .with_kernel(Kernels::rbf(gamma)),
+                    self.get_kfolds(),
+                    match self.settings.sort_by {
+                        Metric::Accuracy => accuracy,
+                    },
+                )
+                .unwrap(),
+                Kernel::Sigmoid(gamma, coef) => cross_validate(
+                    SVC::fit,
+                    &self.x,
+                    &self.y,
+                    SmartcoreSVCParameters::default()
+                        .with_tol(self.settings.svc_settings.tol)
+                        .with_c(self.settings.svc_settings.c)
+                        .with_epoch(self.settings.svc_settings.epoch)
+                        .with_kernel(Kernels::sigmoid(gamma, coef)),
+                    self.get_kfolds(),
+                    match self.settings.sort_by {
+                        Metric::Accuracy => accuracy,
+                    },
+                )
+                .unwrap(),
+            };
+            let end = Instant::now();
+            self.add_model(Algorithm::SVC, cv, end.duration_since(start));
+        };
     }
 
     /// Trains the best model found during comparison
@@ -582,7 +584,6 @@ impl Classifier {
                 .unwrap()
             }
         }
-        self.status = Status::FinalModelTrained;
     }
 
     /// Predict values using the best model
@@ -750,7 +751,7 @@ impl Default for Classifier {
             comparison: vec![],
             final_model: vec![],
             number_of_classes: 0,
-            status: Status::Starting,
+            current_x: vec![],
         }
     }
 }
@@ -1002,5 +1003,50 @@ impl Display for Settings {
                 &*format!("{}", &skiplist[0..skiplist.len() - 1]),
             ]);
         write!(f, "{}\n", table)
+    }
+}
+
+impl epi::App for Classifier {
+    fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            let value_to_predict = vec![self.current_x.to_vec(); 1];
+
+            ui.heading(format!("{}", self.comparison[0].name));
+            ui.label(format!(
+                "Prediction: y = {:?}",
+                self.predict(&DenseMatrix::from_2d_vec(&value_to_predict))[0]
+            ));
+            ui.separator();
+
+            for i in 0..self.current_x.len() {
+                let maxx = self
+                    .x
+                    .get_col_as_vec(i)
+                    .iter()
+                    .cloned()
+                    .fold(0. / 0., f32::max);
+
+                let minn = self
+                    .x
+                    .get_col_as_vec(i)
+                    .iter()
+                    .cloned()
+                    .fold(0. / 0., f32::min);
+                ui.add(
+                    egui::Slider::new(&mut self.current_x[i], minn..=maxx).text(format!("x_{}", i)),
+                );
+            }
+        });
+    }
+
+    fn name(&self) -> &str {
+        "Model Demo"
+    }
+}
+
+impl Classifier {
+    pub fn run_demo(self) {
+        let native_options = eframe::NativeOptions::default();
+        eframe::run_native(Box::new(self), native_options);
     }
 }
