@@ -1,13 +1,5 @@
-use automl::regression::{
-    settings::{
-        Algorithm, DecisionTreeRegressorParameters, Distance, ElasticNetParameters,
-        KNNAlgorithmName, KNNRegressorParameters, KNNWeightFunction, Kernel, LassoParameters,
-        LinearRegressionParameters, LinearRegressionSolverName, Metric,
-        RandomForestRegressorParameters, RidgeRegressionParameters, RidgeRegressionSolverName,
-        SVRParameters,
-    },
-    Regressor, Settings,
-};
+use automl::regression::settings::*;
+use automl::regression::*;
 
 fn main() {
     // Define a default regressor. This include settings, but no data yet.

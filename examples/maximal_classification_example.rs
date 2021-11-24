@@ -1,15 +1,9 @@
-use automl::classification::{
-    settings::{
-        Algorithm, CategoricalNBParameters, DecisionTreeClassifierParameters, Distance,
-        GaussianNBParameters, KNNAlgorithmName, KNNClassifierParameters, KNNWeightFunction, Kernel,
-        LogisticRegressionParameters, Metric, RandomForestClassifierParameters, SVCParameters,
-    },
-    Classifier, Settings,
-};
+use automl::classification::settings::*;
+use automl::classification::*;
 
 fn main() {
     // Define a default regressor. This include settings, but no data yet.
-    let mut classifier = automl::classification::Classifier::default();
+    let mut classifier = Classifier::default();
 
     // Totally customize settings
     let settings = Settings::default()
