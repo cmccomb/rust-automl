@@ -168,6 +168,11 @@ impl Regressor {
 
     /// This function compares all of the regression models available in the package.
     pub fn compare_models(&mut self) {
+        let metric = match self.settings.sort_by {
+            Metric::RSquared => r2,
+            Metric::MeanAbsoluteError => mean_absolute_error,
+            Metric::MeanSquaredError => mean_squared_error,
+        };
         if !self.settings.skiplist.contains(&Algorithm::Linear) {
             let start = Instant::now();
             let cv = cross_validate(
@@ -176,11 +181,7 @@ impl Regressor {
                 &self.y,
                 self.settings.linear_settings.clone(),
                 self.get_kfolds(),
-                match self.settings.sort_by {
-                    Metric::RSquared => r2,
-                    Metric::MeanAbsoluteError => mean_absolute_error,
-                    Metric::MeanSquaredError => mean_squared_error,
-                },
+                metric,
             )
             .unwrap();
             let end = Instant::now();
@@ -200,11 +201,7 @@ impl Regressor {
                         .with_eps(self.settings.svr_settings.c)
                         .with_kernel(Kernels::linear()),
                     self.get_kfolds(),
-                    match self.settings.sort_by {
-                        Metric::RSquared => r2,
-                        Metric::MeanAbsoluteError => mean_absolute_error,
-                        Metric::MeanSquaredError => mean_squared_error,
-                    },
+                    metric,
                 )
                 .unwrap(),
                 Kernel::Polynomial(degree, gamma, coef) => cross_validate(
@@ -217,11 +214,7 @@ impl Regressor {
                         .with_eps(self.settings.svr_settings.c)
                         .with_kernel(Kernels::polynomial(degree, gamma, coef)),
                     self.get_kfolds(),
-                    match self.settings.sort_by {
-                        Metric::RSquared => r2,
-                        Metric::MeanAbsoluteError => mean_absolute_error,
-                        Metric::MeanSquaredError => mean_squared_error,
-                    },
+                    metric,
                 )
                 .unwrap(),
                 Kernel::RBF(gamma) => cross_validate(
@@ -234,11 +227,7 @@ impl Regressor {
                         .with_eps(self.settings.svr_settings.c)
                         .with_kernel(Kernels::rbf(gamma)),
                     self.get_kfolds(),
-                    match self.settings.sort_by {
-                        Metric::RSquared => r2,
-                        Metric::MeanAbsoluteError => mean_absolute_error,
-                        Metric::MeanSquaredError => mean_squared_error,
-                    },
+                    metric,
                 )
                 .unwrap(),
                 Kernel::Sigmoid(gamma, coef) => cross_validate(
@@ -251,11 +240,7 @@ impl Regressor {
                         .with_eps(self.settings.svr_settings.c)
                         .with_kernel(Kernels::sigmoid(gamma, coef)),
                     self.get_kfolds(),
-                    match self.settings.sort_by {
-                        Metric::RSquared => r2,
-                        Metric::MeanAbsoluteError => mean_absolute_error,
-                        Metric::MeanSquaredError => mean_squared_error,
-                    },
+                    metric,
                 )
                 .unwrap(),
             };
@@ -273,11 +258,7 @@ impl Regressor {
                 &self.y,
                 self.settings.lasso_settings.clone(),
                 self.get_kfolds(),
-                match self.settings.sort_by {
-                    Metric::RSquared => r2,
-                    Metric::MeanAbsoluteError => mean_absolute_error,
-                    Metric::MeanSquaredError => mean_squared_error,
-                },
+                metric,
             )
             .unwrap();
 
@@ -293,11 +274,7 @@ impl Regressor {
                 &self.y,
                 self.settings.ridge_settings.clone(),
                 self.get_kfolds(),
-                match self.settings.sort_by {
-                    Metric::RSquared => r2,
-                    Metric::MeanAbsoluteError => mean_absolute_error,
-                    Metric::MeanSquaredError => mean_squared_error,
-                },
+                metric,
             )
             .unwrap();
             let end = Instant::now();
@@ -313,11 +290,7 @@ impl Regressor {
                 &self.y,
                 self.settings.elastic_net_settings.clone(),
                 self.get_kfolds(),
-                match self.settings.sort_by {
-                    Metric::RSquared => r2,
-                    Metric::MeanAbsoluteError => mean_absolute_error,
-                    Metric::MeanSquaredError => mean_squared_error,
-                },
+                metric,
             )
             .unwrap();
             let end = Instant::now();
@@ -333,11 +306,7 @@ impl Regressor {
                 &self.y,
                 self.settings.decision_tree_settings.clone(),
                 self.get_kfolds(),
-                match self.settings.sort_by {
-                    Metric::RSquared => r2,
-                    Metric::MeanAbsoluteError => mean_absolute_error,
-                    Metric::MeanSquaredError => mean_squared_error,
-                },
+                metric,
             )
             .unwrap();
             let end = Instant::now();
@@ -353,11 +322,7 @@ impl Regressor {
                 &self.y,
                 self.settings.random_forest_settings.clone(),
                 self.get_kfolds(),
-                match self.settings.sort_by {
-                    Metric::RSquared => r2,
-                    Metric::MeanAbsoluteError => mean_absolute_error,
-                    Metric::MeanSquaredError => mean_squared_error,
-                },
+                metric,
             )
             .unwrap();
             let end = Instant::now();
@@ -378,11 +343,7 @@ impl Regressor {
                         .with_weight(self.settings.knn_settings.weight.clone())
                         .with_distance(Distances::euclidian()),
                     self.get_kfolds(),
-                    match self.settings.sort_by {
-                        Metric::RSquared => r2,
-                        Metric::MeanAbsoluteError => mean_absolute_error,
-                        Metric::MeanSquaredError => mean_squared_error,
-                    },
+                    metric,
                 )
                 .unwrap(),
                 Distance::Manhattan => cross_validate(
@@ -395,11 +356,7 @@ impl Regressor {
                         .with_weight(self.settings.knn_settings.weight.clone())
                         .with_distance(Distances::manhattan()),
                     self.get_kfolds(),
-                    match self.settings.sort_by {
-                        Metric::RSquared => r2,
-                        Metric::MeanAbsoluteError => mean_absolute_error,
-                        Metric::MeanSquaredError => mean_squared_error,
-                    },
+                    metric,
                 )
                 .unwrap(),
                 Distance::Minkowski(p) => cross_validate(
@@ -412,11 +369,7 @@ impl Regressor {
                         .with_weight(self.settings.knn_settings.weight.clone())
                         .with_distance(Distances::minkowski(p)),
                     self.get_kfolds(),
-                    match self.settings.sort_by {
-                        Metric::RSquared => r2,
-                        Metric::MeanAbsoluteError => mean_absolute_error,
-                        Metric::MeanSquaredError => mean_squared_error,
-                    },
+                    metric,
                 )
                 .unwrap(),
                 Distance::Mahalanobis => cross_validate(
@@ -429,11 +382,7 @@ impl Regressor {
                         .with_weight(self.settings.knn_settings.weight.clone())
                         .with_distance(Distances::mahalanobis(&self.x)),
                     self.get_kfolds(),
-                    match self.settings.sort_by {
-                        Metric::RSquared => r2,
-                        Metric::MeanAbsoluteError => mean_absolute_error,
-                        Metric::MeanSquaredError => mean_squared_error,
-                    },
+                    metric,
                 )
                 .unwrap(),
                 Distance::Hamming => cross_validate(
@@ -446,11 +395,7 @@ impl Regressor {
                         .with_weight(self.settings.knn_settings.weight.clone())
                         .with_distance(Distances::hamming()),
                     self.get_kfolds(),
-                    match self.settings.sort_by {
-                        Metric::RSquared => r2,
-                        Metric::MeanAbsoluteError => mean_absolute_error,
-                        Metric::MeanSquaredError => mean_squared_error,
-                    },
+                    metric,
                 )
                 .unwrap(),
             };
