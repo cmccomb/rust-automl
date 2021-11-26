@@ -283,7 +283,7 @@ impl Display for Metric {
     }
 }
 
-/// Regression algorithm options
+/// Algorithm options
 #[derive(PartialEq)]
 pub enum Algorithm {
     /// Decision tree regressor
