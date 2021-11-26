@@ -1,6 +1,6 @@
-//! # Settings Customization
+//! # Settings customization
 //! This module contains capabilities for the detailed customization of algorithm settings.
-//! ## Complete Regression Customization
+//! ## Complete regression customization
 //! ```
 //! use automl::settings::{
 //!     Algorithm, DecisionTreeRegressorParameters, Distance, ElasticNetParameters,
@@ -69,7 +69,7 @@
 //!             .with_min_samples_leaf(20),
 //!     );
 //! ```
-//! ## Complete Classification Customization
+//! ## Complete classification customization
 //! ```
 //! use automl::settings::{
 //!     Algorithm, CategoricalNBParameters, DecisionTreeClassifierParameters, Distance,

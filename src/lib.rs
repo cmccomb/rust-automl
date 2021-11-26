@@ -68,7 +68,7 @@ use eframe::{egui, epi};
 use ndarray::{Array1, Array2};
 use smartcore::tree::decision_tree_classifier::SplitCriterion;
 
-/// Trains and compares regression models
+/// Trains and compares supervised models
 pub struct SupervisedModel {
     settings: Settings,
     x: DenseMatrix<f32>,
@@ -1724,7 +1724,7 @@ impl Display for SupervisedModel {
     }
 }
 
-/// Settings for regression algorithms and comparisons
+/// Settings for supervised models
 pub struct Settings {
     sort_by: Metric,
     model_type: ModelType,
