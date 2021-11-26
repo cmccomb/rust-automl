@@ -1416,20 +1416,71 @@ impl SupervisedModel {
         }
     }
 
-    /// Predict values using the best model.
+    /// Predict values using the final model based on a vec.
     /// ```no_run
     /// # use automl::{SupervisedModel, Settings};
-    /// use smartcore::linalg::naive::dense_matrix::DenseMatrix;
     /// let mut model = SupervisedModel::new_from_dataset(
     ///     smartcore::dataset::diabetes::load_dataset(),
     ///     Settings::default_regression()
     /// );
     /// model.compare_models();
     /// model.train_final_model();
-    /// model.predict(&DenseMatrix::from_2d_array(&[&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]]));
+    /// model.predict_from_vec(vec![vec![5.0; 10]; 5]);
     /// ```
     /// Note that the calls to `compare_models` and `train_final_model` can be replaced with a single call to `auto`.
-    pub fn predict(&self, x: &DenseMatrix<f32>) -> Vec<f32> {
+    pub fn predict_from_vec(&self, x: Vec<Vec<f32>>) -> Vec<f32> {
+        self.predict(&DenseMatrix::from_2d_vec(&x))
+    }
+
+    /// Predict values using the final model based on ndarray.
+    /// ```no_run
+    /// # use automl::{SupervisedModel, Settings};
+    /// use ndarray::arr2;
+    /// let mut model = SupervisedModel::new_from_dataset(
+    ///     smartcore::dataset::diabetes::load_dataset(),
+    ///     Settings::default_regression()
+    /// );
+    /// model.compare_models();
+    /// model.train_final_model();
+    /// model.predict_from_ndarray(
+    ///     arr2(&[
+    ///         [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0],
+    ///         [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]
+    ///     ])
+    /// );
+    /// ```
+    /// Note that the calls to `compare_models` and `train_final_model` can be replaced with a single call to `auto`.
+    pub fn predict_from_ndarray(&self, x: Array2<f32>) -> Vec<f32> {
+        self.predict(&DenseMatrix::from_array(
+            x.shape()[0],
+            x.shape()[1],
+            x.as_slice().unwrap(),
+        ))
+    }
+
+    /// Runs an interactive GUI to demonstrate the final model
+    /// ```no_run
+    /// # use automl::{SupervisedModel, Settings};
+    /// let mut model = SupervisedModel::new_from_dataset(
+    ///     smartcore::dataset::diabetes::load_dataset(),
+    ///     Settings::default_regression()
+    /// );
+    /// model.auto();
+    /// model.run_gui();
+    /// ```
+    /// ![Example of interactive gui demo](https://raw.githubusercontent.com/cmccomb/rust-automl/master/assets/gui.png)
+    pub fn run_gui(self) {
+        if self.final_model.len() == 0 {
+            panic!()
+        }
+        let native_options = eframe::NativeOptions::default();
+        eframe::run_native(Box::new(self), native_options);
+    }
+}
+
+/// Private regressor functions go here
+impl SupervisedModel {
+    fn predict(&self, x: &DenseMatrix<f32>) -> Vec<f32> {
         if self.final_model.len() == 0 {
             panic!("Please run the `train_final_model` method first before attempting inference with `predict`.")
         }
@@ -1602,28 +1653,6 @@ impl SupervisedModel {
         }
     }
 
-    /// Runs an interactive GUI to demonstrate the final model
-    /// ```no_run
-    /// # use automl::{SupervisedModel, Settings};
-    /// let mut model = SupervisedModel::new_from_dataset(
-    ///     smartcore::dataset::diabetes::load_dataset(),
-    ///     Settings::default_regression()
-    /// );
-    /// model.auto();
-    /// model.run_gui();
-    /// ```
-    /// ![Example of interactive gui demo](https://raw.githubusercontent.com/cmccomb/rust-automl/master/assets/gui.png)
-    pub fn run_gui(self) {
-        if self.final_model.len() == 0 {
-            panic!()
-        }
-        let native_options = eframe::NativeOptions::default();
-        eframe::run_native(Box::new(self), native_options);
-    }
-}
-
-/// Private regressor functions go here
-impl SupervisedModel {
     fn count_classes(y: &Vec<f32>) -> usize {
         let mut sorted_targets = y.clone();
         sorted_targets.sort_by(|a, b| a.partial_cmp(&b).unwrap_or(Equal));

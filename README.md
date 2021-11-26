@@ -24,6 +24,7 @@ let dataset = smartcore::dataset::breast_cancer::load_dataset();
 let settings = automl::Settings::default_classification();
 let mut classifier = automl::SupervisedModel::new_from_dataset(dataset, settings);
 classifier.compare_models();
+println!("{}", classifier);
 ```
 will output this comparison of models using cross-validation:
 ```text

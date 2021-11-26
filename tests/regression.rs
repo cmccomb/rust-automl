@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod regression_tests {
     use automl::{settings::*, *};
-    use smartcore::{dataset::diabetes::load_dataset, linalg::naive::dense_matrix::DenseMatrix};
+    use smartcore::dataset::diabetes::load_dataset;
 
     #[test]
     fn test_step_by_step() {
@@ -23,8 +23,8 @@ mod regression_tests {
         regressor.train_final_model();
 
         // Do inference with final model
-        let x = DenseMatrix::from_2d_array(&[&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]]);
-        print!("{:?}", regressor.predict(&x));
+        let x = vec![vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]; 1];
+        print!("{:?}", regressor.predict_from_vec(x));
     }
 
     #[test]
@@ -44,7 +44,7 @@ mod regression_tests {
         regressor.train_final_model();
 
         // Do inference with final model
-        let x = DenseMatrix::from_2d_array(&[&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]]);
-        print!("{:?}", regressor.predict(&x));
+        let x = vec![vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]; 1];
+        print!("{:?}", regressor.predict_from_vec(x));
     }
 }
