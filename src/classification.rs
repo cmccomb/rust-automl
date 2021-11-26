@@ -161,6 +161,9 @@ impl Classifier {
 
     /// This function compares all of the classification models available in the package.
     pub fn compare_models(&mut self) {
+        let metric = match self.settings.sort_by {
+            Metric::Accuracy => accuracy,
+        };
         if !self
             .settings
             .skiplist
@@ -173,9 +176,7 @@ impl Classifier {
                 &self.y,
                 self.settings.logistic_settings.clone(),
                 self.get_kfolds(),
-                match self.settings.sort_by {
-                    Metric::Accuracy => accuracy,
-                },
+                metric,
             )
             .unwrap();
             let end = Instant::now();
@@ -190,9 +191,7 @@ impl Classifier {
                 &self.y,
                 self.settings.random_forest_settings.clone(),
                 self.get_kfolds(),
-                match self.settings.sort_by {
-                    Metric::Accuracy => accuracy,
-                },
+                metric,
             )
             .unwrap();
             let end = Instant::now();
@@ -213,9 +212,7 @@ impl Classifier {
                             .with_algorithm(self.settings.knn_settings.algorithm.clone())
                             .with_distance(Distances::euclidian()),
                         self.get_kfolds(),
-                        match self.settings.sort_by {
-                            Metric::Accuracy => accuracy,
-                        },
+                        metric,
                     )
                     .unwrap();
                     let end = Instant::now();
@@ -233,9 +230,7 @@ impl Classifier {
                             .with_algorithm(self.settings.knn_settings.algorithm.clone())
                             .with_distance(Distances::manhattan()),
                         self.get_kfolds(),
-                        match self.settings.sort_by {
-                            Metric::Accuracy => accuracy,
-                        },
+                        metric,
                     )
                     .unwrap();
                     let end = Instant::now();
@@ -253,9 +248,7 @@ impl Classifier {
                             .with_algorithm(self.settings.knn_settings.algorithm.clone())
                             .with_distance(Distances::minkowski(p)),
                         self.get_kfolds(),
-                        match self.settings.sort_by {
-                            Metric::Accuracy => accuracy,
-                        },
+                        metric,
                     )
                     .unwrap();
                     let end = Instant::now();
@@ -273,9 +266,7 @@ impl Classifier {
                             .with_algorithm(self.settings.knn_settings.algorithm.clone())
                             .with_distance(Distances::mahalanobis(&self.x)),
                         self.get_kfolds(),
-                        match self.settings.sort_by {
-                            Metric::Accuracy => accuracy,
-                        },
+                        metric,
                     )
                     .unwrap();
                     let end = Instant::now();
@@ -293,9 +284,7 @@ impl Classifier {
                             .with_algorithm(self.settings.knn_settings.algorithm.clone())
                             .with_distance(Distances::hamming()),
                         self.get_kfolds(),
-                        match self.settings.sort_by {
-                            Metric::Accuracy => accuracy,
-                        },
+                        metric,
                     )
                     .unwrap();
                     let end = Instant::now();
