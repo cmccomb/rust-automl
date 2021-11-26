@@ -1,5 +1,5 @@
-use automl::supervised::settings::*;
-use automl::supervised::*;
+use automl::settings::*;
+use automl::*;
 
 fn main() {
     // Totally customize settings

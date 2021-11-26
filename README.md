@@ -21,8 +21,8 @@ automl = { git = "https://github.com/cmccomb/rust-automl" }
 Running the following:
 ```rust
 let dataset = smartcore::dataset::breast_cancer::load_dataset();
-let settings = automl::supervised::Settings::default_classification();
-let mut classifier = automl::supervised::SupervisedModel::new_from_dataset(dataset, settings);
+let settings = automl::Settings::default_classification();
+let mut classifier = automl::SupervisedModel::new_from_dataset(dataset, settings);
 classifier.compare_models();
 ```
 will output this comparison of models using cross-validation:

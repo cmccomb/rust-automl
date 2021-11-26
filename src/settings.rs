@@ -2,7 +2,7 @@
 //! This module contains capabilities for the detailed customization of algorithm settings.
 //! ## Complete Regression Customization
 //! ```
-//! use automl::supervised::settings::{
+//! use automl::settings::{
 //!     Algorithm, DecisionTreeRegressorParameters, Distance, ElasticNetParameters,
 //!     KNNAlgorithmName, KNNRegressorParameters, KNNWeightFunction, Kernel, LassoParameters,
 //!     LinearRegressionParameters, LinearRegressionSolverName, Metric,
@@ -10,7 +10,7 @@
 //!     SVRParameters,
 //!  };
 //!
-//!  let settings = automl::supervised::Settings::default_regression()
+//!  let settings = automl::Settings::default_regression()
 //!     .with_number_of_folds(3)
 //!     .shuffle_data(true)
 //!     .verbose(true)
@@ -71,13 +71,13 @@
 //! ```
 //! ## Complete Classification Customization
 //! ```
-//! use automl::supervised::settings::{
+//! use automl::settings::{
 //!     Algorithm, CategoricalNBParameters, DecisionTreeClassifierParameters, Distance,
 //!     GaussianNBParameters, KNNAlgorithmName, KNNClassifierParameters, KNNWeightFunction, Kernel,
 //!     LogisticRegressionParameters, Metric, RandomForestClassifierParameters, SVCParameters,
 //! };
 //!
-//! let settings = automl::supervised::Settings::default_classification()
+//! let settings = automl::Settings::default_classification()
 //!     .with_number_of_folds(3)
 //!     .shuffle_data(true)
 //!     .verbose(true)

@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod regression_tests {
-    use automl::supervised::{settings::*, *};
+    use automl::{settings::*, *};
     use smartcore::{dataset::diabetes::load_dataset, linalg::naive::dense_matrix::DenseMatrix};
 
     #[test]

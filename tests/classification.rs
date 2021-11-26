@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod classification_tests {
-    use automl::supervised::*;
+    use automl::*;
     #[test]
     fn test_step_by_step() {
         // Check training

@@ -1,7 +1,7 @@
-use automl::supervised::settings::*;
+use automl::settings::*;
 
 fn main() {
-    let regressor_settings = automl::supervised::Settings::default_regression()
+    let regressor_settings = automl::Settings::default_regression()
         .with_number_of_folds(3)
         .shuffle_data(true)
         .verbose(true)
@@ -59,7 +59,7 @@ fn main() {
                 .with_min_samples_leaf(20),
         );
 
-    let classifier_settings = automl::supervised::Settings::default_classification()
+    let classifier_settings = automl::Settings::default_classification()
         .with_number_of_folds(3)
         .shuffle_data(true)
         .verbose(true)
