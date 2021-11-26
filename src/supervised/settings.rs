@@ -180,19 +180,19 @@ impl KNNRegressorParameters {
         self
     }
 
-    /// Define the weighting function to use with KNN regresssion
+    /// Define the weighting function to use with KNN regression
     pub fn with_weight(mut self, weight: KNNWeightFunction) -> Self {
         self.weight = weight;
         self
     }
 
-    /// Define the search algorithm to use with KNN regresssion
+    /// Define the search algorithm to use with KNN regression
     pub fn with_algorithm(mut self, algorithm: KNNAlgorithmName) -> Self {
         self.algorithm = algorithm;
         self
     }
 
-    /// Define the distance metric to use with KNN regresssion
+    /// Define the distance metric to use with KNN regression
     pub fn with_distance(mut self, distance: Distance) -> Self {
         self.distance = distance;
         self
@@ -231,7 +231,7 @@ impl SVRParameters {
         self
     }
 
-    /// Define the convergence tolereance to use with the SVR model
+    /// Define the convergence tolerance to use with the SVR model
     pub fn with_tol(mut self, tol: f32) -> Self {
         self.tol = tol;
         self
@@ -361,7 +361,7 @@ impl SVCParameters {
         self
     }
 
-    /// Define the convergence tolereance to use with the SVR model
+    /// Define the convergence tolerance to use with the SVR model
     pub fn with_tol(mut self, tol: f32) -> Self {
         self.tol = tol;
         self
@@ -400,19 +400,19 @@ impl KNNClassifierParameters {
         self
     }
 
-    /// Define the weighting function to use with KNN regresssion
+    /// Define the weighting function to use with KNN regression
     pub fn with_weight(mut self, weight: KNNWeightFunction) -> Self {
         self.weight = weight;
         self
     }
 
-    /// Define the search algorithm to use with KNN regresssion
+    /// Define the search algorithm to use with KNN regression
     pub fn with_algorithm(mut self, algorithm: KNNAlgorithmName) -> Self {
         self.algorithm = algorithm;
         self
     }
 
-    /// Define the distance metric to use with KNN regresssion
+    /// Define the distance metric to use with KNN regression
     pub fn with_distance(mut self, distance: Distance) -> Self {
         self.distance = distance;
         self
