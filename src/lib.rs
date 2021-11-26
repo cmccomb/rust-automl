@@ -25,20 +25,20 @@ use humantime::format_duration;
 use polars::prelude::{CsvReader, DataFrame, Float32Type, SerReader};
 use smartcore::{
     dataset::Dataset,
-    ensemble::random_forest_classifier::RandomForestClassifier,
-    ensemble::random_forest_regressor::RandomForestRegressor,
+    ensemble::{
+        random_forest_classifier::RandomForestClassifier,
+        random_forest_regressor::RandomForestRegressor,
+    },
     linalg::{naive::dense_matrix::DenseMatrix, BaseMatrix},
-    linear::logistic_regression::LogisticRegression,
     linear::{
         elastic_net::ElasticNet, lasso::Lasso, linear_regression::LinearRegression,
-        ridge_regression::RidgeRegression,
+        logistic_regression::LogisticRegression, ridge_regression::RidgeRegression,
     },
     math::distance::{
         euclidian::Euclidian, hamming::Hamming, mahalanobis::Mahalanobis, manhattan::Manhattan,
         minkowski::Minkowski, Distances,
     },
-    metrics::accuracy,
-    metrics::{mean_absolute_error, mean_squared_error, r2},
+    metrics::{accuracy, mean_absolute_error, mean_squared_error, r2},
     model_selection::{cross_validate, CrossValidationResult, KFold},
     naive_bayes::{categorical::CategoricalNB, gaussian::GaussianNB},
     neighbors::{
@@ -204,13 +204,30 @@ impl SupervisedModel {
         }
     }
 
-    /// Runs a model comparison and trains a final model. [Zhu Li, do the thing!](https://www.youtube.com/watch?v=mofRHlO1E_A)
+    /// Runs a model comparison and trains a final model.
+    /// ```no_run
+    /// # use automl::{SupervisedModel, Settings};
+    /// let mut model = SupervisedModel::new_from_dataset(
+    ///     smartcore::dataset::diabetes::load_dataset(),
+    ///     Settings::default_regression()
+    /// );
+    /// model.auto();
+    /// ```
     pub fn auto(&mut self) {
         self.compare_models();
         self.train_final_model();
     }
 
     /// This function compares all of the  models available in the package.
+    /// ```no_run
+    /// # use automl::{SupervisedModel, Settings};
+    /// let mut model = SupervisedModel::new_from_dataset(
+    ///     smartcore::dataset::diabetes::load_dataset(),
+    ///     Settings::default_regression()
+    /// );
+    /// model.compare_models();
+    /// ```
+
     pub fn compare_models(&mut self) {
         let metric = match self.settings.sort_by {
             Metric::RSquared => r2,
@@ -896,8 +913,21 @@ impl SupervisedModel {
         }
     }
 
-    /// Trains the best model found during comparison
+    /// Trains the best model found during comparison. It will panic if `compare_models` is not called first.
+    /// ```no_run
+    /// # use automl::{SupervisedModel, Settings};
+    /// let mut model = SupervisedModel::new_from_dataset(
+    ///     smartcore::dataset::diabetes::load_dataset(),
+    ///     Settings::default_regression()
+    /// );
+    /// model.compare_models();
+    /// model.train_final_model();
+    /// ```
+
     pub fn train_final_model(&mut self) {
+        if self.comparison.len() == 0 {
+            panic!("Please run the `compare_models` method first before trying to train a final model.");
+        }
         match self.comparison[0].name {
             Algorithm::LogisticRegression => {
                 self.final_model = bincode::serialize(
@@ -1386,8 +1416,23 @@ impl SupervisedModel {
         }
     }
 
-    /// Predict values using the best model
+    /// Predict values using the best model.
+    /// ```no_run
+    /// # use automl::{SupervisedModel, Settings};
+    /// use smartcore::linalg::naive::dense_matrix::DenseMatrix;
+    /// let mut model = SupervisedModel::new_from_dataset(
+    ///     smartcore::dataset::diabetes::load_dataset(),
+    ///     Settings::default_regression()
+    /// );
+    /// model.compare_models();
+    /// model.train_final_model();
+    /// model.predict(&DenseMatrix::from_2d_array(&[&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]]));
+    /// ```
+    /// Note that the calls to `compare_models` and `train_final_model` can be replaced with a single call to `auto`.
     pub fn predict(&self, x: &DenseMatrix<f32>) -> Vec<f32> {
+        if self.final_model.len() == 0 {
+            panic!("Please run the `train_final_model` method first before attempting inference with `predict`.")
+        }
         match self.comparison[0].name {
             Algorithm::Linear => {
                 let model: LinearRegression<f32, DenseMatrix<f32>> =
@@ -1558,9 +1603,20 @@ impl SupervisedModel {
     }
 
     /// Runs an interactive GUI to demonstrate the final model
-    ///
+    /// ```no_run
+    /// # use automl::{SupervisedModel, Settings};
+    /// let mut model = SupervisedModel::new_from_dataset(
+    ///     smartcore::dataset::diabetes::load_dataset(),
+    ///     Settings::default_regression()
+    /// );
+    /// model.auto();
+    /// model.run_gui();
+    /// ```
     /// ![Example of interactive gui demo](https://raw.githubusercontent.com/cmccomb/rust-automl/master/assets/gui.png)
     pub fn run_gui(self) {
+        if self.final_model.len() == 0 {
+            panic!()
+        }
         let native_options = eframe::NativeOptions::default();
         eframe::run_native(Box::new(self), native_options);
     }
@@ -1636,29 +1692,6 @@ impl Display for SupervisedModel {
             table.add_row(row_vec);
         }
         write!(f, "{}\n", table)
-    }
-}
-
-/// This contains the results of a single model
-struct Model {
-    score: CrossValidationResult<f32>,
-    name: Algorithm,
-    duration: Duration,
-}
-
-enum ModelType {
-    None,
-    Regression,
-    Classification,
-}
-
-impl Display for ModelType {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ModelType::None => write!(f, "None"),
-            ModelType::Regression => write!(f, "Regression"),
-            ModelType::Classification => write!(f, "Classification"),
-        }
     }
 }
 
@@ -2633,5 +2666,28 @@ impl epi::App for SupervisedModel {
 
     fn name(&self) -> &str {
         "Model Demo"
+    }
+}
+
+/// This contains the results of a single model
+struct Model {
+    score: CrossValidationResult<f32>,
+    name: Algorithm,
+    duration: Duration,
+}
+
+enum ModelType {
+    None,
+    Regression,
+    Classification,
+}
+
+impl Display for ModelType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ModelType::None => write!(f, "None"),
+            ModelType::Regression => write!(f, "Regression"),
+            ModelType::Classification => write!(f, "Classification"),
+        }
     }
 }
