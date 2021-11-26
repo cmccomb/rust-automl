@@ -79,7 +79,13 @@ pub struct SupervisedModel {
 impl SupervisedModel {
     /// Create a new supervised model from a csv
     /// ```
-    ///
+    /// # use automl::supervised::{SupervisedModel, Settings};
+    /// let model = SupervisedModel::new_from_csv(
+    ///     "data/diabetes.csv",
+    ///     10,
+    ///     true,
+    ///     Settings::default_regression()
+    /// );
     /// ```
     pub fn new_from_csv(
         filepath: &str,
@@ -121,6 +127,13 @@ impl SupervisedModel {
     }
 
     /// Create a new supervised model from a [smartcore toy dataset](https://docs.rs/smartcore/0.2.0/smartcore/dataset/index.html)
+    /// ```
+    /// # use automl::supervised::{SupervisedModel, Settings};
+    /// let model = SupervisedModel::new_from_dataset(
+    ///     smartcore::dataset::diabetes::load_dataset(),
+    ///     Settings::default_regression()
+    /// );
+    /// ```
     pub fn new_from_dataset(dataset: Dataset<f32, f32>, settings: Settings) -> Self {
         let x = DenseMatrix::from_array(dataset.num_samples, dataset.num_features, &dataset.data);
         let y = dataset.target;
@@ -138,6 +151,14 @@ impl SupervisedModel {
     }
 
     /// Create a new supervised model using vec data
+    /// ```
+    /// # use automl::supervised::{SupervisedModel, Settings};
+    /// let model = automl::supervised::SupervisedModel::new_from_vec(
+    ///     vec![vec![1.0; 5]; 5],
+    ///     vec![1.0; 5],
+    ///     automl::supervised::Settings::default_regression(),
+    /// );    
+    /// ```
     pub fn new_from_vec(x: Vec<Vec<f32>>, y: Vec<f32>, settings: Settings) -> Self {
         let x = DenseMatrix::from_2d_vec(&x);
         let current_x = vec![0.0; x.clone().shape().1];
@@ -154,6 +175,15 @@ impl SupervisedModel {
     }
 
     /// Create a new supervised model using ndarray data
+    /// ```
+    /// # use automl::supervised::{SupervisedModel, Settings};
+    /// use ndarray::{arr1, arr2};
+    /// let model = automl::supervised::SupervisedModel::new_from_ndarray(
+    ///     arr2(&[[1.0, 2.0], [3.0, 4.0]]),
+    ///     arr1(&[1.0, 2.0]),
+    ///     automl::supervised::Settings::default_regression(),
+    /// );
+    /// ```
     pub fn new_from_ndarray(x: Array2<f32>, y: Array1<f32>, settings: Settings) -> Self {
         let x = DenseMatrix::from_array(x.shape()[0], x.shape()[1], x.as_slice().unwrap());
         let y = y.to_vec();
