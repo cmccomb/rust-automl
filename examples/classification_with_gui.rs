@@ -5,6 +5,9 @@ fn main() {
         automl::supervised::Settings::default_classification(),
     );
 
-    // Run a model comparison with all models at default settings
-    model.compare_models();
+    // Run a model comparison and train a final model
+    model.auto();
+
+    // Run a graphical demo of the model
+    model.run_gui();
 }

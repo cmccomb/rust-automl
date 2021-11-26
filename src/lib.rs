@@ -4,6 +4,5 @@
 #![warn(clippy::missing_docs_in_private_items)]
 #![doc = include_str!("../README.md")]
 
-pub mod classification;
-pub mod regression;
+pub mod supervised;
 mod utils;

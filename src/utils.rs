@@ -1,21 +1,17 @@
-use polars::prelude::{CsvReader, DataFrame, Float32Type, SerReader};
 use smartcore::algorithm::neighbour::KNNAlgorithmName;
-use smartcore::linalg::naive::dense_matrix::DenseMatrix;
 use smartcore::neighbors::KNNWeightFunction;
-use std::fmt::{Display, Formatter};
-
-#[derive(PartialEq)]
-pub enum Status {
-    Starting,
-    DataLoaded,
-    ModelsCompared,
-    FinalModelTrained,
-}
+use std::fmt::{Debug, Display, Formatter};
 
 pub(crate) fn print_option<T: Display>(x: Option<T>) -> String {
     match x {
         None => "None".to_string(),
         Some(y) => format!("{}", y),
+    }
+}
+pub(crate) fn debug_option<T: Debug>(x: Option<T>) -> String {
+    match x {
+        None => "None".to_string(),
+        Some(y) => format!("{:#?}", y),
     }
 }
 
@@ -93,16 +89,4 @@ impl Display for Distance {
             Distance::Hamming => write!(f, "Hamming"),
         }
     }
-}
-
-/// Options for constructing a final model
-enum FinalModel {
-    /// Use the single best model
-    Single,
-
-    /// Product a stacked metamodel
-    Stacked,
-
-    /// Produce a blended metamodel
-    Blended(f32),
 }
