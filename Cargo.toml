@@ -28,3 +28,7 @@ display = ["comfy-table", "humantime"]
 nd = ["ndarray"]
 gui = ["eframe"]
 csv = ["polars", "nd"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

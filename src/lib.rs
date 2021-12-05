@@ -3,6 +3,7 @@
 #![warn(rustdoc::missing_doc_code_examples)]
 #![warn(clippy::missing_docs_in_private_items)]
 #![doc = include_str!("../README.md")]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 pub mod settings;
 mod utils;
@@ -99,6 +100,7 @@ impl SupervisedModel {
     ///     Settings::default_regression()
     /// );
     /// ```
+    #[cfg_attr(docsrs, doc(cfg(feature = "csv")))]
     #[cfg(any(feature = "csv"))]
     pub fn new_from_csv(
         filepath: &str,
@@ -197,6 +199,7 @@ impl SupervisedModel {
     ///     automl::Settings::default_regression(),
     /// );
     /// ```
+    #[cfg_attr(docsrs, doc(cfg(feature = "nd")))]
     #[cfg(any(feature = "nd"))]
     pub fn new_from_ndarray(x: Array2<f32>, y: Array1<f32>, settings: Settings) -> Self {
         let x = DenseMatrix::from_array(x.shape()[0], x.shape()[1], x.as_slice().unwrap());
@@ -1461,6 +1464,7 @@ impl SupervisedModel {
     /// );
     /// ```
     /// Note that the calls to `compare_models` and `train_final_model` can be replaced with a single call to `auto`.
+    #[cfg_attr(docsrs, doc(cfg(feature = "nd")))]
     #[cfg(any(feature = "nd"))]
     pub fn predict_from_ndarray(&self, x: Array2<f32>) -> Vec<f32> {
         self.predict(&DenseMatrix::from_array(
@@ -1481,6 +1485,7 @@ impl SupervisedModel {
     /// model.run_gui();
     /// ```
     /// ![Example of interactive gui demo](https://raw.githubusercontent.com/cmccomb/rust-automl/master/assets/gui.png)
+    #[cfg_attr(docsrs, doc(cfg(feature = "gui")))]
     #[cfg(any(feature = "gui"))]
     pub fn run_gui(self) {
         if self.final_model.len() == 0 {
@@ -1707,6 +1712,7 @@ impl SupervisedModel {
 }
 
 
+#[cfg_attr(docsrs, doc(cfg(feature = "display")))]
 #[cfg(any(feature = "display"))]
 impl Display for SupervisedModel {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -2197,6 +2203,7 @@ impl Settings {
 }
 
 
+#[cfg_attr(docsrs, doc(cfg(feature = "display")))]
 #[cfg(any(feature = "display"))]
 impl Display for Settings {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -2669,6 +2676,7 @@ impl Display for Settings {
     }
 }
 
+#[cfg_attr(docsrs, doc(cfg(feature = "gui")))]
 #[cfg(any(feature = "gui"))]
 impl epi::App for SupervisedModel {
     fn update(&mut self, ctx: &egui::CtxRef, _frame: &mut epi::Frame<'_>) {
