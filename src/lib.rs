@@ -18,11 +18,6 @@ use settings::{
 use crate::utils::{
     debug_option, print_knn_search_algorithm, print_knn_weight_function, print_option,
 };
-use comfy_table::{
-    modifiers::UTF8_SOLID_INNER_BORDERS, presets::UTF8_FULL, Attribute, Cell, Table,
-};
-use humantime::format_duration;
-use polars::prelude::{CsvReader, DataFrame, Float32Type, SerReader};
 use smartcore::{
     dataset::Dataset,
     ensemble::{
@@ -53,20 +48,34 @@ use smartcore::{
         Kernels, LinearKernel, PolynomialKernel, RBFKernel, SigmoidKernel,
     },
     tree::{
-        decision_tree_classifier::DecisionTreeClassifier,
+        decision_tree_classifier::{DecisionTreeClassifier, SplitCriterion},
         decision_tree_regressor::DecisionTreeRegressor,
     },
 };
-use std::time::{Duration, Instant};
 use std::{
+    time::{Duration, Instant},
     cmp::Ordering::Equal,
     fmt::{Display, Formatter},
 };
 
+#[cfg(any(feature = "nd"))]
+use ndarray::{Array1, Array2};
+
+#[cfg(any(feature = "gui"))]
 use eframe::{egui, epi};
 
-use ndarray::{Array1, Array2};
-use smartcore::tree::decision_tree_classifier::SplitCriterion;
+#[cfg(any(feature = "csv"))]
+use polars::prelude::{CsvReader, DataFrame, Float32Type, SerReader};
+
+
+#[cfg(any(feature = "display"))]
+use comfy_table::{
+    modifiers::UTF8_SOLID_INNER_BORDERS, presets::UTF8_FULL, Attribute, Cell, Table,
+};
+
+#[cfg(any(feature = "display"))]
+use humantime::format_duration;
+
 
 /// Trains and compares supervised models
 pub struct SupervisedModel {
@@ -90,6 +99,7 @@ impl SupervisedModel {
     ///     Settings::default_regression()
     /// );
     /// ```
+    #[cfg(any(feature = "csv"))]
     pub fn new_from_csv(
         filepath: &str,
         target_index: usize,
@@ -187,6 +197,7 @@ impl SupervisedModel {
     ///     automl::Settings::default_regression(),
     /// );
     /// ```
+    #[cfg(any(feature = "nd"))]
     pub fn new_from_ndarray(x: Array2<f32>, y: Array1<f32>, settings: Settings) -> Self {
         let x = DenseMatrix::from_array(x.shape()[0], x.shape()[1], x.as_slice().unwrap());
         let y = y.to_vec();
@@ -1450,6 +1461,7 @@ impl SupervisedModel {
     /// );
     /// ```
     /// Note that the calls to `compare_models` and `train_final_model` can be replaced with a single call to `auto`.
+    #[cfg(any(feature = "nd"))]
     pub fn predict_from_ndarray(&self, x: Array2<f32>) -> Vec<f32> {
         self.predict(&DenseMatrix::from_array(
             x.shape()[0],
@@ -1469,6 +1481,7 @@ impl SupervisedModel {
     /// model.run_gui();
     /// ```
     /// ![Example of interactive gui demo](https://raw.githubusercontent.com/cmccomb/rust-automl/master/assets/gui.png)
+    #[cfg(any(feature = "gui"))]
     pub fn run_gui(self) {
         if self.final_model.len() == 0 {
             panic!()
@@ -1693,6 +1706,8 @@ impl SupervisedModel {
     }
 }
 
+
+#[cfg(any(feature = "display"))]
 impl Display for SupervisedModel {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut table = Table::new();
@@ -2181,6 +2196,8 @@ impl Settings {
     }
 }
 
+
+#[cfg(any(feature = "display"))]
 impl Display for Settings {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         // Prep new table
@@ -2652,6 +2669,7 @@ impl Display for Settings {
     }
 }
 
+#[cfg(any(feature = "gui"))]
 impl epi::App for SupervisedModel {
     fn update(&mut self, ctx: &egui::CtxRef, _frame: &mut epi::Frame<'_>) {
         egui::CentralPanel::default().show(ctx, |ui| {
