@@ -54,9 +54,9 @@ use smartcore::{
     },
 };
 use std::{
-    time::{Duration, Instant},
     cmp::Ordering::Equal,
     fmt::{Display, Formatter},
+    time::{Duration, Instant},
 };
 
 #[cfg(any(feature = "nd"))]
@@ -68,7 +68,6 @@ use eframe::{egui, epi};
 #[cfg(any(feature = "csv"))]
 use polars::prelude::{CsvReader, DataFrame, Float32Type, SerReader};
 
-
 #[cfg(any(feature = "display"))]
 use comfy_table::{
     modifiers::UTF8_SOLID_INNER_BORDERS, presets::UTF8_FULL, Attribute, Cell, Table,
@@ -76,7 +75,6 @@ use comfy_table::{
 
 #[cfg(any(feature = "display"))]
 use humantime::format_duration;
-
 
 /// Trains and compares supervised models
 pub struct SupervisedModel {
@@ -1496,7 +1494,7 @@ impl SupervisedModel {
     }
 }
 
-/// Private regressor functions go here
+/// Private functions go here
 impl SupervisedModel {
     fn predict(&self, x: &DenseMatrix<f32>) -> Vec<f32> {
         if self.final_model.len() == 0 {
@@ -1671,6 +1669,19 @@ impl SupervisedModel {
         }
     }
 
+    fn interactions(&mut self) {
+        let (height, width) = self.x.shape();
+        for i in 0..width {
+            for j in 0..height {
+                let col1 = self.x.get_col_as_vec(i);
+                let col2 = self.x.get_col_as_vec(j);
+                let interaction = col1.iter().zip(col2).map(|(&i1, i2)| i1 * i2).collect();
+                let new_column = DenseMatrix::from_row_vector(interaction).transpose();
+                self.x.h_stack(&new_column);
+            }
+        }
+    }
+
     fn count_classes(y: &Vec<f32>) -> usize {
         let mut sorted_targets = y.clone();
         sorted_targets.sort_by(|a, b| a.partial_cmp(&b).unwrap_or(Equal));
@@ -1710,7 +1721,6 @@ impl SupervisedModel {
         }
     }
 }
-
 
 #[cfg_attr(docsrs, doc(cfg(feature = "display")))]
 #[cfg(any(feature = "display"))]
@@ -2201,7 +2211,6 @@ impl Settings {
         self
     }
 }
-
 
 #[cfg_attr(docsrs, doc(cfg(feature = "display")))]
 #[cfg(any(feature = "display"))]
