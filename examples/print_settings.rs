@@ -90,7 +90,7 @@ fn main() {
             KNNClassifierParameters::default()
                 .with_algorithm(KNNAlgorithmName::CoverTree)
                 .with_k(3)
-                .with_distance(Distance::Euclidean)
+                .with_distance(Distance::Hamming)
                 .with_weight(KNNWeightFunction::Uniform),
         )
         .with_gaussian_nb_settings(GaussianNBParameters::default().with_priors(vec![1.0, 1.0]))
