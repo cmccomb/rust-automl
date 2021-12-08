@@ -446,6 +446,11 @@ pub enum PreProcessing {
         /// The number of components to use from PCA
         number_of_components: usize,
     },
+    /// Replace the data with n PCA terms
+    ReplaceWithSVD {
+        /// The number of components to use from PCA
+        number_of_components: usize,
+    },
 }
 
 impl Display for PreProcessing {
@@ -461,6 +466,14 @@ impl Display for PreProcessing {
             } => write!(
                 f,
                 "Replaced with PCA features (n = {})",
+                number_of_components
+            ),
+
+            PreProcessing::ReplaceWithSVD {
+                number_of_components,
+            } => write!(
+                f,
+                "Replaced with SVD features (n = {})",
                 number_of_components
             ),
         }

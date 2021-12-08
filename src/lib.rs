@@ -23,7 +23,10 @@ use crate::utils::{
 use itertools::Itertools;
 use smartcore::{
     dataset::Dataset,
-    decomposition::pca::{PCAParameters, PCA},
+    decomposition::{
+        pca::{PCAParameters, PCA},
+        svd::{SVDParameters, SVD},
+    },
     ensemble::{
         random_forest_classifier::RandomForestClassifier,
         random_forest_regressor::RandomForestRegressor,
@@ -88,7 +91,10 @@ pub struct SupervisedModel {
     comparison: Vec<Model>,
     final_model: Vec<u8>,
     current_x: Vec<f32>,
-    pca: Option<PCA<f32, DenseMatrix<f32>>>,
+    preprocessing: (
+        Option<PCA<f32, DenseMatrix<f32>>>,
+        Option<SVD<f32, DenseMatrix<f32>>>,
+    ),
 }
 
 impl SupervisedModel {
@@ -140,7 +146,7 @@ impl SupervisedModel {
             comparison: vec![],
             final_model: vec![],
             current_x,
-            pca: None,
+            preprocessing: (None, None),
         }
     }
 
@@ -165,7 +171,7 @@ impl SupervisedModel {
             comparison: vec![],
             final_model: vec![],
             current_x,
-            pca: None,
+            preprocessing: (None, None),
         }
     }
 
@@ -190,7 +196,7 @@ impl SupervisedModel {
             comparison: vec![],
             final_model: vec![],
             current_x,
-            pca: None,
+            preprocessing: (None, None),
         }
     }
 
@@ -220,7 +226,7 @@ impl SupervisedModel {
             comparison: vec![],
             final_model: vec![],
             current_x,
-            pca: None,
+            preprocessing: (None, None),
         }
     }
 
@@ -1709,7 +1715,7 @@ impl SupervisedModel {
     }
 
     fn pca_features(&mut self, x: DenseMatrix<f32>, n: usize) -> DenseMatrix<f32> {
-        if let None = self.pca {
+        if let None = self.preprocessing.0 {
             let pca = PCA::fit(
                 &x,
                 PCAParameters::default()
@@ -1717,9 +1723,27 @@ impl SupervisedModel {
                     .with_use_correlation_matrix(true),
             )
             .unwrap();
-            self.pca = Some(pca);
+            self.preprocessing.0 = Some(pca);
         }
-        self.pca.as_ref().unwrap().transform(&x).unwrap()
+        self.preprocessing
+            .0
+            .as_ref()
+            .unwrap()
+            .transform(&x)
+            .unwrap()
+    }
+
+    fn svd_features(&mut self, x: DenseMatrix<f32>, n: usize) -> DenseMatrix<f32> {
+        if let None = self.preprocessing.1 {
+            let svd = SVD::fit(&x, SVDParameters::default().with_n_components(n)).unwrap();
+            self.preprocessing.1 = Some(svd);
+        }
+        self.preprocessing
+            .1
+            .as_ref()
+            .unwrap()
+            .transform(&x)
+            .unwrap()
     }
 
     fn preprocess(&mut self, x: DenseMatrix<f32>) -> DenseMatrix<f32> {
@@ -1732,6 +1756,9 @@ impl SupervisedModel {
             PreProcessing::ReplaceWithPCA {
                 number_of_components,
             } => self.pca_features(x, number_of_components),
+            PreProcessing::ReplaceWithSVD {
+                number_of_components,
+            } => self.svd_features(x, number_of_components),
         }
     }
 
