@@ -6,6 +6,7 @@ fn main() {
         .shuffle_data(true)
         .verbose(true)
         .sorted_by(Metric::RSquared)
+        .with_preprocessing(PreProcessing::AddInteractions)
         .with_linear_settings(
             LinearRegressionParameters::default().with_solver(LinearRegressionSolverName::QR),
         )
@@ -64,6 +65,7 @@ fn main() {
         .shuffle_data(true)
         .verbose(true)
         .sorted_by(Metric::Accuracy)
+        .with_preprocessing(PreProcessing::AddInteractions)
         .with_random_forest_classifier_settings(
             RandomForestClassifierParameters::default()
                 .with_m(100)

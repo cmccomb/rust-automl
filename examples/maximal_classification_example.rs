@@ -9,6 +9,9 @@ fn main() {
         .verbose(true)
         .skip(Algorithm::RandomForestClassifier)
         .sorted_by(Metric::Accuracy)
+        .with_preprocessing(PreProcessing::ReplaceWithPCA {
+            number_of_components: 5,
+        })
         .with_random_forest_classifier_settings(
             RandomForestClassifierParameters::default()
                 .with_m(100)
@@ -49,4 +52,7 @@ fn main() {
 
     // Run a model comparison with all models at default settings
     model.compare_models();
+
+    // Print the results
+    println!("{}", model);
 }

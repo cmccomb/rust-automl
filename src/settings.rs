@@ -429,3 +429,40 @@ impl Default for KNNClassifierParameters {
         }
     }
 }
+
+/// Options for pre-processing the data
+pub enum PreProcessing {
+    /// Don't do any preprocessing
+    None,
+    /// Add interaction terms to the data
+    AddInteractions,
+    /// Add polynomial terms of order n to the data
+    AddPolynomial {
+        /// The order of the polynomial to add (i.e., x^order)
+        order: usize,
+    },
+    /// Replace the data with n PCA terms
+    ReplaceWithPCA {
+        /// The number of components to use from PCA
+        number_of_components: usize,
+    },
+}
+
+impl Display for PreProcessing {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PreProcessing::None => write!(f, "None"),
+            PreProcessing::AddInteractions => write!(f, "Interaction terms added"),
+            PreProcessing::AddPolynomial { order } => {
+                write!(f, "Polynomial terms added (order = {})", order)
+            }
+            PreProcessing::ReplaceWithPCA {
+                number_of_components,
+            } => write!(
+                f,
+                "Replaced with PCA features (n = {})",
+                number_of_components
+            ),
+        }
+    }
+}

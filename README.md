@@ -50,6 +50,10 @@ You can then train a final model using `classifier.train_final_model()` and perf
 
 ## Features
 Currently this crate only has AutoML features for regression and classification. This includes the following models:
+- Feature Engineering
+  - PCA
+  - Interaction terms
+  - Polynomial terms
 - Regression
   - Decision Tree Regression
   - KNN Regression
@@ -66,4 +70,3 @@ Currently this crate only has AutoML features for regression and classification.
   - Logistic Regression
   - KNN Classification
   - Gaussian Naive Bayes
-  - Categorical Naive Bayes

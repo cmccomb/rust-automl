@@ -12,15 +12,18 @@ use settings::{
     DecisionTreeRegressorParameters, Distance, ElasticNetParameters, GaussianNBParameters,
     KNNClassifierParameters, KNNRegressorParameters, Kernel, LassoParameters,
     LinearRegressionParameters, LinearRegressionSolverName, LogisticRegressionParameters, Metric,
-    RandomForestClassifierParameters, RandomForestRegressorParameters, RidgeRegressionParameters,
-    RidgeRegressionSolverName, SVCParameters, SVRParameters,
+    PreProcessing, RandomForestClassifierParameters, RandomForestRegressorParameters,
+    RidgeRegressionParameters, RidgeRegressionSolverName, SVCParameters, SVRParameters,
 };
 
 use crate::utils::{
-    debug_option, print_knn_search_algorithm, print_knn_weight_function, print_option,
+    debug_option, elementwise_multiply, print_knn_search_algorithm, print_knn_weight_function,
+    print_option,
 };
+use itertools::Itertools;
 use smartcore::{
     dataset::Dataset,
+    decomposition::pca::{PCAParameters, PCA},
     ensemble::{
         random_forest_classifier::RandomForestClassifier,
         random_forest_regressor::RandomForestRegressor,
@@ -85,6 +88,7 @@ pub struct SupervisedModel {
     comparison: Vec<Model>,
     final_model: Vec<u8>,
     current_x: Vec<f32>,
+    pca: Option<PCA<f32, DenseMatrix<f32>>>,
 }
 
 impl SupervisedModel {
@@ -136,6 +140,7 @@ impl SupervisedModel {
             comparison: vec![],
             final_model: vec![],
             current_x,
+            pca: None,
         }
     }
 
@@ -160,6 +165,7 @@ impl SupervisedModel {
             comparison: vec![],
             final_model: vec![],
             current_x,
+            pca: None,
         }
     }
 
@@ -184,6 +190,7 @@ impl SupervisedModel {
             comparison: vec![],
             final_model: vec![],
             current_x,
+            pca: None,
         }
     }
 
@@ -213,6 +220,7 @@ impl SupervisedModel {
             comparison: vec![],
             final_model: vec![],
             current_x,
+            pca: None,
         }
     }
 
@@ -248,6 +256,8 @@ impl SupervisedModel {
             Metric::Accuracy => accuracy,
             Metric::None => panic!("A metric must be set."),
         };
+
+        self.x = self.preprocess(self.x.clone());
 
         if !self
             .settings
@@ -512,32 +522,32 @@ impl SupervisedModel {
             self.add_model(Algorithm::GaussianNaiveBayes, cv, end.duration_since(start));
         }
 
-        if !self
-            .settings
-            .skiplist
-            .contains(&Algorithm::CategoricalNaiveBayes)
-        {
-            let start = Instant::now();
-            let cv = cross_validate(
-                CategoricalNB::fit,
-                &self.x,
-                &self.y,
-                self.settings
-                    .categorical_nb_settings
-                    .as_ref()
-                    .unwrap()
-                    .clone(),
-                self.get_kfolds(),
-                metric,
-            )
-            .unwrap();
-            let end = Instant::now();
-            self.add_model(
-                Algorithm::CategoricalNaiveBayes,
-                cv,
-                end.duration_since(start),
-            );
-        }
+        // if !self
+        //     .settings
+        //     .skiplist
+        //     .contains(&Algorithm::CategoricalNaiveBayes)
+        // {
+        //     let start = Instant::now();
+        //     let cv = cross_validate(
+        //         CategoricalNB::fit,
+        //         &self.x,
+        //         &self.y,
+        //         self.settings
+        //             .categorical_nb_settings
+        //             .as_ref()
+        //             .unwrap()
+        //             .clone(),
+        //         self.get_kfolds(),
+        //         metric,
+        //     )
+        //     .unwrap();
+        //     let end = Instant::now();
+        //     self.add_model(
+        //         Algorithm::CategoricalNaiveBayes,
+        //         cv,
+        //         end.duration_since(start),
+        //     );
+        // }
 
         if self.number_of_classes == 2 && !self.settings.skiplist.contains(&Algorithm::SVC) {
             let start = Instant::now();
@@ -1440,7 +1450,7 @@ impl SupervisedModel {
     /// model.predict_from_vec(vec![vec![5.0; 10]; 5]);
     /// ```
     /// Note that the calls to `compare_models` and `train_final_model` can be replaced with a single call to `auto`.
-    pub fn predict_from_vec(&self, x: Vec<Vec<f32>>) -> Vec<f32> {
+    pub fn predict_from_vec(&mut self, x: Vec<Vec<f32>>) -> Vec<f32> {
         self.predict(&DenseMatrix::from_2d_vec(&x))
     }
 
@@ -1464,7 +1474,7 @@ impl SupervisedModel {
     /// Note that the calls to `compare_models` and `train_final_model` can be replaced with a single call to `auto`.
     #[cfg_attr(docsrs, doc(cfg(feature = "nd")))]
     #[cfg(any(feature = "nd"))]
-    pub fn predict_from_ndarray(&self, x: Array2<f32>) -> Vec<f32> {
+    pub fn predict_from_ndarray(&mut self, x: Array2<f32>) -> Vec<f32> {
         self.predict(&DenseMatrix::from_array(
             x.shape()[0],
             x.shape()[1],
@@ -1496,10 +1506,11 @@ impl SupervisedModel {
 
 /// Private functions go here
 impl SupervisedModel {
-    fn predict(&self, x: &DenseMatrix<f32>) -> Vec<f32> {
+    fn predict(&mut self, x: &DenseMatrix<f32>) -> Vec<f32> {
         if self.final_model.len() == 0 {
             panic!("Please run the `train_final_model` method first before attempting inference with `predict`.")
         }
+        self.x = self.preprocess(self.x.clone());
         match self.comparison[0].name {
             Algorithm::Linear => {
                 let model: LinearRegression<f32, DenseMatrix<f32>> =
@@ -1669,16 +1680,58 @@ impl SupervisedModel {
         }
     }
 
-    fn interactions(&mut self) {
-        let (height, width) = self.x.shape();
+    fn interaction_features(mut x: DenseMatrix<f32>) -> DenseMatrix<f32> {
+        let (_, width) = x.shape();
         for i in 0..width {
-            for j in 0..height {
-                let col1 = self.x.get_col_as_vec(i);
-                let col2 = self.x.get_col_as_vec(j);
-                let interaction = col1.iter().zip(col2).map(|(&i1, i2)| i1 * i2).collect();
-                let new_column = DenseMatrix::from_row_vector(interaction).transpose();
-                self.x.h_stack(&new_column);
+            for j in (i + 1)..width {
+                let feature = elementwise_multiply(&x.get_col_as_vec(i), &x.get_col_as_vec(j));
+                let new_column = DenseMatrix::from_row_vector(feature).transpose();
+                x = x.h_stack(&new_column);
             }
+        }
+        x
+    }
+
+    fn polynomial_features(mut x: DenseMatrix<f32>, order: usize) -> DenseMatrix<f32> {
+        let (height, width) = x.shape();
+        for n in 2..=order {
+            let combinations = (0..width).into_iter().combinations_with_replacement(n);
+            for combo in combinations {
+                let mut feature = vec![1.0; height];
+                for column in combo {
+                    feature = elementwise_multiply(&x.get_col_as_vec(column), &feature);
+                }
+                let new_column = DenseMatrix::from_row_vector(feature).transpose();
+                x = x.h_stack(&new_column);
+            }
+        }
+        x
+    }
+
+    fn pca_features(&mut self, x: DenseMatrix<f32>, n: usize) -> DenseMatrix<f32> {
+        if let None = self.pca {
+            let pca = PCA::fit(
+                &x,
+                PCAParameters::default()
+                    .with_n_components(n)
+                    .with_use_correlation_matrix(true),
+            )
+            .unwrap();
+            self.pca = Some(pca);
+        }
+        self.pca.as_ref().unwrap().transform(&x).unwrap()
+    }
+
+    fn preprocess(&mut self, x: DenseMatrix<f32>) -> DenseMatrix<f32> {
+        match self.settings.preprocessing {
+            PreProcessing::None => x,
+            PreProcessing::AddInteractions => SupervisedModel::interaction_features(x),
+            PreProcessing::AddPolynomial { order } => {
+                SupervisedModel::polynomial_features(x, order)
+            }
+            PreProcessing::ReplaceWithPCA {
+                number_of_components,
+            } => self.pca_features(x, number_of_components),
         }
     }
 
@@ -1716,7 +1769,7 @@ impl SupervisedModel {
                 .partial_cmp(&b.score.mean_test_score())
                 .unwrap_or(Equal)
         });
-        if self.settings.sort_by == Metric::RSquared {
+        if self.settings.sort_by == Metric::RSquared || self.settings.sort_by == Metric::Accuracy {
             self.comparison.reverse();
         }
     }
@@ -1763,6 +1816,7 @@ pub struct Settings {
     number_of_folds: usize,
     shuffle: bool,
     verbose: bool,
+    preprocessing: PreProcessing,
     linear_settings: Option<LinearRegressionParameters>,
     svr_settings: Option<SVRParameters>,
     lasso_settings: Option<LassoParameters<f32>>,
@@ -1802,6 +1856,7 @@ impl Default for Settings {
                 Algorithm::RandomForestRegressor,
                 Algorithm::KNNRegressor,
             ],
+            preprocessing: PreProcessing::None,
             number_of_folds: 10,
             shuffle: false,
             verbose: false,
@@ -1843,6 +1898,7 @@ impl Settings {
                 Algorithm::CategoricalNaiveBayes,
                 Algorithm::GaussianNaiveBayes,
             ],
+            preprocessing: PreProcessing::None,
             number_of_folds: 10,
             shuffle: false,
             verbose: false,
@@ -1883,6 +1939,7 @@ impl Settings {
                 Algorithm::RandomForestRegressor,
                 Algorithm::KNNRegressor,
             ],
+            preprocessing: PreProcessing::None,
             number_of_folds: 10,
             shuffle: false,
             verbose: false,
@@ -1931,6 +1988,17 @@ impl Settings {
     /// ```
     pub fn verbose(mut self, verbose: bool) -> Self {
         self.verbose = verbose;
+        self
+    }
+
+    /// Specify what type of preprocessing should be performed
+    /// ```
+    /// # use automl::Settings;
+    /// use automl::settings::PreProcessing;
+    /// let settings = Settings::default().with_preprocessing(PreProcessing::AddInteractions);
+    /// ```
+    pub fn with_preprocessing(mut self, pre: PreProcessing) -> Self {
+        self.preprocessing = pre;
         self
     }
 
@@ -2245,6 +2313,10 @@ impl Display for Settings {
             .add_row(vec![
                 "    Number of CV Folds",
                 &*format!("{}", self.number_of_folds),
+            ])
+            .add_row(vec![
+                "    Pre-Processing",
+                &*format!("{}", self.preprocessing),
             ])
             .add_row(vec![
                 "    Skipped Algorithms",
