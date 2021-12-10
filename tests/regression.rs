@@ -28,6 +28,7 @@ mod regression_tests {
     }
 
     #[test]
+    #[cfg(feature = "csv")]
     fn test_read_from_csv() {
         let file_name = "data/diabetes.csv";
 
