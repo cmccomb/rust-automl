@@ -701,44 +701,10 @@ impl SupervisedModel {
                 self.final_model =
                     DecisionTreeClassifierWrapper::train(&self.x, &self.y, &self.settings);
             }
-            Algorithm::SVC => match self.settings.svc_settings.as_ref().unwrap().kernel {
-                Kernel::Linear => {
-                    let params = SmartcoreSVCParameters::default()
-                        .with_tol(self.settings.svc_settings.as_ref().unwrap().tol)
-                        .with_c(self.settings.svc_settings.as_ref().unwrap().c)
-                        .with_epoch(self.settings.svc_settings.as_ref().unwrap().epoch)
-                        .with_kernel(Kernels::linear());
-                    self.final_model =
-                        bincode::serialize(&SVC::fit(&self.x, &self.y, params).unwrap()).unwrap()
-                }
-                Kernel::Polynomial(degree, gamma, coef) => {
-                    let params = SmartcoreSVCParameters::default()
-                        .with_tol(self.settings.svc_settings.as_ref().unwrap().tol)
-                        .with_c(self.settings.svc_settings.as_ref().unwrap().c)
-                        .with_epoch(self.settings.svc_settings.as_ref().unwrap().epoch)
-                        .with_kernel(Kernels::polynomial(degree, gamma, coef));
-                    self.final_model =
-                        bincode::serialize(&SVC::fit(&self.x, &self.y, params).unwrap()).unwrap()
-                }
-                Kernel::RBF(gamma) => {
-                    let params = SmartcoreSVCParameters::default()
-                        .with_tol(self.settings.svc_settings.as_ref().unwrap().tol)
-                        .with_c(self.settings.svc_settings.as_ref().unwrap().c)
-                        .with_epoch(self.settings.svc_settings.as_ref().unwrap().epoch)
-                        .with_kernel(Kernels::rbf(gamma));
-                    self.final_model =
-                        bincode::serialize(&SVC::fit(&self.x, &self.y, params).unwrap()).unwrap()
-                }
-                Kernel::Sigmoid(gamma, coef) => {
-                    let params = SmartcoreSVCParameters::default()
-                        .with_tol(self.settings.svc_settings.as_ref().unwrap().tol)
-                        .with_c(self.settings.svc_settings.as_ref().unwrap().c)
-                        .with_epoch(self.settings.svc_settings.as_ref().unwrap().epoch)
-                        .with_kernel(Kernels::sigmoid(gamma, coef));
-                    self.final_model =
-                        bincode::serialize(&SVC::fit(&self.x, &self.y, params).unwrap()).unwrap()
-                }
-            },
+            Algorithm::SVC => {
+                self.final_model =
+                    SupportVectorClassifierWrapper::train(&self.x, &self.y, &self.settings)
+            }
 
             Algorithm::GaussianNaiveBayes => {
                 self.final_model = bincode::serialize(

@@ -72,7 +72,44 @@ impl super::ModelWrapper for SupportVectorClassifierWrapper {
     }
 
     fn train(x: &DenseMatrix<f32>, y: &Vec<f32>, settings: &Settings) -> Vec<u8> {
-        todo!()
+        match settings.svc_settings.as_ref().unwrap().kernel {
+            Kernel::Linear => {
+                let params = SmartcoreSVCParameters::default()
+                    .with_tol(settings.svc_settings.as_ref().unwrap().tol)
+                    .with_c(settings.svc_settings.as_ref().unwrap().c)
+                    .with_epoch(settings.svc_settings.as_ref().unwrap().epoch)
+                    .with_kernel(Kernels::linear());
+
+                bincode::serialize(&SVC::fit(x, y, params).unwrap()).unwrap()
+            }
+            Kernel::Polynomial(degree, gamma, coef) => {
+                let params = SmartcoreSVCParameters::default()
+                    .with_tol(settings.svc_settings.as_ref().unwrap().tol)
+                    .with_c(settings.svc_settings.as_ref().unwrap().c)
+                    .with_epoch(settings.svc_settings.as_ref().unwrap().epoch)
+                    .with_kernel(Kernels::polynomial(degree, gamma, coef));
+
+                bincode::serialize(&SVC::fit(x, y, params).unwrap()).unwrap()
+            }
+            Kernel::RBF(gamma) => {
+                let params = SmartcoreSVCParameters::default()
+                    .with_tol(settings.svc_settings.as_ref().unwrap().tol)
+                    .with_c(settings.svc_settings.as_ref().unwrap().c)
+                    .with_epoch(settings.svc_settings.as_ref().unwrap().epoch)
+                    .with_kernel(Kernels::rbf(gamma));
+
+                bincode::serialize(&SVC::fit(x, y, params).unwrap()).unwrap()
+            }
+            Kernel::Sigmoid(gamma, coef) => {
+                let params = SmartcoreSVCParameters::default()
+                    .with_tol(settings.svc_settings.as_ref().unwrap().tol)
+                    .with_c(settings.svc_settings.as_ref().unwrap().c)
+                    .with_epoch(settings.svc_settings.as_ref().unwrap().epoch)
+                    .with_kernel(Kernels::sigmoid(gamma, coef));
+
+                bincode::serialize(&SVC::fit(x, y, params).unwrap()).unwrap()
+            }
+        }
     }
 
     fn predict(x: &DenseMatrix<f32>, final_model: &Vec<u8>, settings: &Settings) -> Vec<f32> {
