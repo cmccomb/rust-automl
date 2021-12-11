@@ -18,8 +18,8 @@ use settings::{
 mod algorithms;
 use algorithms::{
     CategoricalNaiveBayesClassifierWrapper, DecisionTreeClassifierWrapper,
-    GaussianNaiveBayesClassifierWrapper, KNNClassifierWrapper, LinearRegressionWrapper,
-    LogisticRegressionWrapper, ModelWrapper, RandomForestClassifierWrapper,
+    GaussianNaiveBayesClassifierWrapper, KNNClassifierWrapper, LassoRegressorWrapper,
+    LinearRegressorWrapper, LogisticRegressionWrapper, ModelWrapper, RandomForestClassifierWrapper,
     SupportVectorClassifierWrapper, SupportVectorRegressorWrapper,
 };
 
@@ -37,7 +37,7 @@ use smartcore::{
     },
     ensemble::random_forest_regressor::RandomForestRegressor,
     linalg::{naive::dense_matrix::DenseMatrix, BaseMatrix},
-    linear::{elastic_net::ElasticNet, lasso::Lasso, ridge_regression::RidgeRegression},
+    linear::{elastic_net::ElasticNet, ridge_regression::RidgeRegression},
     math::distance::{
         euclidian::Euclidian, hamming::Hamming, mahalanobis::Mahalanobis, manhattan::Manhattan,
         minkowski::Minkowski, Distances,
@@ -339,7 +339,7 @@ impl SupervisedModel {
         }
 
         if !self.settings.skiplist.contains(&Algorithm::Linear) {
-            self.record_model(LinearRegressionWrapper::cv_model(
+            self.record_model(LinearRegressorWrapper::cv_model(
                 &self.x,
                 &self.y,
                 &self.settings,
@@ -355,20 +355,11 @@ impl SupervisedModel {
         }
 
         if !self.settings.skiplist.contains(&Algorithm::Lasso) {
-            let start = Instant::now();
-
-            let cv = cross_validate(
-                Lasso::fit,
+            self.record_model(LassoRegressorWrapper::cv_model(
                 &self.x,
                 &self.y,
-                self.settings.lasso_settings.as_ref().unwrap().clone(),
-                self.get_kfolds(),
-                metric,
-            )
-            .unwrap();
-
-            let end = Instant::now();
-            self.add_model(Algorithm::Lasso, cv, end.duration_since(start));
+                &self.settings,
+            ));
         }
 
         if !self.settings.skiplist.contains(&Algorithm::Ridge) {
@@ -649,18 +640,10 @@ impl SupervisedModel {
             }
 
             Algorithm::Linear => {
-                self.final_model = LinearRegressionWrapper::train(&self.x, &self.y, &self.settings);
+                self.final_model = LinearRegressorWrapper::train(&self.x, &self.y, &self.settings);
             }
             Algorithm::Lasso => {
-                self.final_model = bincode::serialize(
-                    &Lasso::fit(
-                        &self.x,
-                        &self.y,
-                        self.settings.lasso_settings.as_ref().unwrap().clone(),
-                    )
-                    .unwrap(),
-                )
-                .unwrap()
+                self.final_model = LassoRegressorWrapper::train(&self.x, &self.y, &self.settings);
             }
             Algorithm::Ridge => {
                 self.final_model = bincode::serialize(
@@ -932,12 +915,10 @@ impl SupervisedModel {
         self.x = self.preprocess(self.x.clone());
         match self.comparison[0].name {
             Algorithm::Linear => {
-                LinearRegressionWrapper::predict(x, &self.final_model, &self.settings)
+                LinearRegressorWrapper::predict(x, &self.final_model, &self.settings)
             }
             Algorithm::Lasso => {
-                let model: Lasso<f32, DenseMatrix<f32>> =
-                    bincode::deserialize(&*self.final_model).unwrap();
-                model.predict(x).unwrap()
+                LassoRegressorWrapper::predict(x, &self.final_model, &self.settings)
             }
             Algorithm::Ridge => {
                 let model: RidgeRegression<f32, DenseMatrix<f32>> =

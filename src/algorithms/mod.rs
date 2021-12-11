@@ -1,5 +1,7 @@
-mod linear_regression;
-pub(crate) use linear_regression::LinearRegressionWrapper;
+mod linear_regressor;
+pub(crate) use linear_regressor::LinearRegressorWrapper;
+mod lasso_regressor;
+pub(crate) use lasso_regressor::LassoRegressorWrapper;
 mod logistic_regression;
 pub(crate) use logistic_regression::LogisticRegressionWrapper;
 mod random_forest_classifier;

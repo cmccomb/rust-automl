@@ -5,9 +5,9 @@ use smartcore::{
 
 use crate::{Algorithm, Settings};
 
-pub(crate) struct LinearRegressionWrapper {}
+pub(crate) struct LinearRegressorWrapper {}
 
-impl super::ModelWrapper for LinearRegressionWrapper {
+impl super::ModelWrapper for LinearRegressorWrapper {
     fn cv(
         x: &DenseMatrix<f32>,
         y: &Vec<f32>,
