@@ -32,6 +32,7 @@ impl super::ModelWrapper for DecisionTreeClassifierWrapper {
     }
 
     fn predict(x: &DenseMatrix<f32>, final_model: &Vec<u8>, settings: &Settings) -> Vec<f32> {
-        todo!()
+        let model: DecisionTreeClassifier<f32> = bincode::deserialize(&*final_model).unwrap();
+        model.predict(x).unwrap()
     }
 }

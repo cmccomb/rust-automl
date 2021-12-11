@@ -1337,9 +1337,7 @@ impl SupervisedModel {
                 RandomForestClassifierWrapper::predict(x, &self.final_model, &self.settings)
             }
             Algorithm::DecisionTreeClassifier => {
-                let model: DecisionTreeClassifier<f32> =
-                    bincode::deserialize(&*self.final_model).unwrap();
-                model.predict(x).unwrap()
+                DecisionTreeClassifierWrapper::predict(x, &self.final_model, &self.settings)
             }
             Algorithm::KNNClassifier => {
                 KNNClassifierWrapper::predict(x, &self.final_model, &self.settings)
