@@ -161,7 +161,118 @@ impl super::ModelWrapper for KNNClassifierWrapper {
     }
 
     fn train(x: &DenseMatrix<f32>, y: &Vec<f32>, settings: &Settings) -> Vec<u8> {
-        todo!()
+        match settings.knn_classifier_settings.as_ref().unwrap().distance {
+            Distance::Euclidean => {
+                let params = SmartcoreKNNClassifierParameters::default()
+                    .with_k(settings.knn_classifier_settings.as_ref().unwrap().k)
+                    .with_weight(
+                        settings
+                            .knn_classifier_settings
+                            .as_ref()
+                            .unwrap()
+                            .weight
+                            .clone(),
+                    )
+                    .with_algorithm(
+                        settings
+                            .knn_classifier_settings
+                            .as_ref()
+                            .unwrap()
+                            .algorithm
+                            .clone(),
+                    )
+                    .with_distance(Distances::euclidian());
+                bincode::serialize(&KNNClassifier::fit(x, y, params).unwrap()).unwrap()
+            }
+            Distance::Manhattan => {
+                let params = SmartcoreKNNClassifierParameters::default()
+                    .with_k(settings.knn_classifier_settings.as_ref().unwrap().k)
+                    .with_weight(
+                        settings
+                            .knn_classifier_settings
+                            .as_ref()
+                            .unwrap()
+                            .weight
+                            .clone(),
+                    )
+                    .with_algorithm(
+                        settings
+                            .knn_classifier_settings
+                            .as_ref()
+                            .unwrap()
+                            .algorithm
+                            .clone(),
+                    )
+                    .with_distance(Distances::manhattan());
+                bincode::serialize(&KNNClassifier::fit(x, y, params).unwrap()).unwrap()
+            }
+            Distance::Minkowski(p) => {
+                let params = SmartcoreKNNClassifierParameters::default()
+                    .with_k(settings.knn_classifier_settings.as_ref().unwrap().k)
+                    .with_weight(
+                        settings
+                            .knn_classifier_settings
+                            .as_ref()
+                            .unwrap()
+                            .weight
+                            .clone(),
+                    )
+                    .with_algorithm(
+                        settings
+                            .knn_classifier_settings
+                            .as_ref()
+                            .unwrap()
+                            .algorithm
+                            .clone(),
+                    )
+                    .with_distance(Distances::minkowski(p));
+                bincode::serialize(&KNNClassifier::fit(x, y, params).unwrap()).unwrap()
+            }
+            Distance::Mahalanobis => {
+                let params = SmartcoreKNNClassifierParameters::default()
+                    .with_k(settings.knn_classifier_settings.as_ref().unwrap().k)
+                    .with_weight(
+                        settings
+                            .knn_classifier_settings
+                            .as_ref()
+                            .unwrap()
+                            .weight
+                            .clone(),
+                    )
+                    .with_algorithm(
+                        settings
+                            .knn_classifier_settings
+                            .as_ref()
+                            .unwrap()
+                            .algorithm
+                            .clone(),
+                    )
+                    .with_distance(Distances::mahalanobis(x));
+                bincode::serialize(&KNNClassifier::fit(x, y, params).unwrap()).unwrap()
+            }
+            Distance::Hamming => {
+                let params = SmartcoreKNNClassifierParameters::default()
+                    .with_k(settings.knn_classifier_settings.as_ref().unwrap().k)
+                    .with_weight(
+                        settings
+                            .knn_classifier_settings
+                            .as_ref()
+                            .unwrap()
+                            .weight
+                            .clone(),
+                    )
+                    .with_algorithm(
+                        settings
+                            .knn_classifier_settings
+                            .as_ref()
+                            .unwrap()
+                            .algorithm
+                            .clone(),
+                    )
+                    .with_distance(Distances::hamming());
+                bincode::serialize(&KNNClassifier::fit(x, y, params).unwrap()).unwrap()
+            }
+        }
     }
 
     fn predict(x: &DenseMatrix<f32>, final_model: &Vec<u8>, settings: &Settings) -> Vec<f32> {
