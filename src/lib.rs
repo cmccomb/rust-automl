@@ -1348,11 +1348,11 @@ impl SupervisedModel {
             Algorithm::GaussianNaiveBayes => {
                 GaussianNaiveBayesClassifierWrapper::predict(x, &self.final_model, &self.settings)
             }
-            Algorithm::CategoricalNaiveBayes => {
-                let model: CategoricalNB<f32, DenseMatrix<f32>> =
-                    bincode::deserialize(&*self.final_model).unwrap();
-                model.predict(x).unwrap()
-            }
+            Algorithm::CategoricalNaiveBayes => CategoricalNaiveBayesClassifierWrapper::predict(
+                x,
+                &self.final_model,
+                &self.settings,
+            ),
         }
     }
 

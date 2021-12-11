@@ -28,6 +28,8 @@ impl super::ModelWrapper for CategoricalNaiveBayesClassifierWrapper {
     }
 
     fn predict(x: &DenseMatrix<f32>, final_model: &Vec<u8>, settings: &Settings) -> Vec<f32> {
-        todo!()
+        let model: CategoricalNB<f32, DenseMatrix<f32>> =
+            bincode::deserialize(&*final_model).unwrap();
+        model.predict(x).unwrap()
     }
 }
