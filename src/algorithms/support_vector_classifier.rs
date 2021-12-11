@@ -4,7 +4,7 @@ use smartcore::svm::svc::SVC;
 
 use crate::{Algorithm, Kernel, Settings, SmartcoreSVCParameters};
 use smartcore::model_selection::CrossValidationResult;
-use smartcore::svm::Kernels;
+use smartcore::svm::{Kernels, LinearKernel, PolynomialKernel, RBFKernel, SigmoidKernel};
 
 pub(crate) struct SupportVectorClassifierWrapper {}
 
@@ -72,6 +72,27 @@ impl super::ModelWrapper for SupportVectorClassifierWrapper {
     }
 
     fn predict(x: &DenseMatrix<f32>, final_model: &Vec<u8>, settings: &Settings) -> Vec<f32> {
-        todo!()
+        match settings.svc_settings.as_ref().unwrap().kernel {
+            Kernel::Linear => {
+                let model: SVC<f32, DenseMatrix<f32>, LinearKernel> =
+                    bincode::deserialize(&*final_model).unwrap();
+                model.predict(x).unwrap()
+            }
+            Kernel::Polynomial(_, _, _) => {
+                let model: SVC<f32, DenseMatrix<f32>, PolynomialKernel<f32>> =
+                    bincode::deserialize(&*final_model).unwrap();
+                model.predict(x).unwrap()
+            }
+            Kernel::RBF(_) => {
+                let model: SVC<f32, DenseMatrix<f32>, RBFKernel<f32>> =
+                    bincode::deserialize(&*final_model).unwrap();
+                model.predict(x).unwrap()
+            }
+            Kernel::Sigmoid(_, _) => {
+                let model: SVC<f32, DenseMatrix<f32>, SigmoidKernel<f32>> =
+                    bincode::deserialize(&*final_model).unwrap();
+                model.predict(x).unwrap()
+            }
+        }
     }
 }

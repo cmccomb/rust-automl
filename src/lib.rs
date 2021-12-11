@@ -1342,28 +1342,9 @@ impl SupervisedModel {
             Algorithm::KNNClassifier => {
                 KNNClassifierWrapper::predict(x, &self.final_model, &self.settings)
             }
-            Algorithm::SVC => match self.settings.svc_settings.as_ref().unwrap().kernel {
-                Kernel::Linear => {
-                    let model: SVC<f32, DenseMatrix<f32>, LinearKernel> =
-                        bincode::deserialize(&*self.final_model).unwrap();
-                    model.predict(x).unwrap()
-                }
-                Kernel::Polynomial(_, _, _) => {
-                    let model: SVC<f32, DenseMatrix<f32>, PolynomialKernel<f32>> =
-                        bincode::deserialize(&*self.final_model).unwrap();
-                    model.predict(x).unwrap()
-                }
-                Kernel::RBF(_) => {
-                    let model: SVC<f32, DenseMatrix<f32>, RBFKernel<f32>> =
-                        bincode::deserialize(&*self.final_model).unwrap();
-                    model.predict(x).unwrap()
-                }
-                Kernel::Sigmoid(_, _) => {
-                    let model: SVC<f32, DenseMatrix<f32>, SigmoidKernel<f32>> =
-                        bincode::deserialize(&*self.final_model).unwrap();
-                    model.predict(x).unwrap()
-                }
-            },
+            Algorithm::SVC => {
+                SupportVectorClassifierWrapper::predict(x, &self.final_model, &self.settings)
+            }
             Algorithm::GaussianNaiveBayes => {
                 let model: GaussianNB<f32, DenseMatrix<f32>> =
                     bincode::deserialize(&*self.final_model).unwrap();
