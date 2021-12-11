@@ -698,19 +698,8 @@ impl SupervisedModel {
                     RandomForestClassifierWrapper::train(&self.x, &self.y, &self.settings);
             }
             Algorithm::DecisionTreeClassifier => {
-                self.final_model = bincode::serialize(
-                    &DecisionTreeClassifier::fit(
-                        &self.x,
-                        &self.y,
-                        self.settings
-                            .decision_tree_classifier_settings
-                            .as_ref()
-                            .unwrap()
-                            .clone(),
-                    )
-                    .unwrap(),
-                )
-                .unwrap()
+                self.final_model =
+                    DecisionTreeClassifierWrapper::train(&self.x, &self.y, &self.settings);
             }
             Algorithm::SVC => match self.settings.svc_settings.as_ref().unwrap().kernel {
                 Kernel::Linear => {
