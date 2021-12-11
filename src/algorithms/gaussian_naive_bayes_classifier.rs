@@ -28,6 +28,7 @@ impl super::ModelWrapper for GaussianNaiveBayesClassifierWrapper {
     }
 
     fn predict(x: &DenseMatrix<f32>, final_model: &Vec<u8>, settings: &Settings) -> Vec<f32> {
-        todo!()
+        let model: GaussianNB<f32, DenseMatrix<f32>> = bincode::deserialize(&*final_model).unwrap();
+        model.predict(x).unwrap()
     }
 }
