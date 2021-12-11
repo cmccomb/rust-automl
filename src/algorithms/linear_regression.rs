@@ -1,9 +1,9 @@
-use smartcore::linalg::naive::dense_matrix::DenseMatrix;
-use smartcore::linear::linear_regression::LinearRegression;
-use smartcore::model_selection::cross_validate;
+use smartcore::{
+    linalg::naive::dense_matrix::DenseMatrix, linear::linear_regression::LinearRegression,
+    model_selection::cross_validate, model_selection::CrossValidationResult,
+};
 
 use crate::{Algorithm, Settings};
-use smartcore::model_selection::CrossValidationResult;
 
 pub(crate) struct LinearRegressionWrapper {}
 
@@ -28,10 +28,14 @@ impl super::ModelWrapper for LinearRegressionWrapper {
     }
 
     fn train(x: &DenseMatrix<f32>, y: &Vec<f32>, settings: &Settings) -> Vec<u8> {
-        todo!()
+        bincode::serialize(
+            &LinearRegression::fit(x, y, settings.linear_settings.as_ref().unwrap().clone())
+                .unwrap(),
+        )
+        .unwrap()
     }
 
-    fn predict(x: &DenseMatrix<f32>, final_model: &Vec<u8>, settings: &Settings) -> Vec<f32> {
+    fn predict(x: &DenseMatrix<f32>, final_model: &Vec<u8>, _settings: &Settings) -> Vec<f32> {
         let model: LinearRegression<f32, DenseMatrix<f32>> =
             bincode::deserialize(&*final_model).unwrap();
         model.predict(x).unwrap()

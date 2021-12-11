@@ -1,14 +1,16 @@
-use smartcore::linalg::naive::dense_matrix::DenseMatrix;
-use smartcore::math::distance::euclidian::Euclidian;
-use smartcore::math::distance::hamming::Hamming;
-use smartcore::math::distance::mahalanobis::Mahalanobis;
-use smartcore::math::distance::manhattan::Manhattan;
-use smartcore::math::distance::minkowski::Minkowski;
-use smartcore::math::distance::Distances;
-use smartcore::model_selection::cross_validate;
-use smartcore::neighbors::knn_classifier::KNNClassifier;
+use smartcore::{
+    linalg::naive::dense_matrix::DenseMatrix,
+    math::distance::{
+        euclidian::Euclidian, hamming::Hamming, mahalanobis::Mahalanobis, manhattan::Manhattan,
+        minkowski::Minkowski, Distances,
+    },
+    model_selection::cross_validate,
+    neighbors::knn_classifier::{
+        KNNClassifier, KNNClassifierParameters as SmartcoreKNNClassifierParameters,
+    },
+};
 
-use crate::{Algorithm, Distance, Settings, SmartcoreKNNClassifierParameters};
+use crate::{Algorithm, Distance, Settings};
 use smartcore::model_selection::CrossValidationResult;
 
 pub(crate) struct KNNClassifierWrapper {}

@@ -1,9 +1,9 @@
-use smartcore::linalg::naive::dense_matrix::DenseMatrix;
-use smartcore::model_selection::cross_validate;
-use smartcore::naive_bayes::gaussian::GaussianNB;
+use smartcore::{
+    linalg::naive::dense_matrix::DenseMatrix, model_selection::cross_validate,
+    model_selection::CrossValidationResult, naive_bayes::gaussian::GaussianNB,
+};
 
 use crate::{Algorithm, Settings};
-use smartcore::model_selection::CrossValidationResult;
 
 pub(crate) struct GaussianNaiveBayesClassifierWrapper {}
 
@@ -39,7 +39,7 @@ impl super::ModelWrapper for GaussianNaiveBayesClassifierWrapper {
         .unwrap()
     }
 
-    fn predict(x: &DenseMatrix<f32>, final_model: &Vec<u8>, settings: &Settings) -> Vec<f32> {
+    fn predict(x: &DenseMatrix<f32>, final_model: &Vec<u8>, _settings: &Settings) -> Vec<f32> {
         let model: GaussianNB<f32, DenseMatrix<f32>> = bincode::deserialize(&*final_model).unwrap();
         model.predict(x).unwrap()
     }

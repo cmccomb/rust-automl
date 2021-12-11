@@ -1,9 +1,8 @@
-use smartcore::linalg::naive::dense_matrix::DenseMatrix;
-use smartcore::linear::logistic_regression::LogisticRegression;
-use smartcore::model_selection::cross_validate;
-
 use crate::{Algorithm, Settings};
-use smartcore::model_selection::CrossValidationResult;
+use smartcore::{
+    linalg::naive::dense_matrix::DenseMatrix, linear::logistic_regression::LogisticRegression,
+    model_selection::cross_validate, model_selection::CrossValidationResult,
+};
 
 pub(crate) struct LogisticRegressionWrapper {}
 
@@ -35,7 +34,7 @@ impl super::ModelWrapper for LogisticRegressionWrapper {
         .unwrap()
     }
 
-    fn predict(x: &DenseMatrix<f32>, final_model: &Vec<u8>, settings: &Settings) -> Vec<f32> {
+    fn predict(x: &DenseMatrix<f32>, final_model: &Vec<u8>, _settings: &Settings) -> Vec<f32> {
         let model: LogisticRegression<f32, DenseMatrix<f32>> =
             bincode::deserialize(&*final_model).unwrap();
         model.predict(x).unwrap()

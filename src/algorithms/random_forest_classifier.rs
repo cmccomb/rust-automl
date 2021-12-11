@@ -1,9 +1,10 @@
-use smartcore::ensemble::random_forest_classifier::RandomForestClassifier;
-use smartcore::linalg::naive::dense_matrix::DenseMatrix;
-use smartcore::model_selection::cross_validate;
+use smartcore::{
+    ensemble::random_forest_classifier::RandomForestClassifier,
+    linalg::naive::dense_matrix::DenseMatrix, model_selection::cross_validate,
+    model_selection::CrossValidationResult,
+};
 
 use crate::{Algorithm, Settings};
-use smartcore::model_selection::CrossValidationResult;
 
 pub(crate) struct RandomForestClassifierWrapper {}
 
@@ -47,7 +48,7 @@ impl super::ModelWrapper for RandomForestClassifierWrapper {
         .unwrap()
     }
 
-    fn predict(x: &DenseMatrix<f32>, final_model: &Vec<u8>, settings: &Settings) -> Vec<f32> {
+    fn predict(x: &DenseMatrix<f32>, final_model: &Vec<u8>, _settings: &Settings) -> Vec<f32> {
         let model: RandomForestClassifier<f32> = bincode::deserialize(&*final_model).unwrap();
         model.predict(x).unwrap()
     }

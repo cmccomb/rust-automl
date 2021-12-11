@@ -1,10 +1,14 @@
-use smartcore::linalg::naive::dense_matrix::DenseMatrix;
-use smartcore::model_selection::cross_validate;
-use smartcore::svm::svc::SVC;
+use smartcore::{
+    linalg::naive::dense_matrix::DenseMatrix,
+    model_selection::cross_validate,
+    model_selection::CrossValidationResult,
+    svm::{
+        svc::{SVCParameters as SmartcoreSVCParameters, SVC},
+        Kernels, LinearKernel, PolynomialKernel, RBFKernel, SigmoidKernel,
+    },
+};
 
-use crate::{Algorithm, Kernel, Settings, SmartcoreSVCParameters};
-use smartcore::model_selection::CrossValidationResult;
-use smartcore::svm::{Kernels, LinearKernel, PolynomialKernel, RBFKernel, SigmoidKernel};
+use crate::{Algorithm, Kernel, Settings};
 
 pub(crate) struct SupportVectorClassifierWrapper {}
 

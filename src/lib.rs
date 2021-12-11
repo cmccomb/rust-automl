@@ -35,36 +35,24 @@ use smartcore::{
         pca::{PCAParameters, PCA},
         svd::{SVDParameters, SVD},
     },
-    ensemble::{
-        random_forest_classifier::RandomForestClassifier,
-        random_forest_regressor::RandomForestRegressor,
-    },
+    ensemble::random_forest_regressor::RandomForestRegressor,
     linalg::{naive::dense_matrix::DenseMatrix, BaseMatrix},
-    linear::{
-        elastic_net::ElasticNet, lasso::Lasso, linear_regression::LinearRegression,
-        logistic_regression::LogisticRegression, ridge_regression::RidgeRegression,
-    },
+    linear::{elastic_net::ElasticNet, lasso::Lasso, ridge_regression::RidgeRegression},
     math::distance::{
         euclidian::Euclidian, hamming::Hamming, mahalanobis::Mahalanobis, manhattan::Manhattan,
         minkowski::Minkowski, Distances,
     },
     metrics::{accuracy, mean_absolute_error, mean_squared_error, r2},
     model_selection::{cross_validate, CrossValidationResult, KFold},
-    naive_bayes::{categorical::CategoricalNB, gaussian::GaussianNB},
-    neighbors::{
-        knn_classifier::{
-            KNNClassifier, KNNClassifierParameters as SmartcoreKNNClassifierParameters,
-        },
-        knn_regressor::{KNNRegressor, KNNRegressorParameters as SmartcoreKNNRegressorParameters},
+    neighbors::knn_regressor::{
+        KNNRegressor, KNNRegressorParameters as SmartcoreKNNRegressorParameters,
     },
     svm::{
-        svc::{SVCParameters as SmartcoreSVCParameters, SVC},
         svr::{SVRParameters as SmartcoreSVRParameters, SVR},
         Kernels, LinearKernel, PolynomialKernel, RBFKernel, SigmoidKernel,
     },
     tree::{
-        decision_tree_classifier::{DecisionTreeClassifier, SplitCriterion},
-        decision_tree_regressor::DecisionTreeRegressor,
+        decision_tree_classifier::SplitCriterion, decision_tree_regressor::DecisionTreeRegressor,
     },
 };
 use std::{
@@ -98,6 +86,7 @@ pub struct SupervisedModel {
     number_of_classes: usize,
     comparison: Vec<Model>,
     final_model: Vec<u8>,
+    #[cfg(any(feature = "gui"))]
     current_x: Vec<f32>,
     preprocessing: (
         Option<PCA<f32, DenseMatrix<f32>>>,
@@ -144,16 +133,15 @@ impl SupervisedModel {
         let ndarray = features.to_ndarray::<Float32Type>().unwrap();
         let x = DenseMatrix::from_array(height, width, ndarray.as_slice().unwrap());
 
-        let current_x = vec![0.0; x.clone().shape().1];
-
         Self {
             settings,
-            x,
+            x: x.clone(),
             y: y.clone(),
             number_of_classes: Self::count_classes(&y),
             comparison: vec![],
             final_model: vec![],
-            current_x,
+            #[cfg(any(feature = "gui"))]
+            current_x: vec![0.0; x.shape().1],
             preprocessing: (None, None),
         }
     }
@@ -169,16 +157,17 @@ impl SupervisedModel {
     pub fn new_from_dataset(dataset: Dataset<f32, f32>, settings: Settings) -> Self {
         let x = DenseMatrix::from_array(dataset.num_samples, dataset.num_features, &dataset.data);
         let y = dataset.target;
-        let current_x = vec![0.0; x.clone().shape().1];
+        // let current_x = vec![0.0; x.clone().shape().1];
 
         Self {
             settings,
-            x,
+            x: x.clone(),
             y: y.clone(),
             number_of_classes: Self::count_classes(&y),
             comparison: vec![],
             final_model: vec![],
-            current_x,
+            #[cfg(any(feature = "gui"))]
+            current_x: vec![0.0; x.shape().1],
             preprocessing: (None, None),
         }
     }
@@ -194,16 +183,17 @@ impl SupervisedModel {
     /// ```
     pub fn new_from_vec(x: Vec<Vec<f32>>, y: Vec<f32>, settings: Settings) -> Self {
         let x = DenseMatrix::from_2d_vec(&x);
-        let current_x = vec![0.0; x.clone().shape().1];
+        // let current_x = vec![0.0; x.clone().shape().1];
 
         Self {
             settings,
-            x,
+            x: x.clone(),
             y: y.clone(),
             number_of_classes: Self::count_classes(&y),
             comparison: vec![],
             final_model: vec![],
-            current_x,
+            #[cfg(any(feature = "gui"))]
+            current_x: vec![0.0; x.shape().1],
             preprocessing: (None, None),
         }
     }
@@ -224,16 +214,15 @@ impl SupervisedModel {
         let x = DenseMatrix::from_array(x.shape()[0], x.shape()[1], x.as_slice().unwrap());
         let y = y.to_vec();
 
-        let current_x = vec![0.0; x.clone().shape().1];
-
         Self {
             settings,
-            x,
+            x: x.clone(),
             y: y.clone(),
             number_of_classes: Self::count_classes(&y),
             comparison: vec![],
             final_model: vec![],
-            current_x,
+            #[cfg(any(feature = "gui"))]
+            current_x: vec![0.0; x.shape().1],
             preprocessing: (None, None),
         }
     }
@@ -703,29 +692,21 @@ impl SupervisedModel {
             }
             Algorithm::SVC => {
                 self.final_model =
-                    SupportVectorClassifierWrapper::train(&self.x, &self.y, &self.settings)
+                    SupportVectorClassifierWrapper::train(&self.x, &self.y, &self.settings);
             }
 
             Algorithm::GaussianNaiveBayes => {
                 self.final_model =
-                    GaussianNaiveBayesClassifierWrapper::train(&self.x, &self.y, &self.settings)
+                    GaussianNaiveBayesClassifierWrapper::train(&self.x, &self.y, &self.settings);
             }
 
             Algorithm::CategoricalNaiveBayes => {
                 self.final_model =
-                    CategoricalNaiveBayesClassifierWrapper::train(&self.x, &self.y, &self.settings)
+                    CategoricalNaiveBayesClassifierWrapper::train(&self.x, &self.y, &self.settings);
             }
 
             Algorithm::Linear => {
-                self.final_model = bincode::serialize(
-                    &LinearRegression::fit(
-                        &self.x,
-                        &self.y,
-                        self.settings.linear_settings.as_ref().unwrap().clone(),
-                    )
-                    .unwrap(),
-                )
-                .unwrap()
+                self.final_model = LinearRegressionWrapper::train(&self.x, &self.y, &self.settings);
             }
             Algorithm::Lasso => {
                 self.final_model = bincode::serialize(
