@@ -14,6 +14,8 @@ mod categorical_naive_bayes_classifier;
 pub(crate) use categorical_naive_bayes_classifier::CategoricalNaiveBayesClassifierWrapper;
 mod support_vector_classifier;
 pub(crate) use support_vector_classifier::SupportVectorClassifierWrapper;
+mod support_vector_regressor;
+pub(crate) use support_vector_regressor::SupportVectorRegressorWrapper;
 
 use crate::{Algorithm, Settings};
 use smartcore::linalg::naive::dense_matrix::DenseMatrix;
