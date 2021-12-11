@@ -18,10 +18,11 @@ use settings::{
 mod algorithms;
 use algorithms::{
     CategoricalNaiveBayesClassifierWrapper, DecisionTreeClassifierWrapper,
-    ElasticNetRegressorWrapper, GaussianNaiveBayesClassifierWrapper, KNNClassifierWrapper,
-    KNNRegressorWrapper, LassoRegressorWrapper, LinearRegressorWrapper, LogisticRegressionWrapper,
-    ModelWrapper, RandomForestClassifierWrapper, RidgeRegressorWrapper,
-    SupportVectorClassifierWrapper, SupportVectorRegressorWrapper,
+    DecisionTreeRegressorWrapper, ElasticNetRegressorWrapper, GaussianNaiveBayesClassifierWrapper,
+    KNNClassifierWrapper, KNNRegressorWrapper, LassoRegressorWrapper, LinearRegressorWrapper,
+    LogisticRegressionWrapper, ModelWrapper, RandomForestClassifierWrapper,
+    RandomForestRegressorWrapper, RidgeRegressorWrapper, SupportVectorClassifierWrapper,
+    SupportVectorRegressorWrapper,
 };
 
 mod utils;
@@ -36,18 +37,15 @@ use smartcore::{
         pca::{PCAParameters, PCA},
         svd::{SVDParameters, SVD},
     },
-    ensemble::random_forest_regressor::RandomForestRegressor,
     linalg::{naive::dense_matrix::DenseMatrix, BaseMatrix},
     metrics::{accuracy, mean_absolute_error, mean_squared_error, r2},
-    model_selection::{cross_validate, CrossValidationResult, KFold},
-    tree::{
-        decision_tree_classifier::SplitCriterion, decision_tree_regressor::DecisionTreeRegressor,
-    },
+    model_selection::{CrossValidationResult, KFold},
+    tree::decision_tree_classifier::SplitCriterion,
 };
 use std::{
     cmp::Ordering::Equal,
     fmt::{Display, Formatter},
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 #[cfg(any(feature = "nd"))]
@@ -240,15 +238,6 @@ impl SupervisedModel {
     /// model.compare_models();
     /// ```
     pub fn compare_models(&mut self) {
-        // Find the right metric to use
-        let metric = match self.settings.sort_by {
-            Metric::RSquared => r2,
-            Metric::MeanAbsoluteError => mean_absolute_error,
-            Metric::MeanSquaredError => mean_squared_error,
-            Metric::Accuracy => accuracy,
-            Metric::None => panic!("A metric must be set."),
-        };
-
         // Preprocess the data
         self.x = self.preprocess(self.x.clone());
 
@@ -376,23 +365,11 @@ impl SupervisedModel {
             .skiplist
             .contains(&Algorithm::DecisionTreeRegressor)
         {
-            let start = Instant::now();
-            let cv = cross_validate(
-                DecisionTreeRegressor::fit,
+            self.record_model(DecisionTreeRegressorWrapper::cv_model(
                 &self.x,
                 &self.y,
-                self.settings
-                    .decision_tree_regressor_settings
-                    .as_ref()
-                    .unwrap()
-                    .clone(),
-                self.get_kfolds(),
-                metric,
-            )
-            .unwrap();
-            let end = Instant::now();
-            let d = end.duration_since(start);
-            self.add_model(Algorithm::DecisionTreeRegressor, cv, d);
+                &self.settings,
+            ));
         }
 
         if !self
@@ -400,23 +377,11 @@ impl SupervisedModel {
             .skiplist
             .contains(&Algorithm::RandomForestRegressor)
         {
-            let start = Instant::now();
-            let cv = cross_validate(
-                RandomForestRegressor::fit,
+            self.record_model(RandomForestRegressorWrapper::cv_model(
                 &self.x,
                 &self.y,
-                self.settings
-                    .random_forest_regressor_settings
-                    .as_ref()
-                    .unwrap()
-                    .clone(),
-                self.get_kfolds(),
-                metric,
-            )
-            .unwrap();
-            let end = Instant::now();
-            let d = end.duration_since(start);
-            self.add_model(Algorithm::RandomForestRegressor, cv, d);
+                &self.settings,
+            ));
         }
 
         if !self.settings.skiplist.contains(&Algorithm::KNNRegressor) {
@@ -487,19 +452,8 @@ impl SupervisedModel {
                     ElasticNetRegressorWrapper::train(&self.x, &self.y, &self.settings);
             }
             Algorithm::RandomForestRegressor => {
-                self.final_model = bincode::serialize(
-                    &RandomForestRegressor::fit(
-                        &self.x,
-                        &self.y,
-                        self.settings
-                            .random_forest_regressor_settings
-                            .as_ref()
-                            .unwrap()
-                            .clone(),
-                    )
-                    .unwrap(),
-                )
-                .unwrap()
+                self.final_model =
+                    RandomForestRegressorWrapper::train(&self.x, &self.y, &self.settings)
             }
             Algorithm::KNNRegressor => {
                 self.final_model = KNNRegressorWrapper::train(&self.x, &self.y, &self.settings)
@@ -509,19 +463,8 @@ impl SupervisedModel {
                     SupportVectorRegressorWrapper::train(&self.x, &self.y, &self.settings)
             }
             Algorithm::DecisionTreeRegressor => {
-                self.final_model = bincode::serialize(
-                    &DecisionTreeRegressor::fit(
-                        &self.x,
-                        &self.y,
-                        self.settings
-                            .decision_tree_regressor_settings
-                            .as_ref()
-                            .unwrap()
-                            .clone(),
-                    )
-                    .unwrap(),
-                )
-                .unwrap()
+                self.final_model =
+                    DecisionTreeRegressorWrapper::train(&self.x, &self.y, &self.settings)
             }
         }
     }
@@ -613,9 +556,7 @@ impl SupervisedModel {
                 ElasticNetRegressorWrapper::predict(x, &self.final_model, &self.settings)
             }
             Algorithm::RandomForestRegressor => {
-                let model: RandomForestRegressor<f32> =
-                    bincode::deserialize(&*self.final_model).unwrap();
-                model.predict(x).unwrap()
+                RandomForestRegressorWrapper::predict(x, &self.final_model, &self.settings)
             }
             Algorithm::KNNRegressor => {
                 KNNRegressorWrapper::predict(x, &self.final_model, &self.settings)
@@ -624,9 +565,7 @@ impl SupervisedModel {
                 SupportVectorRegressorWrapper::predict(&self.x, &self.final_model, &self.settings)
             }
             Algorithm::DecisionTreeRegressor => {
-                let model: DecisionTreeRegressor<f32> =
-                    bincode::deserialize(&*self.final_model).unwrap();
-                model.predict(x).unwrap()
+                DecisionTreeRegressorWrapper::predict(x, &self.final_model, &self.settings)
             }
             Algorithm::LogisticRegression => {
                 LogisticRegressionWrapper::predict(x, &self.final_model, &self.settings)
@@ -737,20 +676,6 @@ impl SupervisedModel {
         sorted_targets.len()
     }
 
-    fn add_model(
-        &mut self,
-        name: Algorithm,
-        score: CrossValidationResult<f32>,
-        duration: Duration,
-    ) {
-        self.comparison.push(Model {
-            score,
-            name,
-            duration,
-        });
-        self.sort();
-    }
-
     fn record_model(&mut self, model: (CrossValidationResult<f32>, Algorithm, Duration)) {
         self.comparison.push(Model {
             score: model.0,
@@ -758,12 +683,6 @@ impl SupervisedModel {
             duration: model.2,
         });
         self.sort();
-    }
-
-    fn get_kfolds(&self) -> KFold {
-        KFold::default()
-            .with_n_splits(self.settings.number_of_folds)
-            .with_shuffle(self.settings.shuffle)
     }
 
     fn sort(&mut self) {
