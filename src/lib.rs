@@ -687,15 +687,8 @@ impl SupervisedModel {
         }
         match self.comparison[0].name {
             Algorithm::LogisticRegression => {
-                self.final_model = bincode::serialize(
-                    &LogisticRegression::fit(
-                        &self.x,
-                        &self.y,
-                        self.settings.logistic_settings.as_ref().unwrap().clone(),
-                    )
-                    .unwrap(),
-                )
-                .unwrap()
+                self.final_model =
+                    LogisticRegressionWrapper::train(&self.x, &self.y, &self.settings);
             }
             Algorithm::KNNClassifier => match self
                 .settings

@@ -28,7 +28,11 @@ impl super::ModelWrapper for LogisticRegressionWrapper {
     }
 
     fn train(x: &DenseMatrix<f32>, y: &Vec<f32>, settings: &Settings) -> Vec<u8> {
-        todo!()
+        bincode::serialize(
+            &LogisticRegression::fit(x, y, settings.logistic_settings.as_ref().unwrap().clone())
+                .unwrap(),
+        )
+        .unwrap()
     }
 
     fn predict(x: &DenseMatrix<f32>, final_model: &Vec<u8>, settings: &Settings) -> Vec<f32> {
