@@ -691,22 +691,11 @@ impl SupervisedModel {
                     LogisticRegressionWrapper::train(&self.x, &self.y, &self.settings);
             }
             Algorithm::KNNClassifier => {
-                self.final_model = KNNClassifierWrapper::train(&self.x, &self.y, &self.settings)
+                self.final_model = KNNClassifierWrapper::train(&self.x, &self.y, &self.settings);
             }
             Algorithm::RandomForestClassifier => {
-                self.final_model = bincode::serialize(
-                    &RandomForestClassifier::fit(
-                        &self.x,
-                        &self.y,
-                        self.settings
-                            .random_forest_classifier_settings
-                            .as_ref()
-                            .unwrap()
-                            .clone(),
-                    )
-                    .unwrap(),
-                )
-                .unwrap()
+                self.final_model =
+                    RandomForestClassifierWrapper::train(&self.x, &self.y, &self.settings);
             }
             Algorithm::DecisionTreeClassifier => {
                 self.final_model = bincode::serialize(

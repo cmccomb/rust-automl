@@ -32,7 +32,19 @@ impl super::ModelWrapper for RandomForestClassifierWrapper {
     }
 
     fn train(x: &DenseMatrix<f32>, y: &Vec<f32>, settings: &Settings) -> Vec<u8> {
-        todo!()
+        bincode::serialize(
+            &RandomForestClassifier::fit(
+                x,
+                y,
+                settings
+                    .random_forest_classifier_settings
+                    .as_ref()
+                    .unwrap()
+                    .clone(),
+            )
+            .unwrap(),
+        )
+        .unwrap()
     }
 
     fn predict(x: &DenseMatrix<f32>, final_model: &Vec<u8>, settings: &Settings) -> Vec<f32> {
