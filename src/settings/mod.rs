@@ -165,6 +165,10 @@ pub use smartcore::tree::decision_tree_classifier::DecisionTreeClassifierParamet
 
 use std::fmt::{Display, Formatter};
 
+mod settings_struct;
+#[doc(no_inline)]
+pub use settings_struct::Settings;
+
 /// Parameters for k-nearest neighbor (KNN) regression
 pub struct KNNRegressorParameters {
     pub(crate) k: usize,
