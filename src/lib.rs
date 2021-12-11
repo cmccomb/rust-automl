@@ -1334,9 +1334,7 @@ impl SupervisedModel {
                 LogisticRegressionWrapper::predict(x, &self.final_model, &self.settings)
             }
             Algorithm::RandomForestClassifier => {
-                let model: RandomForestClassifier<f32> =
-                    bincode::deserialize(&*self.final_model).unwrap();
-                model.predict(x).unwrap()
+                RandomForestClassifierWrapper::predict(x, &self.final_model, &self.settings)
             }
             Algorithm::DecisionTreeClassifier => {
                 let model: DecisionTreeClassifier<f32> =
