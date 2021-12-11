@@ -19,9 +19,9 @@ mod algorithms;
 use algorithms::{
     CategoricalNaiveBayesClassifierWrapper, DecisionTreeClassifierWrapper,
     ElasticNetRegressorWrapper, GaussianNaiveBayesClassifierWrapper, KNNClassifierWrapper,
-    LassoRegressorWrapper, LinearRegressorWrapper, LogisticRegressionWrapper, ModelWrapper,
-    RandomForestClassifierWrapper, RidgeRegressorWrapper, SupportVectorClassifierWrapper,
-    SupportVectorRegressorWrapper,
+    KNNRegressorWrapper, LassoRegressorWrapper, LinearRegressorWrapper, LogisticRegressionWrapper,
+    ModelWrapper, RandomForestClassifierWrapper, RidgeRegressorWrapper,
+    SupportVectorClassifierWrapper, SupportVectorRegressorWrapper,
 };
 
 mod utils;
@@ -38,15 +38,8 @@ use smartcore::{
     },
     ensemble::random_forest_regressor::RandomForestRegressor,
     linalg::{naive::dense_matrix::DenseMatrix, BaseMatrix},
-    math::distance::{
-        euclidian::Euclidian, hamming::Hamming, mahalanobis::Mahalanobis, manhattan::Manhattan,
-        minkowski::Minkowski, Distances,
-    },
     metrics::{accuracy, mean_absolute_error, mean_squared_error, r2},
     model_selection::{cross_validate, CrossValidationResult, KFold},
-    neighbors::knn_regressor::{
-        KNNRegressor, KNNRegressorParameters as SmartcoreKNNRegressorParameters,
-    },
     tree::{
         decision_tree_classifier::SplitCriterion, decision_tree_regressor::DecisionTreeRegressor,
     },
@@ -427,154 +420,11 @@ impl SupervisedModel {
         }
 
         if !self.settings.skiplist.contains(&Algorithm::KNNRegressor) {
-            let start = Instant::now();
-            let cv = match self
-                .settings
-                .knn_regressor_settings
-                .as_ref()
-                .unwrap()
-                .distance
-            {
-                Distance::Euclidean => cross_validate(
-                    KNNRegressor::fit,
-                    &self.x,
-                    &self.y,
-                    SmartcoreKNNRegressorParameters::default()
-                        .with_k(self.settings.knn_regressor_settings.as_ref().unwrap().k)
-                        .with_algorithm(
-                            self.settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .algorithm
-                                .clone(),
-                        )
-                        .with_weight(
-                            self.settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .weight
-                                .clone(),
-                        )
-                        .with_distance(Distances::euclidian()),
-                    self.get_kfolds(),
-                    metric,
-                )
-                .unwrap(),
-                Distance::Manhattan => cross_validate(
-                    KNNRegressor::fit,
-                    &self.x,
-                    &self.y,
-                    SmartcoreKNNRegressorParameters::default()
-                        .with_k(self.settings.knn_regressor_settings.as_ref().unwrap().k)
-                        .with_algorithm(
-                            self.settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .algorithm
-                                .clone(),
-                        )
-                        .with_weight(
-                            self.settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .weight
-                                .clone(),
-                        )
-                        .with_distance(Distances::manhattan()),
-                    self.get_kfolds(),
-                    metric,
-                )
-                .unwrap(),
-                Distance::Minkowski(p) => cross_validate(
-                    KNNRegressor::fit,
-                    &self.x,
-                    &self.y,
-                    SmartcoreKNNRegressorParameters::default()
-                        .with_k(self.settings.knn_regressor_settings.as_ref().unwrap().k)
-                        .with_algorithm(
-                            self.settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .algorithm
-                                .clone(),
-                        )
-                        .with_weight(
-                            self.settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .weight
-                                .clone(),
-                        )
-                        .with_distance(Distances::minkowski(p)),
-                    self.get_kfolds(),
-                    metric,
-                )
-                .unwrap(),
-                Distance::Mahalanobis => cross_validate(
-                    KNNRegressor::fit,
-                    &self.x,
-                    &self.y,
-                    SmartcoreKNNRegressorParameters::default()
-                        .with_k(self.settings.knn_regressor_settings.as_ref().unwrap().k)
-                        .with_algorithm(
-                            self.settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .algorithm
-                                .clone(),
-                        )
-                        .with_weight(
-                            self.settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .weight
-                                .clone(),
-                        )
-                        .with_distance(Distances::mahalanobis(&self.x)),
-                    self.get_kfolds(),
-                    metric,
-                )
-                .unwrap(),
-                Distance::Hamming => cross_validate(
-                    KNNRegressor::fit,
-                    &self.x,
-                    &self.y,
-                    SmartcoreKNNRegressorParameters::default()
-                        .with_k(self.settings.knn_regressor_settings.as_ref().unwrap().k)
-                        .with_algorithm(
-                            self.settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .algorithm
-                                .clone(),
-                        )
-                        .with_weight(
-                            self.settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .weight
-                                .clone(),
-                        )
-                        .with_distance(Distances::hamming()),
-                    self.get_kfolds(),
-                    metric,
-                )
-                .unwrap(),
-            };
-            let end = Instant::now();
-            let d = end.duration_since(start);
-
-            self.add_model(Algorithm::KNNRegressor, cv, d);
+            self.record_model(KNNRegressorWrapper::cv_model(
+                &self.x,
+                &self.y,
+                &self.settings,
+            ));
         }
     }
 
@@ -651,142 +501,9 @@ impl SupervisedModel {
                 )
                 .unwrap()
             }
-            Algorithm::KNNRegressor => match self
-                .settings
-                .knn_regressor_settings
-                .as_ref()
-                .unwrap()
-                .distance
-            {
-                Distance::Euclidean => {
-                    let params = SmartcoreKNNRegressorParameters::default()
-                        .with_k(self.settings.knn_regressor_settings.as_ref().unwrap().k)
-                        .with_algorithm(
-                            self.settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .algorithm
-                                .clone(),
-                        )
-                        .with_weight(
-                            self.settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .weight
-                                .clone(),
-                        )
-                        .with_distance(Distances::euclidian());
-
-                    self.final_model =
-                        bincode::serialize(&KNNRegressor::fit(&self.x, &self.y, params).unwrap())
-                            .unwrap()
-                }
-                Distance::Manhattan => {
-                    let params = SmartcoreKNNRegressorParameters::default()
-                        .with_k(self.settings.knn_regressor_settings.as_ref().unwrap().k)
-                        .with_algorithm(
-                            self.settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .algorithm
-                                .clone(),
-                        )
-                        .with_weight(
-                            self.settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .weight
-                                .clone(),
-                        )
-                        .with_distance(Distances::manhattan());
-
-                    self.final_model =
-                        bincode::serialize(&KNNRegressor::fit(&self.x, &self.y, params).unwrap())
-                            .unwrap()
-                }
-                Distance::Minkowski(p) => {
-                    let params = SmartcoreKNNRegressorParameters::default()
-                        .with_k(self.settings.knn_regressor_settings.as_ref().unwrap().k)
-                        .with_algorithm(
-                            self.settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .algorithm
-                                .clone(),
-                        )
-                        .with_weight(
-                            self.settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .as_ref()
-                                .unwrap()
-                                .weight
-                                .clone(),
-                        )
-                        .with_distance(Distances::minkowski(p));
-
-                    self.final_model =
-                        bincode::serialize(&KNNRegressor::fit(&self.x, &self.y, params).unwrap())
-                            .unwrap()
-                }
-                Distance::Mahalanobis => {
-                    let params = SmartcoreKNNRegressorParameters::default()
-                        .with_k(self.settings.knn_regressor_settings.as_ref().unwrap().k)
-                        .with_algorithm(
-                            self.settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .algorithm
-                                .clone(),
-                        )
-                        .with_weight(
-                            self.settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .as_ref()
-                                .unwrap()
-                                .weight
-                                .clone(),
-                        )
-                        .with_distance(Distances::mahalanobis(&self.x));
-
-                    self.final_model =
-                        bincode::serialize(&KNNRegressor::fit(&self.x, &self.y, params).unwrap())
-                            .unwrap()
-                }
-                Distance::Hamming => {
-                    let params = SmartcoreKNNRegressorParameters::default()
-                        .with_k(self.settings.knn_regressor_settings.as_ref().unwrap().k)
-                        .with_algorithm(
-                            self.settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .algorithm
-                                .clone(),
-                        )
-                        .with_weight(
-                            self.settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .as_ref()
-                                .unwrap()
-                                .weight
-                                .clone(),
-                        )
-                        .with_distance(Distances::hamming());
-
-                    self.final_model =
-                        bincode::serialize(&KNNRegressor::fit(&self.x, &self.y, params).unwrap())
-                            .unwrap()
-                }
-            },
+            Algorithm::KNNRegressor => {
+                self.final_model = KNNRegressorWrapper::train(&self.x, &self.y, &self.settings)
+            }
             Algorithm::SVR => {
                 self.final_model =
                     SupportVectorRegressorWrapper::train(&self.x, &self.y, &self.settings)
@@ -900,39 +617,9 @@ impl SupervisedModel {
                     bincode::deserialize(&*self.final_model).unwrap();
                 model.predict(x).unwrap()
             }
-            Algorithm::KNNRegressor => match self
-                .settings
-                .knn_regressor_settings
-                .as_ref()
-                .unwrap()
-                .distance
-            {
-                Distance::Euclidean => {
-                    let model: KNNRegressor<f32, Euclidian> =
-                        bincode::deserialize(&*self.final_model).unwrap();
-                    model.predict(x).unwrap()
-                }
-                Distance::Manhattan => {
-                    let model: KNNRegressor<f32, Manhattan> =
-                        bincode::deserialize(&*self.final_model).unwrap();
-                    model.predict(x).unwrap()
-                }
-                Distance::Minkowski(_) => {
-                    let model: KNNRegressor<f32, Minkowski> =
-                        bincode::deserialize(&*self.final_model).unwrap();
-                    model.predict(x).unwrap()
-                }
-                Distance::Mahalanobis => {
-                    let model: KNNRegressor<f32, Mahalanobis<f32, DenseMatrix<f32>>> =
-                        bincode::deserialize(&*self.final_model).unwrap();
-                    model.predict(x).unwrap()
-                }
-                Distance::Hamming => {
-                    let model: KNNRegressor<f32, Hamming> =
-                        bincode::deserialize(&*self.final_model).unwrap();
-                    model.predict(x).unwrap()
-                }
-            },
+            Algorithm::KNNRegressor => {
+                KNNRegressorWrapper::predict(x, &self.final_model, &self.settings)
+            }
             Algorithm::SVR => {
                 SupportVectorRegressorWrapper::predict(&self.x, &self.final_model, &self.settings)
             }
@@ -1122,6 +809,54 @@ impl Display for SupervisedModel {
             table.add_row(row_vec);
         }
         write!(f, "{}\n", table)
+    }
+}
+
+#[cfg_attr(docsrs, doc(cfg(feature = "gui")))]
+#[cfg(any(feature = "gui"))]
+impl epi::App for SupervisedModel {
+    fn update(&mut self, ctx: &egui::CtxRef, _frame: &mut epi::Frame<'_>) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            // Add a heading that displays the type of model this is
+            ui.heading(format!("{}", self.comparison[0].name));
+
+            // Add a label that shows the prediction
+            ui.label(format!(
+                "Prediction: y = {}",
+                self.predict(&DenseMatrix::from_2d_vec(&vec![self.current_x.to_vec(); 1]))[0]
+            ));
+
+            // Separating the model name and prediction from the input values
+            ui.separator();
+
+            // Step through input values to make sliders
+            for i in 0..self.current_x.len() {
+                // Figure out the maximum in the training dataa
+                let maxx = self
+                    .x
+                    .get_col_as_vec(i)
+                    .iter()
+                    .cloned()
+                    .fold(0. / 0., f32::max);
+
+                // Figure out the minimum in the training data
+                let minn = self
+                    .x
+                    .get_col_as_vec(i)
+                    .iter()
+                    .cloned()
+                    .fold(0. / 0., f32::min);
+
+                // Add the slider
+                ui.add(
+                    egui::Slider::new(&mut self.current_x[i], minn..=maxx).text(format!("x_{}", i)),
+                );
+            }
+        });
+    }
+
+    fn name(&self) -> &str {
+        "Model Demo"
     }
 }
 
@@ -2087,54 +1822,6 @@ impl Display for Settings {
         }
 
         write!(f, "{}\n", table)
-    }
-}
-
-#[cfg_attr(docsrs, doc(cfg(feature = "gui")))]
-#[cfg(any(feature = "gui"))]
-impl epi::App for SupervisedModel {
-    fn update(&mut self, ctx: &egui::CtxRef, _frame: &mut epi::Frame<'_>) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            // Add a heading that displays the type of model this is
-            ui.heading(format!("{}", self.comparison[0].name));
-
-            // Add a label that shows the prediction
-            ui.label(format!(
-                "Prediction: y = {}",
-                self.predict(&DenseMatrix::from_2d_vec(&vec![self.current_x.to_vec(); 1]))[0]
-            ));
-
-            // Separating the model name and prediction from the input values
-            ui.separator();
-
-            // Step through input values to make sliders
-            for i in 0..self.current_x.len() {
-                // Figure out the maximum in the training dataa
-                let maxx = self
-                    .x
-                    .get_col_as_vec(i)
-                    .iter()
-                    .cloned()
-                    .fold(0. / 0., f32::max);
-
-                // Figure out the minimum in the training data
-                let minn = self
-                    .x
-                    .get_col_as_vec(i)
-                    .iter()
-                    .cloned()
-                    .fold(0. / 0., f32::min);
-
-                // Add the slider
-                ui.add(
-                    egui::Slider::new(&mut self.current_x[i], minn..=maxx).text(format!("x_{}", i)),
-                );
-            }
-        });
-    }
-
-    fn name(&self) -> &str {
-        "Model Demo"
     }
 }
 

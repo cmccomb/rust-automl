@@ -4,6 +4,8 @@ mod elastic_net_regressor;
 pub(crate) use elastic_net_regressor::ElasticNetRegressorWrapper;
 mod lasso_regressor;
 pub(crate) use lasso_regressor::LassoRegressorWrapper;
+mod knn_regressor;
+pub(crate) use knn_regressor::KNNRegressorWrapper;
 mod ridge_regressor;
 pub(crate) use ridge_regressor::RidgeRegressorWrapper;
 mod logistic_regression;
