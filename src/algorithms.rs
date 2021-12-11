@@ -31,10 +31,17 @@ pub trait ModelWrapper {
         let end = Instant::now();
         (results.0, results.1, end.duration_since(start))
     }
+
+    // Perform cross-validation
     fn cv(
         x: &DenseMatrix<f32>,
         y: &Vec<f32>,
         settings: &Settings,
     ) -> (CrossValidationResult<f32>, Algorithm);
+
+    // Train a model
+    fn train(x: &DenseMatrix<f32>, y: &Vec<f32>, settings: &Settings) -> Vec<u8>;
+
+    // Perform a prediction
     fn predict(x: &DenseMatrix<f32>, final_model: &Vec<u8>, settings: &Settings) -> Vec<f32>;
 }

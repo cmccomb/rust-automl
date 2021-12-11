@@ -71,6 +71,10 @@ impl super::ModelWrapper for SupportVectorClassifierWrapper {
         (cv, Algorithm::SVC)
     }
 
+    fn train(x: &DenseMatrix<f32>, y: &Vec<f32>, settings: &Settings) -> Vec<u8> {
+        todo!()
+    }
+
     fn predict(x: &DenseMatrix<f32>, final_model: &Vec<u8>, settings: &Settings) -> Vec<f32> {
         match settings.svc_settings.as_ref().unwrap().kernel {
             Kernel::Linear => {

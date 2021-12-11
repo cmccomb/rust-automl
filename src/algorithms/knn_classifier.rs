@@ -160,6 +160,10 @@ impl super::ModelWrapper for KNNClassifierWrapper {
         (cv, Algorithm::KNNClassifier)
     }
 
+    fn train(x: &DenseMatrix<f32>, y: &Vec<f32>, settings: &Settings) -> Vec<u8> {
+        todo!()
+    }
+
     fn predict(x: &DenseMatrix<f32>, final_model: &Vec<u8>, settings: &Settings) -> Vec<f32> {
         match settings.knn_classifier_settings.as_ref().unwrap().distance {
             Distance::Euclidean => {

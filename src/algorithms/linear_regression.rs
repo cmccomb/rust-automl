@@ -27,6 +27,10 @@ impl super::ModelWrapper for LinearRegressionWrapper {
         )
     }
 
+    fn train(x: &DenseMatrix<f32>, y: &Vec<f32>, settings: &Settings) -> Vec<u8> {
+        todo!()
+    }
+
     fn predict(x: &DenseMatrix<f32>, final_model: &Vec<u8>, settings: &Settings) -> Vec<f32> {
         let model: LinearRegression<f32, DenseMatrix<f32>> =
             bincode::deserialize(&*final_model).unwrap();
