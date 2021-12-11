@@ -707,31 +707,13 @@ impl SupervisedModel {
             }
 
             Algorithm::GaussianNaiveBayes => {
-                self.final_model = bincode::serialize(
-                    &GaussianNB::fit(
-                        &self.x,
-                        &self.y,
-                        self.settings.gaussian_nb_settings.as_ref().unwrap().clone(),
-                    )
-                    .unwrap(),
-                )
-                .unwrap()
+                self.final_model =
+                    GaussianNaiveBayesClassifierWrapper::train(&self.x, &self.y, &self.settings)
             }
 
             Algorithm::CategoricalNaiveBayes => {
-                self.final_model = bincode::serialize(
-                    &CategoricalNB::fit(
-                        &self.x,
-                        &self.y,
-                        self.settings
-                            .categorical_nb_settings
-                            .as_ref()
-                            .unwrap()
-                            .clone(),
-                    )
-                    .unwrap(),
-                )
-                .unwrap()
+                self.final_model =
+                    CategoricalNaiveBayesClassifierWrapper::train(&self.x, &self.y, &self.settings)
             }
 
             Algorithm::Linear => {

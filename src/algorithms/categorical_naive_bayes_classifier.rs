@@ -28,7 +28,15 @@ impl super::ModelWrapper for CategoricalNaiveBayesClassifierWrapper {
     }
 
     fn train(x: &DenseMatrix<f32>, y: &Vec<f32>, settings: &Settings) -> Vec<u8> {
-        todo!()
+        bincode::serialize(
+            &CategoricalNB::fit(
+                x,
+                y,
+                settings.categorical_nb_settings.as_ref().unwrap().clone(),
+            )
+            .unwrap(),
+        )
+        .unwrap()
     }
 
     fn predict(x: &DenseMatrix<f32>, final_model: &Vec<u8>, settings: &Settings) -> Vec<f32> {
