@@ -1,5 +1,7 @@
 mod linear_regressor;
 pub(crate) use linear_regressor::LinearRegressorWrapper;
+mod elastic_net_regressor;
+pub(crate) use elastic_net_regressor::ElasticNetRegressorWrapper;
 mod lasso_regressor;
 pub(crate) use lasso_regressor::LassoRegressorWrapper;
 mod ridge_regressor;

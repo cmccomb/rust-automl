@@ -18,9 +18,10 @@ use settings::{
 mod algorithms;
 use algorithms::{
     CategoricalNaiveBayesClassifierWrapper, DecisionTreeClassifierWrapper,
-    GaussianNaiveBayesClassifierWrapper, KNNClassifierWrapper, LassoRegressorWrapper,
-    LinearRegressorWrapper, LogisticRegressionWrapper, ModelWrapper, RandomForestClassifierWrapper,
-    RidgeRegressorWrapper, SupportVectorClassifierWrapper, SupportVectorRegressorWrapper,
+    ElasticNetRegressorWrapper, GaussianNaiveBayesClassifierWrapper, KNNClassifierWrapper,
+    LassoRegressorWrapper, LinearRegressorWrapper, LogisticRegressionWrapper, ModelWrapper,
+    RandomForestClassifierWrapper, RidgeRegressorWrapper, SupportVectorClassifierWrapper,
+    SupportVectorRegressorWrapper,
 };
 
 mod utils;
@@ -37,7 +38,6 @@ use smartcore::{
     },
     ensemble::random_forest_regressor::RandomForestRegressor,
     linalg::{naive::dense_matrix::DenseMatrix, BaseMatrix},
-    linear::elastic_net::ElasticNet,
     math::distance::{
         euclidian::Euclidian, hamming::Hamming, mahalanobis::Mahalanobis, manhattan::Manhattan,
         minkowski::Minkowski, Distances,
@@ -371,19 +371,11 @@ impl SupervisedModel {
         }
 
         if !self.settings.skiplist.contains(&Algorithm::ElasticNet) {
-            let start = Instant::now();
-            let cv = cross_validate(
-                ElasticNet::fit,
+            self.record_model(ElasticNetRegressorWrapper::cv_model(
                 &self.x,
                 &self.y,
-                self.settings.elastic_net_settings.as_ref().unwrap().clone(),
-                self.get_kfolds(),
-                metric,
-            )
-            .unwrap();
-            let end = Instant::now();
-            let d = end.duration_since(start);
-            self.add_model(Algorithm::ElasticNet, cv, d);
+                &self.settings,
+            ));
         }
 
         if !self
@@ -641,15 +633,8 @@ impl SupervisedModel {
                 self.final_model = RidgeRegressorWrapper::train(&self.x, &self.y, &self.settings);
             }
             Algorithm::ElasticNet => {
-                self.final_model = bincode::serialize(
-                    &ElasticNet::fit(
-                        &self.x,
-                        &self.y,
-                        self.settings.elastic_net_settings.as_ref().unwrap().clone(),
-                    )
-                    .unwrap(),
-                )
-                .unwrap()
+                self.final_model =
+                    ElasticNetRegressorWrapper::train(&self.x, &self.y, &self.settings);
             }
             Algorithm::RandomForestRegressor => {
                 self.final_model = bincode::serialize(
@@ -908,9 +893,7 @@ impl SupervisedModel {
                 RidgeRegressorWrapper::predict(x, &self.final_model, &self.settings)
             }
             Algorithm::ElasticNet => {
-                let model: ElasticNet<f32, DenseMatrix<f32>> =
-                    bincode::deserialize(&*self.final_model).unwrap();
-                model.predict(x).unwrap()
+                ElasticNetRegressorWrapper::predict(x, &self.final_model, &self.settings)
             }
             Algorithm::RandomForestRegressor => {
                 let model: RandomForestRegressor<f32> =
