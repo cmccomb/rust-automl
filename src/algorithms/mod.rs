@@ -2,6 +2,8 @@ mod linear_regressor;
 pub(crate) use linear_regressor::LinearRegressorWrapper;
 mod lasso_regressor;
 pub(crate) use lasso_regressor::LassoRegressorWrapper;
+mod ridge_regressor;
+pub(crate) use ridge_regressor::RidgeRegressorWrapper;
 mod logistic_regression;
 pub(crate) use logistic_regression::LogisticRegressionWrapper;
 mod random_forest_classifier;

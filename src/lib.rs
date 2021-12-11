@@ -20,7 +20,7 @@ use algorithms::{
     CategoricalNaiveBayesClassifierWrapper, DecisionTreeClassifierWrapper,
     GaussianNaiveBayesClassifierWrapper, KNNClassifierWrapper, LassoRegressorWrapper,
     LinearRegressorWrapper, LogisticRegressionWrapper, ModelWrapper, RandomForestClassifierWrapper,
-    SupportVectorClassifierWrapper, SupportVectorRegressorWrapper,
+    RidgeRegressorWrapper, SupportVectorClassifierWrapper, SupportVectorRegressorWrapper,
 };
 
 mod utils;
@@ -37,7 +37,7 @@ use smartcore::{
     },
     ensemble::random_forest_regressor::RandomForestRegressor,
     linalg::{naive::dense_matrix::DenseMatrix, BaseMatrix},
-    linear::{elastic_net::ElasticNet, ridge_regression::RidgeRegression},
+    linear::elastic_net::ElasticNet,
     math::distance::{
         euclidian::Euclidian, hamming::Hamming, mahalanobis::Mahalanobis, manhattan::Manhattan,
         minkowski::Minkowski, Distances,
@@ -355,7 +355,7 @@ impl SupervisedModel {
         }
 
         if !self.settings.skiplist.contains(&Algorithm::Lasso) {
-            self.record_model(LassoRegressorWrapper::cv_model(
+            self.record_model(RidgeRegressorWrapper::cv_model(
                 &self.x,
                 &self.y,
                 &self.settings,
@@ -363,19 +363,11 @@ impl SupervisedModel {
         }
 
         if !self.settings.skiplist.contains(&Algorithm::Ridge) {
-            let start = Instant::now();
-            let cv = cross_validate(
-                RidgeRegression::fit,
+            self.record_model(LassoRegressorWrapper::cv_model(
                 &self.x,
                 &self.y,
-                self.settings.ridge_settings.as_ref().unwrap().clone(),
-                self.get_kfolds(),
-                metric,
-            )
-            .unwrap();
-            let end = Instant::now();
-            let d = end.duration_since(start);
-            self.add_model(Algorithm::Ridge, cv, d);
+                &self.settings,
+            ));
         }
 
         if !self.settings.skiplist.contains(&Algorithm::ElasticNet) {
@@ -646,15 +638,7 @@ impl SupervisedModel {
                 self.final_model = LassoRegressorWrapper::train(&self.x, &self.y, &self.settings);
             }
             Algorithm::Ridge => {
-                self.final_model = bincode::serialize(
-                    &RidgeRegression::fit(
-                        &self.x,
-                        &self.y,
-                        self.settings.ridge_settings.as_ref().unwrap().clone(),
-                    )
-                    .unwrap(),
-                )
-                .unwrap()
+                self.final_model = RidgeRegressorWrapper::train(&self.x, &self.y, &self.settings);
             }
             Algorithm::ElasticNet => {
                 self.final_model = bincode::serialize(
@@ -921,9 +905,7 @@ impl SupervisedModel {
                 LassoRegressorWrapper::predict(x, &self.final_model, &self.settings)
             }
             Algorithm::Ridge => {
-                let model: RidgeRegression<f32, DenseMatrix<f32>> =
-                    bincode::deserialize(&*self.final_model).unwrap();
-                model.predict(x).unwrap()
+                RidgeRegressorWrapper::predict(x, &self.final_model, &self.settings)
             }
             Algorithm::ElasticNet => {
                 let model: ElasticNet<f32, DenseMatrix<f32>> =
