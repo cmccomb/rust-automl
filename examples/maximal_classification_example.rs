@@ -54,5 +54,6 @@ fn main() {
     model.compare_models();
 
     // Print the results
+    #[cfg(feature = "display")]
     println!("{}", model);
 }

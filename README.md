@@ -24,9 +24,8 @@ let dataset = smartcore::dataset::breast_cancer::load_dataset();
 let settings = automl::Settings::default_classification();
 let mut classifier = automl::SupervisedModel::new_from_dataset(dataset, settings);
 classifier.compare_models();
-println!("{}", classifier);
 ```
-will output this comparison of models using cross-validation:
+will perform a comparison of classifier models using cross-validation. Printing the classifier object will yield:
 ```text
 ┌────────────────────────────────┬─────────────────────┬───────────────────┬──────────────────┐
 │ Model                          │ Time                │ Training Accuracy │ Testing Accuracy │
@@ -49,6 +48,16 @@ will output this comparison of models using cross-validation:
 You can then train a final model using `classifier.train_final_model()` and perform inference using that model with the `predict` method.
 
 ## Features
+This crate has several features that add some additional methods
+
+| Feature   | Description                                                                                               |
+|:----------|:----------------------------------------------------------------------------------------------------------|
+| `display` | Enabled by default, this uses [`comfy_table`](https://crates.io/crates/comfy-table) to format tables.     |
+| `nd`      | Adds methods for predicting/reading data using [`ndarray`](https://crates.io/crates/ndarray).             |
+| `csv`     | Adds methods to read data from a .csv using [`polars`](https://crates.io/crates/polars).                  |
+| `gui`     | Adds a method for running a live demo GUI of a model through [`eframe`](https://crates.io/crates/eframe)  |
+
+## Capabilities
 Currently this crate only has AutoML features for regression and classification. This includes the following models:
 - Feature Engineering
   - PCA
