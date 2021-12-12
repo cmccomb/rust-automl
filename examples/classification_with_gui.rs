@@ -8,7 +8,7 @@ fn main() {
         );
 
         // Run a model comparison and train a final model
-        model.auto();
+        model.train();
 
         // Run a graphical demo of the model
         model.run_gui();

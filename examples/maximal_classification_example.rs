@@ -51,7 +51,7 @@ fn main() {
     );
 
     // Run a model comparison with all models at default settings
-    model.compare_models();
+    model.train();
 
     // Print the results
     #[cfg(feature = "display")]

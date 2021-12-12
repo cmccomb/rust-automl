@@ -51,6 +51,7 @@ use comfy_table::{
     modifiers::UTF8_SOLID_INNER_BORDERS, presets::UTF8_FULL, Attribute, Cell, Table,
 };
 
+use crate::settings::FinalModel;
 #[cfg(any(feature = "display"))]
 use humantime::format_duration;
 
@@ -70,56 +71,6 @@ pub struct SupervisedModel {
 }
 
 impl SupervisedModel {
-    /// Create a new supervised model from a csv
-    /// ```
-    /// # use automl::{SupervisedModel, Settings};
-    /// let model = SupervisedModel::new_from_csv(
-    ///     "data/diabetes.csv",
-    ///     10,
-    ///     true,
-    ///     Settings::default_regression()
-    /// );
-    /// ```
-    #[cfg_attr(docsrs, doc(cfg(feature = "csv")))]
-    #[cfg(any(feature = "csv"))]
-    pub fn new_from_csv(
-        filepath: &str,
-        target_index: usize,
-        header: bool,
-        settings: Settings,
-    ) -> Self {
-        let df = CsvReader::from_path(filepath)
-            .unwrap()
-            .infer_schema(None)
-            .has_header(header)
-            .finish()
-            .unwrap();
-
-        // Get target variables
-        let target_column_name = df.get_column_names()[target_index];
-        let series = df.column(target_column_name).unwrap().clone();
-        let target_df = DataFrame::new(vec![series]).unwrap();
-        let ndarray = target_df.to_ndarray::<Float32Type>().unwrap();
-        let y = ndarray.into_raw_vec();
-
-        // Get the rest of the data
-        let features = df.drop(target_column_name).unwrap();
-        let (height, width) = features.shape();
-        let ndarray = features.to_ndarray::<Float32Type>().unwrap();
-        let x = DenseMatrix::from_array(height, width, ndarray.as_slice().unwrap());
-
-        Self {
-            settings,
-            x: x.clone(),
-            y: y.clone(),
-            number_of_classes: Self::count_classes(&y),
-            comparison: vec![],
-            #[cfg(any(feature = "gui"))]
-            current_x: vec![0.0; x.shape().1],
-            preprocessing: (None, None),
-        }
-    }
-
     /// Create a new supervised model from a [smartcore toy dataset](https://docs.rs/smartcore/0.2.0/smartcore/dataset/index.html)
     /// ```
     /// # use automl::{SupervisedModel, Settings};
@@ -198,6 +149,56 @@ impl SupervisedModel {
         }
     }
 
+    /// Create a new supervised model from a csv
+    /// ```
+    /// # use automl::{SupervisedModel, Settings};
+    /// let model = SupervisedModel::new_from_csv(
+    ///     "data/diabetes.csv",
+    ///     10,
+    ///     true,
+    ///     Settings::default_regression()
+    /// );
+    /// ```
+    #[cfg_attr(docsrs, doc(cfg(feature = "csv")))]
+    #[cfg(any(feature = "csv"))]
+    pub fn new_from_csv(
+        filepath: &str,
+        target_index: usize,
+        header: bool,
+        settings: Settings,
+    ) -> Self {
+        let df = CsvReader::from_path(filepath)
+            .unwrap()
+            .infer_schema(None)
+            .has_header(header)
+            .finish()
+            .unwrap();
+
+        // Get target variables
+        let target_column_name = df.get_column_names()[target_index];
+        let series = df.column(target_column_name).unwrap().clone();
+        let target_df = DataFrame::new(vec![series]).unwrap();
+        let ndarray = target_df.to_ndarray::<Float32Type>().unwrap();
+        let y = ndarray.into_raw_vec();
+
+        // Get the rest of the data
+        let features = df.drop(target_column_name).unwrap();
+        let (height, width) = features.shape();
+        let ndarray = features.to_ndarray::<Float32Type>().unwrap();
+        let x = DenseMatrix::from_array(height, width, ndarray.as_slice().unwrap());
+
+        Self {
+            settings,
+            x: x.clone(),
+            y: y.clone(),
+            number_of_classes: Self::count_classes(&y),
+            comparison: vec![],
+            #[cfg(any(feature = "gui"))]
+            current_x: vec![0.0; x.shape().1],
+            preprocessing: (None, None),
+        }
+    }
+
     /// Runs a model comparison and trains a final model.
     /// ```no_run
     /// # use automl::{SupervisedModel, Settings};
@@ -205,22 +206,9 @@ impl SupervisedModel {
     ///     smartcore::dataset::diabetes::load_dataset(),
     ///     Settings::default_regression()
     /// );
-    /// model.auto();
+    /// model.train();
     /// ```
-    pub fn auto(&mut self) {
-        self.compare_models();
-    }
-
-    /// This function compares all of the  models available in the package.
-    /// ```no_run
-    /// # use automl::{SupervisedModel, Settings};
-    /// let mut model = SupervisedModel::new_from_dataset(
-    ///     smartcore::dataset::diabetes::load_dataset(),
-    ///     Settings::default_regression()
-    /// );
-    /// model.compare_models();
-    /// ```
-    pub fn compare_models(&mut self) {
+    pub fn train(&mut self) {
         // Preprocess the data
         self.x = self.preprocess(self.x.clone());
 
@@ -383,7 +371,7 @@ impl SupervisedModel {
     ///     smartcore::dataset::diabetes::load_dataset(),
     ///     Settings::default_regression()
     /// );
-    /// model.auto();
+    /// model.train();
     /// model.predict_from_vec(vec![vec![5.0; 10]; 5]);
     /// ```
     pub fn predict_from_vec(&mut self, x: Vec<Vec<f32>>) -> Vec<f32> {
@@ -398,7 +386,7 @@ impl SupervisedModel {
     ///     smartcore::dataset::diabetes::load_dataset(),
     ///     Settings::default_regression()
     /// );
-    /// model.auto();
+    /// model.train();
     /// model.predict_from_ndarray(
     ///     arr2(&[
     ///         [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0],
@@ -423,7 +411,7 @@ impl SupervisedModel {
     ///     smartcore::dataset::diabetes::load_dataset(),
     ///     Settings::default_regression()
     /// );
-    /// model.auto();
+    /// model.train();
     /// model.run_gui();
     /// ```
     /// ![Example of interactive gui demo](https://raw.githubusercontent.com/cmccomb/rust-automl/master/assets/gui.png)
@@ -437,14 +425,34 @@ impl SupervisedModel {
 
 /// Private functions go here
 impl SupervisedModel {
-    fn create_blended_model(&mut self) {}
+    fn train_blended_model(&mut self) {
+        // Make the data
+        let mut meta_x: Vec<Vec<f32>> = Vec::new();
+        for model in &self.comparison {
+            meta_x.push(self.predict_by_model(&self.x, model))
+        }
 
-    fn predict(&mut self, x: &DenseMatrix<f32>) -> Vec<f32> {
-        self.x = self.preprocess(self.x.clone());
+        // Train the model
+        let model = LinearRegressorWrapper::train(
+            &DenseMatrix::from_2d_vec(&meta_x),
+            &self.y,
+            &self.settings,
+        );
 
-        let saved_model = &self.comparison[0].model;
+        self.record_model((
+            CrossValidationResult {
+                test_score: vec![],
+                train_score: vec![],
+            },
+            Algorithm::Linear,
+            Default::default(),
+            model,
+        ))
+    }
 
-        match self.comparison[0].name {
+    fn predict_by_model(&self, x: &DenseMatrix<f32>, model: &Model) -> Vec<f32> {
+        let saved_model = &model.model;
+        match model.name {
             Algorithm::Linear => LinearRegressorWrapper::predict(x, saved_model, &self.settings),
             Algorithm::Lasso => LassoRegressorWrapper::predict(x, saved_model, &self.settings),
             Algorithm::Ridge => RidgeRegressorWrapper::predict(x, saved_model, &self.settings),
@@ -483,6 +491,11 @@ impl SupervisedModel {
                 CategoricalNaiveBayesClassifierWrapper::predict(x, saved_model, &self.settings)
             }
         }
+    }
+
+    fn predict(&mut self, x: &DenseMatrix<f32>) -> Vec<f32> {
+        self.x = self.preprocess(self.x.clone());
+        self.predict_by_model(x, &self.comparison[0])
     }
 
     fn interaction_features(mut x: DenseMatrix<f32>) -> DenseMatrix<f32> {

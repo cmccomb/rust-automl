@@ -68,7 +68,7 @@ fn main() {
         SupervisedModel::new_from_dataset(smartcore::dataset::diabetes::load_dataset(), settings);
 
     // Run a model comparison with all models at default settings
-    model.compare_models();
+    model.train();
 
     // Print the results
     #[cfg(feature = "display")]

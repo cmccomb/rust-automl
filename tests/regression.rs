@@ -17,7 +17,7 @@ mod regression_tests {
         let mut regressor = SupervisedModel::new_from_dataset(dataset, settings);
 
         // Compare models
-        regressor.auto();
+        regressor.train();
 
         // Do inference with final model
         let x = vec![vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]; 1];
@@ -38,7 +38,7 @@ mod regression_tests {
 
         let mut regressor = SupervisedModel::new_from_csv(file_name, 10, true, settings);
 
-        regressor.auto();
+        regressor.train();
 
         // Do inference with final model
         let x = vec![vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]; 1];
