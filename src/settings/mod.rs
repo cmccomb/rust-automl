@@ -175,9 +175,20 @@ pub use knn_classifier_parameters::KNNClassifierParameters;
 mod svc_parameters;
 pub use svc_parameters::SVCParameters;
 
+use smartcore::linalg::naive::dense_matrix::DenseMatrix;
 use std::fmt::{Display, Formatter};
 
+use super::algorithms::{
+    CategoricalNaiveBayesClassifierWrapper, DecisionTreeClassifierWrapper,
+    DecisionTreeRegressorWrapper, ElasticNetRegressorWrapper, GaussianNaiveBayesClassifierWrapper,
+    KNNClassifierWrapper, KNNRegressorWrapper, LassoRegressorWrapper, LinearRegressorWrapper,
+    LogisticRegressionWrapper, ModelWrapper, RandomForestClassifierWrapper,
+    RandomForestRegressorWrapper, RidgeRegressorWrapper, SupportVectorClassifierWrapper,
+    SupportVectorRegressorWrapper,
+};
+
 mod settings_struct;
+use crate::Algorithm::DecisionTreeRegressor;
 #[doc(no_inline)]
 pub use settings_struct::Settings;
 
@@ -242,6 +253,12 @@ pub enum Algorithm {
     GaussianNaiveBayes,
     /// Categorical Naive Bayes classifier
     CategoricalNaiveBayes,
+}
+
+impl Algorithm {
+    fn get_wrapper(&self) -> Box<dyn Fn(&DenseMatrix<f32>, &Vec<u8>, &Settings) -> Vec<f32>> {
+        Box::new(DecisionTreeRegressorWrapper::predict)
+    }
 }
 
 impl Display for Algorithm {
@@ -314,4 +331,13 @@ impl Display for PreProcessing {
             ),
         }
     }
+}
+
+/// Final model approach
+pub enum FinalModel {
+    /// Do not train a final model
+    None,
+    ///
+    Best,
+    Blend,
 }

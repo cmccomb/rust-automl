@@ -5,7 +5,7 @@ use comfy_table::{
 
 use super::{
     Algorithm, CategoricalNBParameters, DecisionTreeClassifierParameters,
-    DecisionTreeRegressorParameters, ElasticNetParameters, GaussianNBParameters,
+    DecisionTreeRegressorParameters, ElasticNetParameters, FinalModel, GaussianNBParameters,
     KNNClassifierParameters, KNNRegressorParameters, LassoParameters, LinearRegressionParameters,
     LinearRegressionSolverName, LogisticRegressionParameters, Metric, PreProcessing,
     RandomForestClassifierParameters, RandomForestRegressorParameters, RidgeRegressionParameters,
@@ -32,6 +32,7 @@ pub struct Settings {
     number_of_folds: usize,
     shuffle: bool,
     verbose: bool,
+    pub(crate) final_model_approach: FinalModel,
     pub(crate) preprocessing: PreProcessing,
     pub(crate) linear_settings: Option<LinearRegressionParameters>,
     pub(crate) svr_settings: Option<SVRParameters>,
@@ -55,6 +56,7 @@ impl Default for Settings {
         Settings {
             sort_by: Metric::RSquared,
             model_type: ModelType::None,
+            final_model_approach: FinalModel::Best,
             skiplist: vec![
                 Algorithm::LogisticRegression,
                 Algorithm::RandomForestClassifier,
@@ -121,6 +123,7 @@ impl Settings {
         Settings {
             sort_by: Metric::RSquared,
             model_type: ModelType::Regression,
+            final_model_approach: FinalModel::Best,
             skiplist: vec![
                 Algorithm::LogisticRegression,
                 Algorithm::RandomForestClassifier,
@@ -161,6 +164,7 @@ impl Settings {
         Settings {
             sort_by: Metric::Accuracy,
             model_type: ModelType::Classification,
+            final_model_approach: FinalModel::Best,
             skiplist: vec![
                 Algorithm::Linear,
                 Algorithm::Lasso,

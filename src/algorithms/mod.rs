@@ -33,17 +33,27 @@ use crate::{Algorithm, Settings};
 use smartcore::linalg::naive::dense_matrix::DenseMatrix;
 use smartcore::model_selection::CrossValidationResult;
 
+use crate::settings::FinalModel;
 use std::time::{Duration, Instant};
+
 pub trait ModelWrapper {
     fn cv_model(
         x: &DenseMatrix<f32>,
         y: &Vec<f32>,
         settings: &Settings,
-    ) -> (CrossValidationResult<f32>, Algorithm, Duration) {
+    ) -> (CrossValidationResult<f32>, Algorithm, Duration, Vec<u8>) {
         let start = Instant::now();
         let results = Self::cv(x, y, settings);
         let end = Instant::now();
-        (results.0, results.1, end.duration_since(start))
+        (
+            results.0,
+            results.1,
+            end.duration_since(start),
+            match settings.final_model_approach {
+                FinalModel::None => vec![],
+                _ => Self::train(x, y, settings),
+            },
+        )
     }
 
     // Perform cross-validation

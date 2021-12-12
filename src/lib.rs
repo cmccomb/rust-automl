@@ -61,7 +61,6 @@ pub struct SupervisedModel {
     y: Vec<f32>,
     number_of_classes: usize,
     comparison: Vec<Model>,
-    final_model: Vec<u8>,
     #[cfg(any(feature = "gui"))]
     current_x: Vec<f32>,
     preprocessing: (
@@ -115,7 +114,6 @@ impl SupervisedModel {
             y: y.clone(),
             number_of_classes: Self::count_classes(&y),
             comparison: vec![],
-            final_model: vec![],
             #[cfg(any(feature = "gui"))]
             current_x: vec![0.0; x.shape().1],
             preprocessing: (None, None),
@@ -141,7 +139,6 @@ impl SupervisedModel {
             y: y.clone(),
             number_of_classes: Self::count_classes(&y),
             comparison: vec![],
-            final_model: vec![],
             #[cfg(any(feature = "gui"))]
             current_x: vec![0.0; x.shape().1],
             preprocessing: (None, None),
@@ -167,7 +164,6 @@ impl SupervisedModel {
             y: y.clone(),
             number_of_classes: Self::count_classes(&y),
             comparison: vec![],
-            final_model: vec![],
             #[cfg(any(feature = "gui"))]
             current_x: vec![0.0; x.shape().1],
             preprocessing: (None, None),
@@ -196,7 +192,6 @@ impl SupervisedModel {
             y: y.clone(),
             number_of_classes: Self::count_classes(&y),
             comparison: vec![],
-            final_model: vec![],
             #[cfg(any(feature = "gui"))]
             current_x: vec![0.0; x.shape().1],
             preprocessing: (None, None),
@@ -214,7 +209,6 @@ impl SupervisedModel {
     /// ```
     pub fn auto(&mut self) {
         self.compare_models();
-        self.train_final_model();
     }
 
     /// This function compares all of the  models available in the package.
@@ -382,82 +376,6 @@ impl SupervisedModel {
         }
     }
 
-    /// Trains the best model found during comparison. It will panic if `compare_models` is not called first.
-    /// ```no_run
-    /// # use automl::{SupervisedModel, Settings};
-    /// let mut model = SupervisedModel::new_from_dataset(
-    ///     smartcore::dataset::diabetes::load_dataset(),
-    ///     Settings::default_regression()
-    /// );
-    /// model.compare_models();
-    /// model.train_final_model();
-    /// ```
-    pub fn train_final_model(&mut self) {
-        if self.comparison.len() == 0 {
-            panic!("Please run the `compare_models` method first before trying to train a final model.");
-        }
-        match self.comparison[0].name {
-            Algorithm::LogisticRegression => {
-                self.final_model =
-                    LogisticRegressionWrapper::train(&self.x, &self.y, &self.settings);
-            }
-            Algorithm::KNNClassifier => {
-                self.final_model = KNNClassifierWrapper::train(&self.x, &self.y, &self.settings);
-            }
-            Algorithm::RandomForestClassifier => {
-                self.final_model =
-                    RandomForestClassifierWrapper::train(&self.x, &self.y, &self.settings);
-            }
-            Algorithm::DecisionTreeClassifier => {
-                self.final_model =
-                    DecisionTreeClassifierWrapper::train(&self.x, &self.y, &self.settings);
-            }
-            Algorithm::SVC => {
-                self.final_model =
-                    SupportVectorClassifierWrapper::train(&self.x, &self.y, &self.settings);
-            }
-
-            Algorithm::GaussianNaiveBayes => {
-                self.final_model =
-                    GaussianNaiveBayesClassifierWrapper::train(&self.x, &self.y, &self.settings);
-            }
-
-            Algorithm::CategoricalNaiveBayes => {
-                self.final_model =
-                    CategoricalNaiveBayesClassifierWrapper::train(&self.x, &self.y, &self.settings);
-            }
-
-            Algorithm::Linear => {
-                self.final_model = LinearRegressorWrapper::train(&self.x, &self.y, &self.settings);
-            }
-            Algorithm::Lasso => {
-                self.final_model = LassoRegressorWrapper::train(&self.x, &self.y, &self.settings);
-            }
-            Algorithm::Ridge => {
-                self.final_model = RidgeRegressorWrapper::train(&self.x, &self.y, &self.settings);
-            }
-            Algorithm::ElasticNet => {
-                self.final_model =
-                    ElasticNetRegressorWrapper::train(&self.x, &self.y, &self.settings);
-            }
-            Algorithm::RandomForestRegressor => {
-                self.final_model =
-                    RandomForestRegressorWrapper::train(&self.x, &self.y, &self.settings)
-            }
-            Algorithm::KNNRegressor => {
-                self.final_model = KNNRegressorWrapper::train(&self.x, &self.y, &self.settings)
-            }
-            Algorithm::SVR => {
-                self.final_model =
-                    SupportVectorRegressorWrapper::train(&self.x, &self.y, &self.settings)
-            }
-            Algorithm::DecisionTreeRegressor => {
-                self.final_model =
-                    DecisionTreeRegressorWrapper::train(&self.x, &self.y, &self.settings)
-            }
-        }
-    }
-
     /// Predict values using the final model based on a vec.
     /// ```no_run
     /// # use automl::{SupervisedModel, Settings};
@@ -465,11 +383,9 @@ impl SupervisedModel {
     ///     smartcore::dataset::diabetes::load_dataset(),
     ///     Settings::default_regression()
     /// );
-    /// model.compare_models();
-    /// model.train_final_model();
+    /// model.auto();
     /// model.predict_from_vec(vec![vec![5.0; 10]; 5]);
     /// ```
-    /// Note that the calls to `compare_models` and `train_final_model` can be replaced with a single call to `auto`.
     pub fn predict_from_vec(&mut self, x: Vec<Vec<f32>>) -> Vec<f32> {
         self.predict(&DenseMatrix::from_2d_vec(&x))
     }
@@ -482,8 +398,7 @@ impl SupervisedModel {
     ///     smartcore::dataset::diabetes::load_dataset(),
     ///     Settings::default_regression()
     /// );
-    /// model.compare_models();
-    /// model.train_final_model();
+    /// model.auto();
     /// model.predict_from_ndarray(
     ///     arr2(&[
     ///         [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0],
@@ -491,7 +406,6 @@ impl SupervisedModel {
     ///     ])
     /// );
     /// ```
-    /// Note that the calls to `compare_models` and `train_final_model` can be replaced with a single call to `auto`.
     #[cfg_attr(docsrs, doc(cfg(feature = "nd")))]
     #[cfg(any(feature = "nd"))]
     pub fn predict_from_ndarray(&mut self, x: Array2<f32>) -> Vec<f32> {
@@ -516,9 +430,6 @@ impl SupervisedModel {
     #[cfg_attr(docsrs, doc(cfg(feature = "gui")))]
     #[cfg(any(feature = "gui"))]
     pub fn run_gui(self) {
-        if self.final_model.len() == 0 {
-            panic!()
-        }
         let native_options = eframe::NativeOptions::default();
         eframe::run_native(Box::new(self), native_options);
     }
@@ -526,59 +437,51 @@ impl SupervisedModel {
 
 /// Private functions go here
 impl SupervisedModel {
+    fn create_blended_model(&mut self) {}
+
     fn predict(&mut self, x: &DenseMatrix<f32>) -> Vec<f32> {
-        if self.final_model.len() == 0 {
-            panic!("Please run the `train_final_model` method first before attempting inference with `predict`.")
-        }
         self.x = self.preprocess(self.x.clone());
+
+        let saved_model = &self.comparison[0].model;
+
         match self.comparison[0].name {
-            Algorithm::Linear => {
-                LinearRegressorWrapper::predict(x, &self.final_model, &self.settings)
-            }
-            Algorithm::Lasso => {
-                LassoRegressorWrapper::predict(x, &self.final_model, &self.settings)
-            }
-            Algorithm::Ridge => {
-                RidgeRegressorWrapper::predict(x, &self.final_model, &self.settings)
-            }
+            Algorithm::Linear => LinearRegressorWrapper::predict(x, saved_model, &self.settings),
+            Algorithm::Lasso => LassoRegressorWrapper::predict(x, saved_model, &self.settings),
+            Algorithm::Ridge => RidgeRegressorWrapper::predict(x, saved_model, &self.settings),
             Algorithm::ElasticNet => {
-                ElasticNetRegressorWrapper::predict(x, &self.final_model, &self.settings)
+                ElasticNetRegressorWrapper::predict(x, saved_model, &self.settings)
             }
             Algorithm::RandomForestRegressor => {
-                RandomForestRegressorWrapper::predict(x, &self.final_model, &self.settings)
+                RandomForestRegressorWrapper::predict(x, saved_model, &self.settings)
             }
-            Algorithm::KNNRegressor => {
-                KNNRegressorWrapper::predict(x, &self.final_model, &self.settings)
-            }
+            Algorithm::KNNRegressor => KNNRegressorWrapper::predict(x, saved_model, &self.settings),
             Algorithm::SVR => {
-                SupportVectorRegressorWrapper::predict(&self.x, &self.final_model, &self.settings)
+                SupportVectorRegressorWrapper::predict(&self.x, saved_model, &self.settings)
             }
             Algorithm::DecisionTreeRegressor => {
-                DecisionTreeRegressorWrapper::predict(x, &self.final_model, &self.settings)
+                DecisionTreeRegressorWrapper::predict(x, saved_model, &self.settings)
             }
             Algorithm::LogisticRegression => {
-                LogisticRegressionWrapper::predict(x, &self.final_model, &self.settings)
+                LogisticRegressionWrapper::predict(x, saved_model, &self.settings)
             }
             Algorithm::RandomForestClassifier => {
-                RandomForestClassifierWrapper::predict(x, &self.final_model, &self.settings)
+                RandomForestClassifierWrapper::predict(x, saved_model, &self.settings)
             }
             Algorithm::DecisionTreeClassifier => {
-                DecisionTreeClassifierWrapper::predict(x, &self.final_model, &self.settings)
+                DecisionTreeClassifierWrapper::predict(x, saved_model, &self.settings)
             }
             Algorithm::KNNClassifier => {
-                KNNClassifierWrapper::predict(x, &self.final_model, &self.settings)
+                KNNClassifierWrapper::predict(x, saved_model, &self.settings)
             }
             Algorithm::SVC => {
-                SupportVectorClassifierWrapper::predict(x, &self.final_model, &self.settings)
+                SupportVectorClassifierWrapper::predict(x, saved_model, &self.settings)
             }
             Algorithm::GaussianNaiveBayes => {
-                GaussianNaiveBayesClassifierWrapper::predict(x, &self.final_model, &self.settings)
+                GaussianNaiveBayesClassifierWrapper::predict(x, saved_model, &self.settings)
             }
-            Algorithm::CategoricalNaiveBayes => CategoricalNaiveBayesClassifierWrapper::predict(
-                x,
-                &self.final_model,
-                &self.settings,
-            ),
+            Algorithm::CategoricalNaiveBayes => {
+                CategoricalNaiveBayesClassifierWrapper::predict(x, saved_model, &self.settings)
+            }
         }
     }
 
@@ -665,11 +568,12 @@ impl SupervisedModel {
         sorted_targets.len()
     }
 
-    fn record_model(&mut self, model: (CrossValidationResult<f32>, Algorithm, Duration)) {
+    fn record_model(&mut self, model: (CrossValidationResult<f32>, Algorithm, Duration, Vec<u8>)) {
         self.comparison.push(Model {
             score: model.0,
             name: model.1,
             duration: model.2,
+            model: model.3,
         });
         self.sort();
     }
@@ -773,4 +677,5 @@ struct Model {
     score: CrossValidationResult<f32>,
     name: Algorithm,
     duration: Duration,
+    model: Vec<u8>,
 }

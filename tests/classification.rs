@@ -11,9 +11,6 @@ mod classification_tests {
         let mut regressor = SupervisedModel::new_from_dataset(dataset, settings);
 
         // Compare models
-        regressor.compare_models();
-
-        // Train final model
-        regressor.train_final_model();
+        regressor.auto();
     }
 }
