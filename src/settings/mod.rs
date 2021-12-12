@@ -163,101 +163,23 @@ pub use smartcore::linear::logistic_regression::LogisticRegressionParameters;
 /// Parameters for decision tree classification (re-export from [Smartcore](https://docs.rs/smartcore/))
 pub use smartcore::tree::decision_tree_classifier::DecisionTreeClassifierParameters;
 
+mod knn_regressor_parameters;
+pub use knn_regressor_parameters::KNNRegressorParameters;
+
+mod svr_parameters;
+pub use svr_parameters::SVRParameters;
+
+mod knn_classifier_parameters;
+pub use knn_classifier_parameters::KNNClassifierParameters;
+
+mod svc_parameters;
+pub use svc_parameters::SVCParameters;
+
 use std::fmt::{Display, Formatter};
 
 mod settings_struct;
 #[doc(no_inline)]
 pub use settings_struct::Settings;
-
-/// Parameters for k-nearest neighbor (KNN) regression
-pub struct KNNRegressorParameters {
-    pub(crate) k: usize,
-    pub(crate) weight: KNNWeightFunction,
-    pub(crate) algorithm: KNNAlgorithmName,
-    pub(crate) distance: Distance,
-}
-
-impl KNNRegressorParameters {
-    /// Define the number of nearest neighbors to use
-    pub fn with_k(mut self, k: usize) -> Self {
-        self.k = k;
-        self
-    }
-
-    /// Define the weighting function to use with KNN regression
-    pub fn with_weight(mut self, weight: KNNWeightFunction) -> Self {
-        self.weight = weight;
-        self
-    }
-
-    /// Define the search algorithm to use with KNN regression
-    pub fn with_algorithm(mut self, algorithm: KNNAlgorithmName) -> Self {
-        self.algorithm = algorithm;
-        self
-    }
-
-    /// Define the distance metric to use with KNN regression
-    pub fn with_distance(mut self, distance: Distance) -> Self {
-        self.distance = distance;
-        self
-    }
-}
-
-impl Default for KNNRegressorParameters {
-    fn default() -> Self {
-        Self {
-            k: 3,
-            weight: KNNWeightFunction::Uniform,
-            algorithm: KNNAlgorithmName::CoverTree,
-            distance: Distance::Euclidean,
-        }
-    }
-}
-
-/// Parameters for support vector regression
-pub struct SVRParameters {
-    pub(crate) eps: f32,
-    pub(crate) c: f32,
-    pub(crate) tol: f32,
-    pub(crate) kernel: Kernel,
-}
-
-impl SVRParameters {
-    /// Define the value of epsilon to use in the epsilon-SVR model.
-    pub fn with_eps(mut self, eps: f32) -> Self {
-        self.eps = eps;
-        self
-    }
-
-    /// Define the regulation penalty to use with the SVR Model
-    pub fn with_c(mut self, c: f32) -> Self {
-        self.c = c;
-        self
-    }
-
-    /// Define the convergence tolerance to use with the SVR model
-    pub fn with_tol(mut self, tol: f32) -> Self {
-        self.tol = tol;
-        self
-    }
-
-    /// Define which kernel to use with the SVR model
-    pub fn with_kernel(mut self, kernel: Kernel) -> Self {
-        self.kernel = kernel;
-        self
-    }
-}
-
-impl Default for SVRParameters {
-    fn default() -> Self {
-        Self {
-            eps: 0.1,
-            c: 1.0,
-            tol: 1e-3,
-            kernel: Kernel::Linear,
-        }
-    }
-}
 
 /// Metrics for evaluating algorithms
 #[non_exhaustive]
@@ -340,96 +262,6 @@ impl Display for Algorithm {
             Algorithm::SVC => write!(f, "Support Vector Classifier"),
             Algorithm::GaussianNaiveBayes => write!(f, "Gaussian Naive Bayes"),
             Algorithm::CategoricalNaiveBayes => write!(f, "Categorical Naive Bayes"),
-        }
-    }
-}
-
-/// Parameters for support vector classification
-pub struct SVCParameters {
-    pub(crate) epoch: usize,
-    pub(crate) c: f32,
-    pub(crate) tol: f32,
-    pub(crate) kernel: Kernel,
-}
-
-impl SVCParameters {
-    /// Define the value of epsilon to use in the epsilon-SVR model.
-    pub fn with_epoch(mut self, epoch: usize) -> Self {
-        self.epoch = epoch;
-        self
-    }
-
-    /// Define the regulation penalty to use with the SVR Model
-    pub fn with_c(mut self, c: f32) -> Self {
-        self.c = c;
-        self
-    }
-
-    /// Define the convergence tolerance to use with the SVR model
-    pub fn with_tol(mut self, tol: f32) -> Self {
-        self.tol = tol;
-        self
-    }
-
-    /// Define which kernel to use with the SVR model
-    pub fn with_kernel(mut self, kernel: Kernel) -> Self {
-        self.kernel = kernel;
-        self
-    }
-}
-
-impl Default for SVCParameters {
-    fn default() -> Self {
-        Self {
-            epoch: 2,
-            c: 1.0,
-            tol: 1e-3,
-            kernel: Kernel::Linear,
-        }
-    }
-}
-
-/// Parameters for k-nearest neighbors (KNN) classification
-pub struct KNNClassifierParameters {
-    pub(crate) k: usize,
-    pub(crate) weight: KNNWeightFunction,
-    pub(crate) algorithm: KNNAlgorithmName,
-    pub(crate) distance: Distance,
-}
-
-impl KNNClassifierParameters {
-    /// Define the number of nearest neighbors to use
-    pub fn with_k(mut self, k: usize) -> Self {
-        self.k = k;
-        self
-    }
-
-    /// Define the weighting function to use with KNN regression
-    pub fn with_weight(mut self, weight: KNNWeightFunction) -> Self {
-        self.weight = weight;
-        self
-    }
-
-    /// Define the search algorithm to use with KNN regression
-    pub fn with_algorithm(mut self, algorithm: KNNAlgorithmName) -> Self {
-        self.algorithm = algorithm;
-        self
-    }
-
-    /// Define the distance metric to use with KNN regression
-    pub fn with_distance(mut self, distance: Distance) -> Self {
-        self.distance = distance;
-        self
-    }
-}
-
-impl Default for KNNClassifierParameters {
-    fn default() -> Self {
-        Self {
-            k: 3,
-            weight: KNNWeightFunction::Uniform,
-            algorithm: KNNAlgorithmName::CoverTree,
-            distance: Distance::Euclidean,
         }
     }
 }
