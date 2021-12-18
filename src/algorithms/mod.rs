@@ -1,31 +1,45 @@
 mod linear_regressor;
 pub(crate) use linear_regressor::LinearRegressorWrapper;
+
 mod elastic_net_regressor;
 pub(crate) use elastic_net_regressor::ElasticNetRegressorWrapper;
+
 mod lasso_regressor;
 pub(crate) use lasso_regressor::LassoRegressorWrapper;
+
 mod knn_regressor;
 pub(crate) use knn_regressor::KNNRegressorWrapper;
+
 mod ridge_regressor;
 pub(crate) use ridge_regressor::RidgeRegressorWrapper;
+
 mod logistic_regression;
 pub(crate) use logistic_regression::LogisticRegressionWrapper;
+
 mod random_forest_classifier;
 pub(crate) use random_forest_classifier::RandomForestClassifierWrapper;
+
 mod random_forest_regressor;
 pub(crate) use random_forest_regressor::RandomForestRegressorWrapper;
+
 mod knn_classifier;
 pub(crate) use knn_classifier::KNNClassifierWrapper;
+
 mod decision_tree_classifier;
 pub(crate) use decision_tree_classifier::DecisionTreeClassifierWrapper;
+
 mod decision_tree_regressor;
 pub(crate) use decision_tree_regressor::DecisionTreeRegressorWrapper;
+
 mod gaussian_naive_bayes_classifier;
 pub(crate) use gaussian_naive_bayes_classifier::GaussianNaiveBayesClassifierWrapper;
+
 mod categorical_naive_bayes_classifier;
 pub(crate) use categorical_naive_bayes_classifier::CategoricalNaiveBayesClassifierWrapper;
+
 mod support_vector_classifier;
 pub(crate) use support_vector_classifier::SupportVectorClassifierWrapper;
+
 mod support_vector_regressor;
 pub(crate) use support_vector_regressor::SupportVectorRegressorWrapper;
 

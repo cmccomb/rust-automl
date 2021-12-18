@@ -54,6 +54,7 @@ use comfy_table::{
 use crate::settings::FinalModel;
 #[cfg(any(feature = "display"))]
 use humantime::format_duration;
+use smartcore::model_selection::train_test_split;
 
 /// Trains and compares supervised models
 pub struct SupervisedModel {
@@ -211,6 +212,12 @@ impl SupervisedModel {
     pub fn train(&mut self) {
         // Preprocess the data
         self.x = self.preprocess(self.x.clone());
+        let (train_x, test_x, train_y, test_y) = train_test_split(
+            &self.x,
+            &self.y,
+            self.settings.validation_fraction,
+            self.settings.shuffle,
+        );
 
         // Run logistic regression
         if !self
@@ -362,6 +369,11 @@ impl SupervisedModel {
                 &self.settings,
             ));
         }
+
+        match self.settings.final_model_approach {
+            FinalModel::Blend => self.train_blended_model(),
+            _ => {}
+        }
     }
 
     /// Predict values using the final model based on a vec.
@@ -431,23 +443,20 @@ impl SupervisedModel {
         for model in &self.comparison {
             meta_x.push(self.predict_by_model(&self.x, model))
         }
+        let xdm = DenseMatrix::from_2d_vec(&meta_x).transpose();
 
         // Train the model
-        let model = LinearRegressorWrapper::train(
-            &DenseMatrix::from_2d_vec(&meta_x),
-            &self.y,
-            &self.settings,
-        );
+        let model = LinearRegressorWrapper::train(&xdm, &self.y, &self.settings);
 
-        self.record_model((
-            CrossValidationResult {
+        self.comparison.push(Model {
+            score: CrossValidationResult {
                 test_score: vec![],
                 train_score: vec![],
             },
-            Algorithm::Linear,
-            Default::default(),
+            name: Algorithm::Linear,
+            duration: Default::default(),
             model,
-        ))
+        });
     }
 
     fn predict_by_model(&self, x: &DenseMatrix<f32>, model: &Model) -> Vec<f32> {
@@ -494,8 +503,27 @@ impl SupervisedModel {
     }
 
     fn predict(&mut self, x: &DenseMatrix<f32>) -> Vec<f32> {
-        self.x = self.preprocess(self.x.clone());
-        self.predict_by_model(x, &self.comparison[0])
+        let x = &self.preprocess(x.clone());
+        match self.settings.final_model_approach {
+            FinalModel::None => panic!(""),
+            FinalModel::Best => self.predict_by_model(x, &self.comparison[0]),
+            FinalModel::Blend => self.predict_blended_model(x),
+        }
+    }
+
+    fn predict_blended_model(&mut self, x: &DenseMatrix<f32>) -> Vec<f32> {
+        // Make the data
+        let mut meta_x: Vec<Vec<f32>> = Vec::new();
+        for i in 0..(self.comparison.len() - 1) {
+            let model = &self.comparison[i];
+            meta_x.push(self.predict_by_model(&x, model))
+        }
+
+        let xdm = DenseMatrix::from_2d_vec(&meta_x).transpose();
+        let final_model = &self.comparison.last().unwrap().model;
+
+        // Train the model
+        LinearRegressorWrapper::predict(&xdm, final_model, &self.settings)
     }
 
     fn interaction_features(mut x: DenseMatrix<f32>) -> DenseMatrix<f32> {

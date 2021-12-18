@@ -13,7 +13,9 @@ mod regression_tests {
             .sorted_by(Metric::MeanAbsoluteError)
             .with_svr_settings(SVRParameters::default().with_eps(2.0).with_c(10.0))
             .skip(Algorithm::ElasticNet)
-            .with_number_of_folds(2);
+            .with_number_of_folds(2)
+            .with_final_model(FinalModel::Blend)
+            .with_validation_fraction(0.3);
         let mut regressor = SupervisedModel::new_from_dataset(dataset, settings);
 
         // Compare models

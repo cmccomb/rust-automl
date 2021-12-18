@@ -256,8 +256,28 @@ pub enum Algorithm {
 }
 
 impl Algorithm {
-    fn get_wrapper(&self) -> Box<dyn Fn(&DenseMatrix<f32>, &Vec<u8>, &Settings) -> Vec<f32>> {
-        Box::new(DecisionTreeRegressorWrapper::predict)
+    pub(crate) fn get_predictor(
+        &self,
+    ) -> Box<dyn Fn(&DenseMatrix<f32>, &Vec<u8>, &Settings) -> Vec<f32>> {
+        match self {
+            Algorithm::Linear => Box::new(LinearRegressorWrapper::predict),
+            Algorithm::Lasso => Box::new(LassoRegressorWrapper::predict),
+            Algorithm::Ridge => Box::new(RidgeRegressorWrapper::predict),
+            Algorithm::ElasticNet => Box::new(ElasticNetRegressorWrapper::predict),
+            Algorithm::RandomForestRegressor => Box::new(RandomForestRegressorWrapper::predict),
+            Algorithm::KNNRegressor => Box::new(KNNRegressorWrapper::predict),
+            Algorithm::SVR => Box::new(SupportVectorRegressorWrapper::predict),
+            Algorithm::DecisionTreeRegressor => Box::new(DecisionTreeRegressorWrapper::predict),
+            Algorithm::LogisticRegression => Box::new(LogisticRegressionWrapper::predict),
+            Algorithm::RandomForestClassifier => Box::new(RandomForestClassifierWrapper::predict),
+            Algorithm::DecisionTreeClassifier => Box::new(DecisionTreeClassifierWrapper::predict),
+            Algorithm::KNNClassifier => Box::new(KNNClassifierWrapper::predict),
+            Algorithm::SVC => Box::new(SupportVectorClassifierWrapper::predict),
+            Algorithm::GaussianNaiveBayes => Box::new(GaussianNaiveBayesClassifierWrapper::predict),
+            Algorithm::CategoricalNaiveBayes => {
+                Box::new(CategoricalNaiveBayesClassifierWrapper::predict)
+            }
+        }
     }
 }
 
