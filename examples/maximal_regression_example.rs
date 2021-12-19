@@ -7,6 +7,7 @@ fn main() {
         .with_number_of_folds(3)
         .shuffle_data(true)
         .verbose(true)
+        .with_final_model(FinalModel::None)
         .skip(Algorithm::RandomForestRegressor)
         .sorted_by(Metric::RSquared)
         .with_preprocessing(PreProcessing::AddPolynomial { order: 3 })

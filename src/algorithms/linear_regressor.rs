@@ -38,7 +38,6 @@ impl super::ModelWrapper for LinearRegressorWrapper {
     fn predict(x: &DenseMatrix<f32>, final_model: &Vec<u8>, _settings: &Settings) -> Vec<f32> {
         let model: LinearRegression<f32, DenseMatrix<f32>> =
             bincode::deserialize(&*final_model).unwrap();
-        println!("deserialized");
         model.predict(x).unwrap()
     }
 }

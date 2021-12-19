@@ -30,7 +30,6 @@ pub struct Settings {
     model_type: ModelType,
     pub(crate) skiplist: Vec<Algorithm>,
     number_of_folds: usize,
-    pub(crate) validation_fraction: f32,
     pub(crate) shuffle: bool,
     verbose: bool,
     pub(crate) final_model_approach: FinalModel,
@@ -58,7 +57,6 @@ impl Default for Settings {
             sort_by: Metric::RSquared,
             model_type: ModelType::None,
             final_model_approach: FinalModel::Best,
-            validation_fraction: 0.3,
             skiplist: vec![
                 Algorithm::LogisticRegression,
                 Algorithm::RandomForestClassifier,
@@ -126,7 +124,6 @@ impl Settings {
             sort_by: Metric::RSquared,
             model_type: ModelType::Regression,
             final_model_approach: FinalModel::Best,
-            validation_fraction: 0.3,
             skiplist: vec![
                 Algorithm::LogisticRegression,
                 Algorithm::RandomForestClassifier,
@@ -168,7 +165,6 @@ impl Settings {
             sort_by: Metric::Accuracy,
             model_type: ModelType::Classification,
             final_model_approach: FinalModel::Best,
-            validation_fraction: 0.3,
             skiplist: vec![
                 Algorithm::Linear,
                 Algorithm::Lasso,
@@ -211,16 +207,6 @@ impl Settings {
         self
     }
 
-    /// Specify what fraction of the dataset to use for final validation
-    /// ```
-    /// # use automl::Settings;
-    /// let settings = Settings::default().with_validation_fraction(0.3);
-    /// ```
-    pub fn with_validation_fraction(mut self, p: f32) -> Self {
-        self.validation_fraction = p;
-        self
-    }
-
     /// Specify whether or not data should be shuffled
     /// ```
     /// # use automl::Settings;
@@ -256,7 +242,7 @@ impl Settings {
     /// ```
     /// # use automl::Settings;
     /// use automl::settings::FinalModel;
-    /// let settings = Settings::default().with_final_model(FinalModel::Blend);
+    /// let settings = Settings::default().with_final_model(FinalModel::Best);
     /// ```
     pub fn with_final_model(mut self, approach: FinalModel) -> Self {
         self.final_model_approach = approach;

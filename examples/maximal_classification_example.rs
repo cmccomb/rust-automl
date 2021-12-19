@@ -7,6 +7,7 @@ fn main() {
         .with_number_of_folds(3)
         .shuffle_data(true)
         .verbose(true)
+        .with_final_model(FinalModel::None)
         .skip(Algorithm::RandomForestClassifier)
         .sorted_by(Metric::Accuracy)
         .with_preprocessing(PreProcessing::ReplaceWithPCA {

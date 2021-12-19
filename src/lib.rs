@@ -28,7 +28,7 @@ use smartcore::{
         svd::{SVDParameters, SVD},
     },
     linalg::{naive::dense_matrix::DenseMatrix, BaseMatrix},
-    model_selection::CrossValidationResult,
+    model_selection::{train_test_split, CrossValidationResult},
 };
 use std::{
     cmp::Ordering::Equal,
@@ -54,13 +54,14 @@ use comfy_table::{
 use crate::settings::FinalModel;
 #[cfg(any(feature = "display"))]
 use humantime::format_duration;
-use smartcore::model_selection::train_test_split;
 
 /// Trains and compares supervised models
 pub struct SupervisedModel {
     settings: Settings,
-    x: DenseMatrix<f32>,
-    y: Vec<f32>,
+    x_train: DenseMatrix<f32>,
+    y_train: Vec<f32>,
+    x_val: DenseMatrix<f32>,
+    y_val: Vec<f32>,
     number_of_classes: usize,
     comparison: Vec<Model>,
     #[cfg(any(feature = "gui"))]
@@ -83,12 +84,13 @@ impl SupervisedModel {
     pub fn new_from_dataset(dataset: Dataset<f32, f32>, settings: Settings) -> Self {
         let x = DenseMatrix::from_array(dataset.num_samples, dataset.num_features, &dataset.data);
         let y = dataset.target;
-        // let current_x = vec![0.0; x.clone().shape().1];
 
         Self {
             settings,
-            x: x.clone(),
-            y: y.clone(),
+            x_train: x.clone(),
+            y_train: y.clone(),
+            x_val: DenseMatrix::new(0, 0, vec![]),
+            y_val: vec![],
             number_of_classes: Self::count_classes(&y),
             comparison: vec![],
             #[cfg(any(feature = "gui"))]
@@ -108,12 +110,13 @@ impl SupervisedModel {
     /// ```
     pub fn new_from_vec(x: Vec<Vec<f32>>, y: Vec<f32>, settings: Settings) -> Self {
         let x = DenseMatrix::from_2d_vec(&x);
-        // let current_x = vec![0.0; x.clone().shape().1];
 
         Self {
             settings,
-            x: x.clone(),
-            y: y.clone(),
+            x_train: x.clone(),
+            y_train: y.clone(),
+            x_val: DenseMatrix::new(0, 0, vec![]),
+            y_val: vec![],
             number_of_classes: Self::count_classes(&y),
             comparison: vec![],
             #[cfg(any(feature = "gui"))]
@@ -140,8 +143,10 @@ impl SupervisedModel {
 
         Self {
             settings,
-            x: x.clone(),
-            y: y.clone(),
+            x_train: x.clone(),
+            y_train: y.clone(),
+            x_val: DenseMatrix::new(0, 0, vec![]),
+            y_val: vec![],
             number_of_classes: Self::count_classes(&y),
             comparison: vec![],
             #[cfg(any(feature = "gui"))]
@@ -190,8 +195,10 @@ impl SupervisedModel {
 
         Self {
             settings,
-            x: x.clone(),
-            y: y.clone(),
+            x_train: x.clone(),
+            y_train: y.clone(),
+            x_val: DenseMatrix::new(0, 0, vec![]),
+            y_val: vec![],
             number_of_classes: Self::count_classes(&y),
             comparison: vec![],
             #[cfg(any(feature = "gui"))]
@@ -211,13 +218,29 @@ impl SupervisedModel {
     /// ```
     pub fn train(&mut self) {
         // Preprocess the data
-        self.x = self.preprocess(self.x.clone());
-        let (train_x, test_x, train_y, test_y) = train_test_split(
-            &self.x,
-            &self.y,
-            self.settings.validation_fraction,
-            self.settings.shuffle,
-        );
+        self.x_train = self.preprocess(self.x_train.clone());
+
+        // Split validatino out if blending
+        match &self.settings.final_model_approach {
+            FinalModel::None => {}
+            FinalModel::Best => {}
+            FinalModel::Blending {
+                meta_training_fraction,
+                meta_testing_fraction,
+                algorithm,
+            } => {
+                let (x_train, x_val, y_train, y_val) = train_test_split(
+                    &self.x_train,
+                    &self.y_train,
+                    *meta_training_fraction,
+                    self.settings.shuffle,
+                );
+                self.x_train = x_train;
+                self.y_train = y_train;
+                self.y_val = y_val;
+                self.x_val = x_val;
+            }
+        }
 
         // Run logistic regression
         if !self
@@ -226,8 +249,8 @@ impl SupervisedModel {
             .contains(&Algorithm::LogisticRegression)
         {
             self.record_model(LogisticRegressionWrapper::cv_model(
-                &self.x,
-                &self.y,
+                &self.x_train,
+                &self.y_train,
                 &self.settings,
             ));
         }
@@ -239,8 +262,8 @@ impl SupervisedModel {
             .contains(&Algorithm::RandomForestClassifier)
         {
             self.record_model(RandomForestClassifierWrapper::cv_model(
-                &self.x,
-                &self.y,
+                &self.x_train,
+                &self.y_train,
                 &self.settings,
             ));
         }
@@ -248,8 +271,8 @@ impl SupervisedModel {
         // Run k-nearest neighbor classifier
         if !self.settings.skiplist.contains(&Algorithm::KNNClassifier) {
             self.record_model(KNNClassifierWrapper::cv_model(
-                &self.x,
-                &self.y,
+                &self.x_train,
+                &self.y_train,
                 &self.settings,
             ));
         }
@@ -260,8 +283,8 @@ impl SupervisedModel {
             .contains(&Algorithm::DecisionTreeClassifier)
         {
             self.record_model(DecisionTreeClassifierWrapper::cv_model(
-                &self.x,
-                &self.y,
+                &self.x_train,
+                &self.y_train,
                 &self.settings,
             ));
         }
@@ -272,8 +295,8 @@ impl SupervisedModel {
             .contains(&Algorithm::GaussianNaiveBayes)
         {
             self.record_model(GaussianNaiveBayesClassifierWrapper::cv_model(
-                &self.x,
-                &self.y,
+                &self.x_train,
+                &self.y_train,
                 &self.settings,
             ));
         }
@@ -284,56 +307,56 @@ impl SupervisedModel {
             .contains(&Algorithm::CategoricalNaiveBayes)
         {
             self.record_model(CategoricalNaiveBayesClassifierWrapper::cv_model(
-                &self.x,
-                &self.y,
+                &self.x_train,
+                &self.y_train,
                 &self.settings,
             ));
         }
 
         if self.number_of_classes == 2 && !self.settings.skiplist.contains(&Algorithm::SVC) {
             self.record_model(SupportVectorClassifierWrapper::cv_model(
-                &self.x,
-                &self.y,
+                &self.x_train,
+                &self.y_train,
                 &self.settings,
             ));
         }
 
         if !self.settings.skiplist.contains(&Algorithm::Linear) {
             self.record_model(LinearRegressorWrapper::cv_model(
-                &self.x,
-                &self.y,
+                &self.x_train,
+                &self.y_train,
                 &self.settings,
             ));
         }
 
         if !self.settings.skiplist.contains(&Algorithm::SVR) {
             self.record_model(SupportVectorRegressorWrapper::cv_model(
-                &self.x,
-                &self.y,
+                &self.x_train,
+                &self.y_train,
                 &self.settings,
             ));
         }
 
         if !self.settings.skiplist.contains(&Algorithm::Lasso) {
             self.record_model(RidgeRegressorWrapper::cv_model(
-                &self.x,
-                &self.y,
+                &self.x_train,
+                &self.y_train,
                 &self.settings,
             ));
         }
 
         if !self.settings.skiplist.contains(&Algorithm::Ridge) {
             self.record_model(LassoRegressorWrapper::cv_model(
-                &self.x,
-                &self.y,
+                &self.x_train,
+                &self.y_train,
                 &self.settings,
             ));
         }
 
         if !self.settings.skiplist.contains(&Algorithm::ElasticNet) {
             self.record_model(ElasticNetRegressorWrapper::cv_model(
-                &self.x,
-                &self.y,
+                &self.x_train,
+                &self.y_train,
                 &self.settings,
             ));
         }
@@ -344,8 +367,8 @@ impl SupervisedModel {
             .contains(&Algorithm::DecisionTreeRegressor)
         {
             self.record_model(DecisionTreeRegressorWrapper::cv_model(
-                &self.x,
-                &self.y,
+                &self.x_train,
+                &self.y_train,
                 &self.settings,
             ));
         }
@@ -356,22 +379,22 @@ impl SupervisedModel {
             .contains(&Algorithm::RandomForestRegressor)
         {
             self.record_model(RandomForestRegressorWrapper::cv_model(
-                &self.x,
-                &self.y,
+                &self.x_train,
+                &self.y_train,
                 &self.settings,
             ));
         }
 
         if !self.settings.skiplist.contains(&Algorithm::KNNRegressor) {
             self.record_model(KNNRegressorWrapper::cv_model(
-                &self.x,
-                &self.y,
+                &self.x_train,
+                &self.y_train,
                 &self.settings,
             ));
         }
 
         match self.settings.final_model_approach {
-            FinalModel::Blend => self.train_blended_model(),
+            FinalModel::Blending { .. } => self.train_blended_model(),
             _ => {}
         }
     }
@@ -441,12 +464,12 @@ impl SupervisedModel {
         // Make the data
         let mut meta_x: Vec<Vec<f32>> = Vec::new();
         for model in &self.comparison {
-            meta_x.push(self.predict_by_model(&self.x, model))
+            meta_x.push(self.predict_by_model(&self.x_val, model))
         }
         let xdm = DenseMatrix::from_2d_vec(&meta_x).transpose();
 
         // Train the model
-        let model = LinearRegressorWrapper::train(&xdm, &self.y, &self.settings);
+        let model = LinearRegressorWrapper::train(&xdm, &self.y_val, &self.settings);
 
         self.comparison.push(Model {
             score: CrossValidationResult {
@@ -473,7 +496,7 @@ impl SupervisedModel {
             }
             Algorithm::KNNRegressor => KNNRegressorWrapper::predict(x, saved_model, &self.settings),
             Algorithm::SVR => {
-                SupportVectorRegressorWrapper::predict(&self.x, saved_model, &self.settings)
+                SupportVectorRegressorWrapper::predict(x, saved_model, &self.settings)
             }
             Algorithm::DecisionTreeRegressor => {
                 DecisionTreeRegressorWrapper::predict(x, saved_model, &self.settings)
@@ -507,7 +530,7 @@ impl SupervisedModel {
         match self.settings.final_model_approach {
             FinalModel::None => panic!(""),
             FinalModel::Best => self.predict_by_model(x, &self.comparison[0]),
-            FinalModel::Blend => self.predict_blended_model(x),
+            FinalModel::Blending { .. } => self.predict_blended_model(x),
         }
     }
 
@@ -686,7 +709,7 @@ impl epi::App for SupervisedModel {
             for i in 0..self.current_x.len() {
                 // Figure out the maximum in the training dataa
                 let maxx = self
-                    .x
+                    .x_train
                     .get_col_as_vec(i)
                     .iter()
                     .cloned()
@@ -694,7 +717,7 @@ impl epi::App for SupervisedModel {
 
                 // Figure out the minimum in the training data
                 let minn = self
-                    .x
+                    .x_train
                     .get_col_as_vec(i)
                     .iter()
                     .cloned()

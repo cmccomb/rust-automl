@@ -357,7 +357,31 @@ impl Display for PreProcessing {
 pub enum FinalModel {
     /// Do not train a final model
     None,
-    ///
+    /// Select the best model from the comparison set as the final model
     Best,
-    Blend,
+    /// Use a blending approach to produce a final model
+    Blending {
+        /// Which algorithm to use as a meta-learner
+        algorithm: Algorithm,
+        /// How much data to retain to train the blending model
+        meta_training_fraction: f32,
+        /// How much data to retain to test the blending model
+        meta_testing_fraction: f32,
+    },
+    // /// Use a stacking approach to produce a final model (not implemented)
+    // Stacking {
+    //     /// How much data to retain to train the blending model
+    //     meta_testing_fraction: f32,
+    // },
+}
+
+impl FinalModel {
+    /// Default values for a blending model (linear regression, 30% of all data reserved for training the blending model)
+    pub fn default_blending() -> FinalModel {
+        Self::Blending {
+            algorithm: Algorithm::Linear,
+            meta_training_fraction: 0.25,
+            meta_testing_fraction: 0.25,
+        }
+    }
 }
