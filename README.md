@@ -58,7 +58,6 @@ This crate has several features that add some additional methods
 | `gui`     | Adds a method for running a live demo GUI of a model through [`eframe`](https://crates.io/crates/eframe). |
 
 ## Capabilities
-Currently this crate only has AutoML features for regression and classification. This includes the following models:
 - Feature Engineering
   - PCA
   - Interaction terms
@@ -79,3 +78,5 @@ Currently this crate only has AutoML features for regression and classification.
   - Logistic Regression
   - KNN Classification
   - Gaussian Naive Bayes
+- Meta-learning
+  - Blending

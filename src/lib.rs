@@ -394,7 +394,11 @@ impl SupervisedModel {
         }
 
         match self.settings.final_model_approach {
-            FinalModel::Blending { .. } => self.train_blended_model(),
+            FinalModel::Blending {
+                algorithm,
+                meta_training_fraction,
+                meta_testing_fraction,
+            } => self.train_blended_model(algorithm, meta_training_fraction, meta_testing_fraction),
             _ => {}
         }
     }
@@ -460,7 +464,12 @@ impl SupervisedModel {
 
 /// Private functions go here
 impl SupervisedModel {
-    fn train_blended_model(&mut self) {
+    fn train_blended_model(
+        &mut self,
+        algo: Algorithm,
+        training_fraction: f32,
+        testing_fraction: f32,
+    ) {
         // Make the data
         let mut meta_x: Vec<Vec<f32>> = Vec::new();
         for model in &self.comparison {
@@ -468,13 +477,31 @@ impl SupervisedModel {
         }
         let xdm = DenseMatrix::from_2d_vec(&meta_x).transpose();
 
+        // Split into datasets
+        let (x_train, x_test, y_train, y_test) = train_test_split(
+            &xdm,
+            &self.y_val,
+            training_fraction / (training_fraction + testing_fraction),
+            self.settings.shuffle,
+        );
+
         // Train the model
-        let model = LinearRegressorWrapper::train(&xdm, &self.y_val, &self.settings);
+        let model = LassoRegressorWrapper::train(&x_train, &y_train, &self.settings);
+
+        // Score the model
+        let train_score = (*self.settings.get_metric())(
+            &y_train,
+            &LassoRegressorWrapper::predict(&x_train, &model, &self.settings),
+        );
+        let test_score = (*self.settings.get_metric())(
+            &y_test,
+            &LassoRegressorWrapper::predict(&x_test, &model, &self.settings),
+        );
 
         self.comparison.push(Model {
             score: CrossValidationResult {
-                test_score: vec![],
-                train_score: vec![],
+                test_score: vec![test_score; 1],
+                train_score: vec![train_score; 1],
             },
             name: Algorithm::Linear,
             duration: Default::default(),
@@ -546,7 +573,7 @@ impl SupervisedModel {
         let final_model = &self.comparison.last().unwrap().model;
 
         // Train the model
-        LinearRegressorWrapper::predict(&xdm, final_model, &self.settings)
+        LassoRegressorWrapper::predict(&xdm, final_model, &self.settings)
     }
 
     fn interaction_features(mut x: DenseMatrix<f32>) -> DenseMatrix<f32> {

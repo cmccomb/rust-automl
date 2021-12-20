@@ -221,7 +221,7 @@ impl Display for Metric {
 }
 
 /// Algorithm options
-#[derive(PartialEq)]
+#[derive(PartialEq, Copy, Clone)]
 pub enum Algorithm {
     /// Decision tree regressor
     DecisionTreeRegressor,
@@ -380,8 +380,8 @@ impl FinalModel {
     pub fn default_blending() -> FinalModel {
         Self::Blending {
             algorithm: Algorithm::Linear,
-            meta_training_fraction: 0.25,
-            meta_testing_fraction: 0.25,
+            meta_training_fraction: 0.15,
+            meta_testing_fraction: 0.15,
         }
     }
 }
