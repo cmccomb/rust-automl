@@ -249,11 +249,10 @@ impl SupervisedModel {
             .skiplist
             .contains(&Algorithm::LogisticRegression)
         {
-            self.record_model(LogisticRegressionWrapper::cv_model(
-                &self.x_train,
-                &self.y_train,
-                &self.settings,
-            ));
+            self.record_model(
+                LogisticRegressionWrapper::cv_model(&self.x_train, &self.y_train, &self.settings),
+                false,
+            );
         }
 
         // Run random forest classification
@@ -262,20 +261,22 @@ impl SupervisedModel {
             .skiplist
             .contains(&Algorithm::RandomForestClassifier)
         {
-            self.record_model(RandomForestClassifierWrapper::cv_model(
-                &self.x_train,
-                &self.y_train,
-                &self.settings,
-            ));
+            self.record_model(
+                RandomForestClassifierWrapper::cv_model(
+                    &self.x_train,
+                    &self.y_train,
+                    &self.settings,
+                ),
+                false,
+            );
         }
 
         // Run k-nearest neighbor classifier
         if !self.settings.skiplist.contains(&Algorithm::KNNClassifier) {
-            self.record_model(KNNClassifierWrapper::cv_model(
-                &self.x_train,
-                &self.y_train,
-                &self.settings,
-            ));
+            self.record_model(
+                KNNClassifierWrapper::cv_model(&self.x_train, &self.y_train, &self.settings),
+                false,
+            );
         }
 
         if !self
@@ -283,11 +284,14 @@ impl SupervisedModel {
             .skiplist
             .contains(&Algorithm::DecisionTreeClassifier)
         {
-            self.record_model(DecisionTreeClassifierWrapper::cv_model(
-                &self.x_train,
-                &self.y_train,
-                &self.settings,
-            ));
+            self.record_model(
+                DecisionTreeClassifierWrapper::cv_model(
+                    &self.x_train,
+                    &self.y_train,
+                    &self.settings,
+                ),
+                false,
+            );
         }
 
         if !self
@@ -295,11 +299,14 @@ impl SupervisedModel {
             .skiplist
             .contains(&Algorithm::GaussianNaiveBayes)
         {
-            self.record_model(GaussianNaiveBayesClassifierWrapper::cv_model(
-                &self.x_train,
-                &self.y_train,
-                &self.settings,
-            ));
+            self.record_model(
+                GaussianNaiveBayesClassifierWrapper::cv_model(
+                    &self.x_train,
+                    &self.y_train,
+                    &self.settings,
+                ),
+                false,
+            );
         }
 
         if !self
@@ -307,59 +314,64 @@ impl SupervisedModel {
             .skiplist
             .contains(&Algorithm::CategoricalNaiveBayes)
         {
-            self.record_model(CategoricalNaiveBayesClassifierWrapper::cv_model(
-                &self.x_train,
-                &self.y_train,
-                &self.settings,
-            ));
+            self.record_model(
+                CategoricalNaiveBayesClassifierWrapper::cv_model(
+                    &self.x_train,
+                    &self.y_train,
+                    &self.settings,
+                ),
+                false,
+            );
         }
 
         if self.number_of_classes == 2 && !self.settings.skiplist.contains(&Algorithm::SVC) {
-            self.record_model(SupportVectorClassifierWrapper::cv_model(
-                &self.x_train,
-                &self.y_train,
-                &self.settings,
-            ));
+            self.record_model(
+                SupportVectorClassifierWrapper::cv_model(
+                    &self.x_train,
+                    &self.y_train,
+                    &self.settings,
+                ),
+                false,
+            );
         }
 
         if !self.settings.skiplist.contains(&Algorithm::Linear) {
-            self.record_model(LinearRegressorWrapper::cv_model(
-                &self.x_train,
-                &self.y_train,
-                &self.settings,
-            ));
+            self.record_model(
+                LinearRegressorWrapper::cv_model(&self.x_train, &self.y_train, &self.settings),
+                false,
+            );
         }
 
         if !self.settings.skiplist.contains(&Algorithm::SVR) {
-            self.record_model(SupportVectorRegressorWrapper::cv_model(
-                &self.x_train,
-                &self.y_train,
-                &self.settings,
-            ));
+            self.record_model(
+                SupportVectorRegressorWrapper::cv_model(
+                    &self.x_train,
+                    &self.y_train,
+                    &self.settings,
+                ),
+                false,
+            );
         }
 
         if !self.settings.skiplist.contains(&Algorithm::Lasso) {
-            self.record_model(RidgeRegressorWrapper::cv_model(
-                &self.x_train,
-                &self.y_train,
-                &self.settings,
-            ));
+            self.record_model(
+                RidgeRegressorWrapper::cv_model(&self.x_train, &self.y_train, &self.settings),
+                false,
+            );
         }
 
         if !self.settings.skiplist.contains(&Algorithm::Ridge) {
-            self.record_model(LassoRegressorWrapper::cv_model(
-                &self.x_train,
-                &self.y_train,
-                &self.settings,
-            ));
+            self.record_model(
+                LassoRegressorWrapper::cv_model(&self.x_train, &self.y_train, &self.settings),
+                false,
+            );
         }
 
         if !self.settings.skiplist.contains(&Algorithm::ElasticNet) {
-            self.record_model(ElasticNetRegressorWrapper::cv_model(
-                &self.x_train,
-                &self.y_train,
-                &self.settings,
-            ));
+            self.record_model(
+                ElasticNetRegressorWrapper::cv_model(&self.x_train, &self.y_train, &self.settings),
+                false,
+            );
         }
 
         if !self
@@ -367,11 +379,14 @@ impl SupervisedModel {
             .skiplist
             .contains(&Algorithm::DecisionTreeRegressor)
         {
-            self.record_model(DecisionTreeRegressorWrapper::cv_model(
-                &self.x_train,
-                &self.y_train,
-                &self.settings,
-            ));
+            self.record_model(
+                DecisionTreeRegressorWrapper::cv_model(
+                    &self.x_train,
+                    &self.y_train,
+                    &self.settings,
+                ),
+                false,
+            );
         }
 
         if !self
@@ -379,19 +394,21 @@ impl SupervisedModel {
             .skiplist
             .contains(&Algorithm::RandomForestRegressor)
         {
-            self.record_model(RandomForestRegressorWrapper::cv_model(
-                &self.x_train,
-                &self.y_train,
-                &self.settings,
-            ));
+            self.record_model(
+                RandomForestRegressorWrapper::cv_model(
+                    &self.x_train,
+                    &self.y_train,
+                    &self.settings,
+                ),
+                false,
+            );
         }
 
         if !self.settings.skiplist.contains(&Algorithm::KNNRegressor) {
-            self.record_model(KNNRegressorWrapper::cv_model(
-                &self.x_train,
-                &self.y_train,
-                &self.settings,
-            ));
+            self.record_model(
+                KNNRegressorWrapper::cv_model(&self.x_train, &self.y_train, &self.settings),
+                false,
+            );
         }
 
         match self.settings.final_model_approach {
@@ -510,6 +527,7 @@ impl SupervisedModel {
             name: algo,
             duration: Default::default(),
             model,
+            meta: true,
         });
     }
 
@@ -663,12 +681,17 @@ impl SupervisedModel {
         sorted_targets.len()
     }
 
-    fn record_model(&mut self, model: (CrossValidationResult<f32>, Algorithm, Duration, Vec<u8>)) {
+    fn record_model(
+        &mut self,
+        model: (CrossValidationResult<f32>, Algorithm, Duration, Vec<u8>),
+        is_meta: bool,
+    ) {
         self.comparison.push(Model {
             score: model.0,
             name: model.1,
             duration: model.2,
             model: model.3,
+            meta: is_meta,
         });
         self.sort();
     }
@@ -700,20 +723,22 @@ impl Display for SupervisedModel {
             Cell::new(format!("Testing {}", self.settings.sort_by)).add_attribute(Attribute::Bold),
         ]);
         for model in &self.comparison {
-            let mut row_vec = vec![];
-            row_vec.push(format!("{}", &model.name));
-            row_vec.push(format!("{}", format_duration(model.duration)));
-            let decider =
-                ((model.score.mean_train_score() + model.score.mean_test_score()) / 2.0).abs();
-            if decider > 0.01 && decider < 1000.0 {
-                row_vec.push(format!("{:.2}", &model.score.mean_train_score()));
-                row_vec.push(format!("{:.2}", &model.score.mean_test_score()));
-            } else {
-                row_vec.push(format!("{:.3e}", &model.score.mean_train_score()));
-                row_vec.push(format!("{:.3e}", &model.score.mean_test_score()));
-            }
+            if model.meta == false {
+                let mut row_vec = vec![];
+                row_vec.push(format!("{}", &model.name));
+                row_vec.push(format!("{}", format_duration(model.duration)));
+                let decider =
+                    ((model.score.mean_train_score() + model.score.mean_test_score()) / 2.0).abs();
+                if decider > 0.01 && decider < 1000.0 {
+                    row_vec.push(format!("{:.2}", &model.score.mean_train_score()));
+                    row_vec.push(format!("{:.2}", &model.score.mean_test_score()));
+                } else {
+                    row_vec.push(format!("{:.3e}", &model.score.mean_train_score()));
+                    row_vec.push(format!("{:.3e}", &model.score.mean_test_score()));
+                }
 
-            table.add_row(row_vec);
+                table.add_row(row_vec);
+            }
         }
         write!(f, "{}\n", table)
     }
@@ -773,4 +798,5 @@ struct Model {
     name: Algorithm,
     duration: Duration,
     model: Vec<u8>,
+    meta: bool,
 }
