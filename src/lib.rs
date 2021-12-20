@@ -232,8 +232,8 @@ impl SupervisedModel {
             FinalModel::Best => {}
             FinalModel::Blending {
                 meta_training_fraction,
-                meta_testing_fraction,
-                algorithm,
+                meta_testing_fraction: _,
+                algorithm: _,
             } => {
                 let (x_train, x_val, y_train, y_val) = train_test_split(
                     &self.x_train,
