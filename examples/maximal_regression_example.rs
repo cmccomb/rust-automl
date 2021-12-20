@@ -7,10 +7,14 @@ fn main() {
         .with_number_of_folds(3)
         .shuffle_data(true)
         .verbose(true)
-        .with_final_model(FinalModel::None)
+        .with_final_model(FinalModel::Blending {
+            algorithm: Algorithm::RandomForestRegressor,
+            meta_training_fraction: 0.15,
+            meta_testing_fraction: 0.15,
+        })
         .skip(Algorithm::RandomForestRegressor)
         .sorted_by(Metric::RSquared)
-        .with_preprocessing(PreProcessing::AddPolynomial { order: 3 })
+        .with_preprocessing(PreProcessing::AddInteractions)
         .with_linear_settings(
             LinearRegressionParameters::default().with_solver(LinearRegressionSolverName::QR),
         )

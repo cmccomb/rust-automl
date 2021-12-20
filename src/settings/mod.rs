@@ -188,7 +188,6 @@ use super::algorithms::{
 };
 
 mod settings_struct;
-use crate::Algorithm::DecisionTreeRegressor;
 #[doc(no_inline)]
 pub use settings_struct::Settings;
 
