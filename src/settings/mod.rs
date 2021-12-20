@@ -279,6 +279,30 @@ impl Algorithm {
             }
         }
     }
+
+    pub(crate) fn get_trainer(
+        &self,
+    ) -> Box<dyn Fn(&DenseMatrix<f32>, &Vec<f32>, &Settings) -> Vec<u8>> {
+        match self {
+            Algorithm::Linear => Box::new(LinearRegressorWrapper::train),
+            Algorithm::Lasso => Box::new(LassoRegressorWrapper::train),
+            Algorithm::Ridge => Box::new(RidgeRegressorWrapper::train),
+            Algorithm::ElasticNet => Box::new(ElasticNetRegressorWrapper::train),
+            Algorithm::RandomForestRegressor => Box::new(RandomForestRegressorWrapper::train),
+            Algorithm::KNNRegressor => Box::new(KNNRegressorWrapper::train),
+            Algorithm::SVR => Box::new(SupportVectorRegressorWrapper::train),
+            Algorithm::DecisionTreeRegressor => Box::new(DecisionTreeRegressorWrapper::train),
+            Algorithm::LogisticRegression => Box::new(LogisticRegressionWrapper::train),
+            Algorithm::RandomForestClassifier => Box::new(RandomForestClassifierWrapper::train),
+            Algorithm::DecisionTreeClassifier => Box::new(DecisionTreeClassifierWrapper::train),
+            Algorithm::KNNClassifier => Box::new(KNNClassifierWrapper::train),
+            Algorithm::SVC => Box::new(SupportVectorClassifierWrapper::train),
+            Algorithm::GaussianNaiveBayes => Box::new(GaussianNaiveBayesClassifierWrapper::train),
+            Algorithm::CategoricalNaiveBayes => {
+                Box::new(CategoricalNaiveBayesClassifierWrapper::train)
+            }
+        }
+    }
 }
 
 impl Display for Algorithm {

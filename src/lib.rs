@@ -20,6 +20,8 @@ use algorithms::{
 };
 
 mod utils;
+use utils::elementwise_multiply;
+
 use itertools::Itertools;
 use smartcore::{
     dataset::Dataset,
@@ -35,7 +37,6 @@ use std::{
     fmt::{Display, Formatter},
     time::Duration,
 };
-use utils::elementwise_multiply;
 
 #[cfg(any(feature = "nd"))]
 use ndarray::{Array1, Array2};
@@ -64,12 +65,12 @@ pub struct SupervisedModel {
     y_val: Vec<f32>,
     number_of_classes: usize,
     comparison: Vec<Model>,
-    #[cfg(any(feature = "gui"))]
-    current_x: Vec<f32>,
     preprocessing: (
         Option<PCA<f32, DenseMatrix<f32>>>,
         Option<SVD<f32, DenseMatrix<f32>>>,
     ),
+    #[cfg(any(feature = "gui"))]
+    current_x: Vec<f32>,
 }
 
 impl SupervisedModel {
@@ -486,16 +487,19 @@ impl SupervisedModel {
         );
 
         // Train the model
-        let model = LassoRegressorWrapper::train(&x_train, &y_train, &self.settings);
+        // let model = LassoRegressorWrapper::train(&x_train, &y_train, &self.settings);
+        let model = (*algo.get_trainer())(&x_train, &y_train, &self.settings);
 
         // Score the model
         let train_score = (*self.settings.get_metric())(
             &y_train,
-            &LassoRegressorWrapper::predict(&x_train, &model, &self.settings),
+            &(*algo.get_predictor())(&x_train, &model, &self.settings),
+            // &LassoRegressorWrapper::predict(&x_train, &model, &self.settings),
         );
         let test_score = (*self.settings.get_metric())(
             &y_test,
-            &LassoRegressorWrapper::predict(&x_test, &model, &self.settings),
+            &(*algo.get_predictor())(&x_test, &model, &self.settings),
+            // &LassoRegressorWrapper::predict(&x_test, &model, &self.settings),
         );
 
         self.comparison.push(Model {
@@ -503,7 +507,7 @@ impl SupervisedModel {
                 test_score: vec![test_score; 1],
                 train_score: vec![train_score; 1],
             },
-            name: Algorithm::Linear,
+            name: algo,
             duration: Default::default(),
             model,
         });
@@ -557,11 +561,11 @@ impl SupervisedModel {
         match self.settings.final_model_approach {
             FinalModel::None => panic!(""),
             FinalModel::Best => self.predict_by_model(x, &self.comparison[0]),
-            FinalModel::Blending { .. } => self.predict_blended_model(x),
+            FinalModel::Blending { algorithm, .. } => self.predict_blended_model(x, algorithm),
         }
     }
 
-    fn predict_blended_model(&mut self, x: &DenseMatrix<f32>) -> Vec<f32> {
+    fn predict_blended_model(&mut self, x: &DenseMatrix<f32>, algo: Algorithm) -> Vec<f32> {
         // Make the data
         let mut meta_x: Vec<Vec<f32>> = Vec::new();
         for i in 0..(self.comparison.len() - 1) {
@@ -573,7 +577,7 @@ impl SupervisedModel {
         let final_model = &self.comparison.last().unwrap().model;
 
         // Train the model
-        LassoRegressorWrapper::predict(&xdm, final_model, &self.settings)
+        (*algo.get_predictor())(&xdm, final_model, &self.settings)
     }
 
     fn interaction_features(mut x: DenseMatrix<f32>) -> DenseMatrix<f32> {
