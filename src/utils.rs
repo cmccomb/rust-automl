@@ -30,6 +30,7 @@ pub(crate) fn print_knn_search_algorithm(a: &KNNAlgorithmName) -> String {
 }
 
 /// Kernel options for use with support vector machines
+#[derive(serde::Serialize, serde::Deserialize)]
 pub enum Kernel {
     /// Linear Kernel
     Linear,
@@ -62,6 +63,7 @@ impl Display for Kernel {
 }
 
 /// Distance metrics
+#[derive(serde::Serialize, serde::Deserialize)]
 pub enum Distance {
     /// Euclidean distance
     Euclidean,

@@ -193,7 +193,7 @@ pub use settings_struct::Settings;
 
 /// Metrics for evaluating algorithms
 #[non_exhaustive]
-#[derive(PartialEq)]
+#[derive(PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Metric {
     /// Sort by R^2
     RSquared,
@@ -220,7 +220,7 @@ impl Display for Metric {
 }
 
 /// Algorithm options
-#[derive(PartialEq, Copy, Clone)]
+#[derive(PartialEq, Copy, Clone, serde::Serialize, serde::Deserialize)]
 pub enum Algorithm {
     /// Decision tree regressor
     DecisionTreeRegressor,
@@ -327,6 +327,7 @@ impl Display for Algorithm {
 }
 
 /// Options for pre-processing the data
+#[derive(serde::Serialize, serde::Deserialize)]
 pub enum PreProcessing {
     /// Don't do any preprocessing
     None,
@@ -377,6 +378,7 @@ impl Display for PreProcessing {
 }
 
 /// Final model approach
+#[derive(serde::Serialize, serde::Deserialize)]
 pub enum FinalModel {
     /// Do not train a final model
     None,

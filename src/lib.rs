@@ -38,6 +38,8 @@ use std::{
     time::Duration,
 };
 
+use std::io::Write;
+
 #[cfg(any(feature = "nd"))]
 use ndarray::{Array1, Array2};
 
@@ -57,6 +59,7 @@ use crate::settings::FinalModel;
 use humantime::format_duration;
 
 /// Trains and compares supervised models
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct SupervisedModel {
     settings: Settings,
     x_train: DenseMatrix<f32>,
@@ -466,6 +469,14 @@ impl SupervisedModel {
         let native_options = eframe::NativeOptions::default();
         eframe::run_native(Box::new(self), native_options);
     }
+
+    /// Save to file
+    pub fn save(&self, filepath: String) {
+        let serial = bincode::serialize(&self).expect("Cannot serialize model");
+        std::fs::File::create(filepath)
+            .and_then(|mut f| f.write_all(&serial))
+            .expect("Cannot write model")
+    }
 }
 
 /// Private functions go here
@@ -803,7 +814,9 @@ impl epi::App for SupervisedModel {
 }
 
 /// This contains the results of a single model
+#[derive(serde::Serialize, serde::Deserialize)]
 struct Model {
+    #[serde(with = "CrossValidationResultDef")]
     score: CrossValidationResult<f32>,
     name: Algorithm,
     duration: Duration,
@@ -822,4 +835,13 @@ impl Default for Model {
             model: vec![],
         }
     }
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(remote = "CrossValidationResult::<f32>")]
+pub struct CrossValidationResultDef {
+    /// Vector with test scores on each cv split
+    pub test_score: Vec<f32>,
+    /// Vector with training scores on each cv split
+    pub train_score: Vec<f32>,
 }

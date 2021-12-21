@@ -25,6 +25,7 @@ use smartcore::{
 use std::fmt::{Display, Formatter};
 
 /// Settings for supervised models
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct Settings {
     pub(crate) sort_by: Metric,
     model_type: ModelType,
@@ -1004,6 +1005,7 @@ impl Display for Settings {
     }
 }
 
+#[derive(serde::Serialize, serde::Deserialize)]
 enum ModelType {
     None,
     Regression,

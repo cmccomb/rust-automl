@@ -2,6 +2,7 @@ use crate::utils::Distance;
 pub use smartcore::{algorithm::neighbour::KNNAlgorithmName, neighbors::KNNWeightFunction};
 
 /// Parameters for k-nearest neighbors (KNN) classification
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct KNNClassifierParameters {
     pub(crate) k: usize,
     pub(crate) weight: KNNWeightFunction,

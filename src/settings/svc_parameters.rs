@@ -1,6 +1,7 @@
 pub use crate::utils::Kernel;
 
 /// Parameters for support vector classification
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct SVCParameters {
     pub(crate) epoch: usize,
     pub(crate) c: f32,

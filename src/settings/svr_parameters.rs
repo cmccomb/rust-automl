@@ -1,6 +1,7 @@
 pub use crate::utils::Kernel;
 
 /// Parameters for support vector regression
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct SVRParameters {
     pub(crate) eps: f32,
     pub(crate) c: f32,
