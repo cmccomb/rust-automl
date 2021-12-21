@@ -38,7 +38,7 @@ use std::{
     time::Duration,
 };
 
-use std::io::Write;
+use std::io::{Read, Write};
 
 #[cfg(any(feature = "nd"))]
 use ndarray::{Array1, Array2};
@@ -87,22 +87,11 @@ impl SupervisedModel {
     /// );
     /// ```
     pub fn new_from_dataset(dataset: Dataset<f32, f32>, settings: Settings) -> Self {
-        let x = DenseMatrix::from_array(dataset.num_samples, dataset.num_features, &dataset.data);
-        let y = dataset.target;
-
-        Self {
+        SupervisedModel::new(
+            DenseMatrix::from_array(dataset.num_samples, dataset.num_features, &dataset.data),
+            dataset.target,
             settings,
-            x_train: x.clone(),
-            y_train: y.clone(),
-            x_val: DenseMatrix::new(0, 0, vec![]),
-            y_val: vec![],
-            number_of_classes: Self::count_classes(&y),
-            comparison: vec![],
-            #[cfg(any(feature = "gui"))]
-            current_x: vec![0.0; x.shape().1],
-            preprocessing: (None, None),
-            metamodel: Default::default(),
-        }
+        )
     }
 
     /// Create a new supervised model using vec data
@@ -115,28 +104,32 @@ impl SupervisedModel {
     /// );    
     /// ```
     pub fn new_from_vec(x: Vec<Vec<f32>>, y: Vec<f32>, settings: Settings) -> Self {
-        let x = DenseMatrix::from_2d_vec(&x);
+        SupervisedModel::new(DenseMatrix::from_2d_vec(&x), y, settings)
+    }
 
-        Self {
-            settings,
-            x_train: x.clone(),
-            y_train: y.clone(),
-            x_val: DenseMatrix::new(0, 0, vec![]),
-            y_val: vec![],
-            number_of_classes: Self::count_classes(&y),
-            comparison: vec![],
-            #[cfg(any(feature = "gui"))]
-            current_x: vec![0.0; x.shape().1],
-            preprocessing: (None, None),
-            metamodel: Default::default(),
-        }
+    /// Save the supervised model to a file for later use
+    /// ```
+    /// # use automl::{SupervisedModel, Settings};
+    /// # let mut model = SupervisedModel::new_from_dataset(
+    /// #    smartcore::dataset::diabetes::load_dataset(),
+    /// #    Settings::default_regression()
+    /// # );
+    /// # model.save("tests/load_that_model.automl");
+    /// let model = SupervisedModel::new_from_file("tests/load_that_model.automl");
+    /// ```
+    pub fn new_from_file(filepath: &str) -> Self {
+        let mut buf: Vec<u8> = Vec::new();
+        std::fs::File::open(&filepath)
+            .and_then(|mut f| f.read_to_end(&mut buf))
+            .expect("Can not load model");
+        bincode::deserialize(&buf).expect("Can not deserialize the model")
     }
 
     /// Create a new supervised model using ndarray data
     /// ```
     /// # use automl::{SupervisedModel, Settings};
     /// use ndarray::{arr1, arr2};
-    /// let model = automl::SupervisedModel::new_from_ndarray(
+    /// let model = SupervisedModel::new_from_ndarray(
     ///     arr2(&[[1.0, 2.0], [3.0, 4.0]]),
     ///     arr1(&[1.0, 2.0]),
     ///     automl::Settings::default_regression(),
@@ -145,22 +138,11 @@ impl SupervisedModel {
     #[cfg_attr(docsrs, doc(cfg(feature = "nd")))]
     #[cfg(any(feature = "nd"))]
     pub fn new_from_ndarray(x: Array2<f32>, y: Array1<f32>, settings: Settings) -> Self {
-        let x = DenseMatrix::from_array(x.shape()[0], x.shape()[1], x.as_slice().unwrap());
-        let y = y.to_vec();
-
-        Self {
+        SupervisedModel::new(
+            DenseMatrix::from_array(x.shape()[0], x.shape()[1], x.as_slice().unwrap()),
+            y.to_vec(),
             settings,
-            x_train: x.clone(),
-            y_train: y.clone(),
-            x_val: DenseMatrix::new(0, 0, vec![]),
-            y_val: vec![],
-            number_of_classes: Self::count_classes(&y),
-            comparison: vec![],
-            #[cfg(any(feature = "gui"))]
-            current_x: vec![0.0; x.shape().1],
-            preprocessing: (None, None),
-            metamodel: Default::default(),
-        }
+        )
     }
 
     /// Create a new supervised model from a csv
@@ -470,8 +452,16 @@ impl SupervisedModel {
         eframe::run_native(Box::new(self), native_options);
     }
 
-    /// Save to file
-    pub fn save(&self, filepath: String) {
+    /// Save the supervised model to a file for later use
+    /// ```
+    /// # use automl::{SupervisedModel, Settings};
+    /// let mut model = SupervisedModel::new_from_dataset(
+    ///     smartcore::dataset::diabetes::load_dataset(),
+    ///     Settings::default_regression()
+    /// );
+    /// model.save("tests/save_that_model.automl")
+    /// ```
+    pub fn save(&self, filepath: &str) {
         let serial = bincode::serialize(&self).expect("Cannot serialize model");
         std::fs::File::create(filepath)
             .and_then(|mut f| f.write_all(&serial))
@@ -481,6 +471,22 @@ impl SupervisedModel {
 
 /// Private functions go here
 impl SupervisedModel {
+    fn new(x: DenseMatrix<f32>, y: Vec<f32>, settings: Settings) -> Self {
+        Self {
+            settings,
+            x_train: x.clone(),
+            y_train: y.clone(),
+            x_val: DenseMatrix::new(0, 0, vec![]),
+            y_val: vec![],
+            number_of_classes: Self::count_classes(&y),
+            comparison: vec![],
+            #[cfg(any(feature = "gui"))]
+            current_x: vec![0.0; x.shape().1],
+            preprocessing: (None, None),
+            metamodel: Default::default(),
+        }
+    }
+
     fn train_blended_model(
         &mut self,
         algo: Algorithm,
@@ -839,7 +845,7 @@ impl Default for Model {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(remote = "CrossValidationResult::<f32>")]
-pub struct CrossValidationResultDef {
+struct CrossValidationResultDef {
     /// Vector with test scores on each cv split
     pub test_score: Vec<f32>,
     /// Vector with training scores on each cv split
