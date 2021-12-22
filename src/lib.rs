@@ -116,6 +116,7 @@ impl SupervisedModel {
     /// # );
     /// # model.save("tests/load_that_model.aml");
     /// let model = SupervisedModel::new_from_file("tests/load_that_model.aml");
+    /// # std::fs::remove_file("tests/load_that_model.aml");
     /// ```
     pub fn new_from_file(file_name: &str) -> Self {
         let mut buf: Vec<u8> = Vec::new();
@@ -459,7 +460,8 @@ impl SupervisedModel {
     ///     smartcore::dataset::diabetes::load_dataset(),
     ///     Settings::default_regression()
     /// );
-    /// model.save("tests/save_that_model.aml")
+    /// model.save("tests/save_that_model.aml");
+    /// # std::fs::remove_file("tests/save_that_model.aml");
     /// ```
     pub fn save(&self, file_name: &str) {
         let serial = bincode::serialize(&self).expect("Cannot serialize model.");

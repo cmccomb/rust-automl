@@ -205,6 +205,7 @@ impl Settings {
     /// # let settings = Settings::default();
     /// # settings.save("tests/load_those_settings.amls");
     /// let settings = Settings::new_from_file("tests/load_those_settings.amls");
+    /// # std::fs::remove_file("tests/load_those_settings.amls");
     /// ```
     pub fn new_from_file(file_name: &str) -> Self {
         let mut buf: Vec<u8> = Vec::new();
@@ -219,6 +220,7 @@ impl Settings {
     /// # use automl::Settings;
     /// let settings = Settings::default_regression();
     /// settings.save("tests/save_those_settings.amls");
+    /// # std::fs::remove_file("tests/save_those_settings.amls");
     /// ```
     pub fn save(&self, file_name: &str) {
         let serial = serde_yaml::to_string(&self).expect("Cannot serialize settings.");
