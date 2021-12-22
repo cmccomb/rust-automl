@@ -7,7 +7,7 @@ fn main() {
         .with_number_of_folds(3)
         .shuffle_data(true)
         .verbose(true)
-        .with_final_model(FinalModel::None)
+        .with_final_model(FinalModel::Best)
         .skip(Algorithm::RandomForestClassifier)
         .sorted_by(Metric::Accuracy)
         .with_preprocessing(PreProcessing::ReplaceWithPCA {
@@ -45,6 +45,9 @@ fn main() {
         .with_gaussian_nb_settings(GaussianNBParameters::default().with_priors(vec![1.0, 1.0]))
         .with_categorical_nb_settings(CategoricalNBParameters::default().with_alpha(1.0));
 
+    // Save the settings for later use
+    // settings.save("examples/maximal_classification_settings.amls");
+
     // Load a dataset from smartcore and add it to the regressor
     let mut model = SupervisedModel::new_from_dataset(
         smartcore::dataset::breast_cancer::load_dataset(),
@@ -57,4 +60,7 @@ fn main() {
     // Print the results
     #[cfg(feature = "display")]
     println!("{}", model);
+
+    // Save teh model for later
+    // model.save("examples/maximal_classification_model.aml");
 }

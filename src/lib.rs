@@ -297,6 +297,14 @@ impl SupervisedModel {
             .settings
             .skiplist
             .contains(&Algorithm::CategoricalNaiveBayes)
+            && std::mem::discriminant(&self.settings.preprocessing)
+                != std::mem::discriminant(&PreProcessing::ReplaceWithPCA {
+                    number_of_components: 1,
+                })
+            && std::mem::discriminant(&self.settings.preprocessing)
+                != std::mem::discriminant(&PreProcessing::ReplaceWithSVD {
+                    number_of_components: 1,
+                })
         {
             self.record_model(CategoricalNaiveBayesClassifierWrapper::cv_model(
                 &self.x_train,

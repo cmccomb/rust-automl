@@ -8,7 +8,7 @@ fn main() {
         .shuffle_data(true)
         .verbose(true)
         .with_final_model(FinalModel::Blending {
-            algorithm: Algorithm::RandomForestRegressor,
+            algorithm: Algorithm::Linear,
             meta_training_fraction: 0.15,
             meta_testing_fraction: 0.15,
         })
@@ -68,6 +68,9 @@ fn main() {
                 .with_min_samples_leaf(1),
         );
 
+    // Save the settings for later use
+    settings.save("examples/maximal_regression_settings.amls");
+
     // Load a dataset from smartcore and add it to the regressor along with the customized settings
     let mut model =
         SupervisedModel::new_from_dataset(smartcore::dataset::diabetes::load_dataset(), settings);
@@ -78,4 +81,7 @@ fn main() {
     // Print the results
     #[cfg(feature = "display")]
     println!("{}", model);
+
+    // Save teh model for later
+    model.save("examples/maximal_regression_model.aml");
 }
