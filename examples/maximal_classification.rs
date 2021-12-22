@@ -7,7 +7,11 @@ fn main() {
         .with_number_of_folds(3)
         .shuffle_data(true)
         .verbose(true)
-        .with_final_model(FinalModel::Best)
+        .with_final_model(FinalModel::Blending {
+            algorithm: Algorithm::CategoricalNaiveBayes,
+            meta_training_fraction: 0.15,
+            meta_testing_fraction: 0.15,
+        })
         .skip(Algorithm::RandomForestClassifier)
         .sorted_by(Metric::Accuracy)
         .with_preprocessing(PreProcessing::ReplaceWithPCA {
@@ -46,7 +50,7 @@ fn main() {
         .with_categorical_nb_settings(CategoricalNBParameters::default().with_alpha(1.0));
 
     // Save the settings for later use
-    // settings.save("examples/maximal_classification_settings.amls");
+    settings.save("examples/maximal_classification_settings.amls");
 
     // Load a dataset from smartcore and add it to the regressor
     let mut model = SupervisedModel::new_from_dataset(
@@ -62,5 +66,5 @@ fn main() {
     println!("{}", model);
 
     // Save teh model for later
-    // model.save("examples/maximal_classification_model.aml");
+    model.save("examples/maximal_classification_model.aml");
 }
