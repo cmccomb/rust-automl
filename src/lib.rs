@@ -107,21 +107,21 @@ impl SupervisedModel {
         SupervisedModel::new(DenseMatrix::from_2d_vec(&x), y, settings)
     }
 
-    /// Save the supervised model to a file for later use
+    /// Load the supervised model from a file saved previously
     /// ```
     /// # use automl::{SupervisedModel, Settings};
     /// # let mut model = SupervisedModel::new_from_dataset(
     /// #    smartcore::dataset::diabetes::load_dataset(),
     /// #    Settings::default_regression()
     /// # );
-    /// # model.save("tests/load_that_model.automl");
-    /// let model = SupervisedModel::new_from_file("tests/load_that_model.automl");
+    /// # model.save("tests/load_that_model.aml");
+    /// let model = SupervisedModel::new_from_file("tests/load_that_model.aml");
     /// ```
-    pub fn new_from_file(filepath: &str) -> Self {
+    pub fn new_from_file(file_name: &str) -> Self {
         let mut buf: Vec<u8> = Vec::new();
-        std::fs::File::open(&filepath)
+        std::fs::File::open(&file_name)
             .and_then(|mut f| f.read_to_end(&mut buf))
-            .expect("Can not load model");
+            .expect("Cannot load model from file.");
         bincode::deserialize(&buf).expect("Can not deserialize the model")
     }
 
@@ -459,13 +459,13 @@ impl SupervisedModel {
     ///     smartcore::dataset::diabetes::load_dataset(),
     ///     Settings::default_regression()
     /// );
-    /// model.save("tests/save_that_model.automl")
+    /// model.save("tests/save_that_model.aml")
     /// ```
-    pub fn save(&self, filepath: &str) {
-        let serial = bincode::serialize(&self).expect("Cannot serialize model");
-        std::fs::File::create(filepath)
+    pub fn save(&self, file_name: &str) {
+        let serial = bincode::serialize(&self).expect("Cannot serialize model.");
+        std::fs::File::create(file_name)
             .and_then(|mut f| f.write_all(&serial))
-            .expect("Cannot write model")
+            .expect("Cannot write model to file.");
     }
 }
 

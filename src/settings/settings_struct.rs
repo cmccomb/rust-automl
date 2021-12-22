@@ -23,6 +23,7 @@ use smartcore::{
 };
 
 use std::fmt::{Display, Formatter};
+use std::io::{Read, Write};
 
 /// Settings for supervised models
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -196,6 +197,34 @@ impl Settings {
             gaussian_nb_settings: Some(GaussianNBParameters::default()),
             categorical_nb_settings: Some(CategoricalNBParameters::default()),
         }
+    }
+
+    /// Load settings from a settings file
+    /// ```
+    /// # use automl::Settings;
+    /// # let settings = Settings::default();
+    /// # settings.save("tests/load_those_settings.amls");
+    /// let settings = Settings::new_from_file("tests/load_those_settings.amls");
+    /// ```
+    pub fn new_from_file(file_name: &str) -> Self {
+        let mut buf: Vec<u8> = Vec::new();
+        std::fs::File::open(&file_name)
+            .and_then(|mut f| f.read_to_end(&mut buf))
+            .expect("Cannot load settings from file.");
+        serde_yaml::from_slice(&*buf).unwrap()
+    }
+
+    /// Save the current settings to a file for later use
+    /// ```
+    /// # use automl::Settings;
+    /// let settings = Settings::default_regression();
+    /// settings.save("tests/save_those_settings.amls");
+    /// ```
+    pub fn save(&self, file_name: &str) {
+        let serial = serde_yaml::to_string(&self).expect("Cannot serialize settings.");
+        std::fs::File::create(file_name)
+            .and_then(|mut f| f.write_all((&serial).as_ref()))
+            .expect("Cannot write settings to file.")
     }
 
     /// Specify number of folds for cross-validation
