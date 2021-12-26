@@ -21,6 +21,8 @@ mod regression_tests {
         regressor.predict_from_ndarray(
             ndarray::Array2::from_shape_vec((10, 10), vec![5.0; 100]).unwrap(),
         );
+        #[cfg(feature = "csv")]
+        regressor.predict_from_csv("data/diabetes_without_target.csv", true);
     }
 
     #[test]
@@ -38,6 +40,7 @@ mod regression_tests {
 
         // Try to predict something
         regressor.predict_from_vec(vec![vec![5.0 as f32; 10]; 10]);
+        regressor.predict_from_csv("data/diabetes_without_target.csv", true);
         #[cfg(feature = "nd")]
         regressor.predict_from_ndarray(
             ndarray::Array2::from_shape_vec((10, 10), vec![5.0; 100]).unwrap(),
@@ -55,6 +58,16 @@ mod regression_tests {
     fn test_add_polynomial_preprocessing() {
         let settings = Settings::default_regression()
             .with_preprocessing(PreProcessing::AddPolynomial { order: 2 });
+        test_from_settings(settings);
+    }
+
+    #[test]
+    fn test_blending() {
+        let settings = Settings::default_regression().with_final_model(FinalModel::Blending {
+            algorithm: Algorithm::Linear,
+            meta_training_fraction: 0.15,
+            meta_testing_fraction: 0.15,
+        });
         test_from_settings(settings);
     }
 
