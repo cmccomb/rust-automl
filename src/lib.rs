@@ -126,77 +126,18 @@ impl SupervisedModel {
         bincode::deserialize(&buf).expect("Can not deserialize the model")
     }
 
-    /// Create a new supervised model using ndarray data
-    /// ```
+    /// Predict values using the final model based on a vec.
+    /// ```no_run
     /// # use automl::{SupervisedModel, Settings};
-    /// use ndarray::{arr1, arr2};
-    /// let model = SupervisedModel::new_from_ndarray(
-    ///     arr2(&[[1.0, 2.0], [3.0, 4.0]]),
-    ///     arr1(&[1.0, 2.0]),
-    ///     automl::Settings::default_regression(),
-    /// );
-    /// ```
-    #[cfg_attr(docsrs, doc(cfg(feature = "nd")))]
-    #[cfg(any(feature = "nd"))]
-    pub fn new_from_ndarray(x: Array2<f32>, y: Array1<f32>, settings: Settings) -> Self {
-        SupervisedModel::new(
-            DenseMatrix::from_array(x.shape()[0], x.shape()[1], x.as_slice().unwrap()),
-            y.to_vec(),
-            settings,
-        )
-    }
-
-    /// Create a new supervised model from a csv
-    /// ```
-    /// # use automl::{SupervisedModel, Settings};
-    /// let model = SupervisedModel::new_from_csv(
-    ///     "data/diabetes.csv",
-    ///     10,
-    ///     true,
+    /// let mut model = SupervisedModel::new_from_dataset(
+    ///     smartcore::dataset::diabetes::load_dataset(),
     ///     Settings::default_regression()
     /// );
+    /// model.train();
+    /// model.predict_from_vec(vec![vec![5.0; 10]; 5]);
     /// ```
-    #[cfg_attr(docsrs, doc(cfg(feature = "csv")))]
-    #[cfg(any(feature = "csv"))]
-    pub fn new_from_csv(
-        filepath: &str,
-        target_index: usize,
-        header: bool,
-        settings: Settings,
-    ) -> Self {
-        let df = CsvReader::from_path(filepath)
-            .unwrap()
-            .infer_schema(None)
-            .has_header(header)
-            .finish()
-            .unwrap();
-
-        // Get target variables
-        let target_column_name = df.get_column_names()[target_index];
-        let series = df.column(target_column_name).unwrap().clone();
-        let target_df = DataFrame::new(vec![series]).unwrap();
-        let ndarray = target_df.to_ndarray::<Float32Type>().unwrap();
-        let y = ndarray.into_raw_vec();
-
-        // Get the rest of the data
-        let features = df.drop(target_column_name).unwrap();
-        let (height, width) = features.shape();
-        let ndarray = features.to_ndarray::<Float32Type>().unwrap();
-        let x = DenseMatrix::from_array(height, width, ndarray.as_slice().unwrap());
-
-        Self {
-            settings,
-            x_train: x.clone(),
-            y_train: y.clone(),
-            x_val: DenseMatrix::new(0, 0, vec![]),
-            y_val: vec![],
-            number_of_classes: Self::count_classes(&y),
-            comparison: vec![],
-            #[cfg(any(feature = "gui"))]
-            current_x: vec![0.0; x.shape().1],
-            preprocessing: (None, None),
-            metamodel: Default::default(),
-        }
+    pub fn predict_from_vec(&mut self, x: Vec<Vec<f32>>) -> Vec<f32> {
+        self.predict(&DenseMatrix::from_2d_vec(&x))
     }
 
     /// Runs a model comparison and trains a final model.
@@ -403,18 +344,117 @@ impl SupervisedModel {
         }
     }
 
-    /// Predict values using the final model based on a vec.
-    /// ```no_run
+    /// Save the supervised model to a file for later use
+    /// ```
     /// # use automl::{SupervisedModel, Settings};
     /// let mut model = SupervisedModel::new_from_dataset(
     ///     smartcore::dataset::diabetes::load_dataset(),
     ///     Settings::default_regression()
     /// );
-    /// model.train();
-    /// model.predict_from_vec(vec![vec![5.0; 10]; 5]);
+    /// model.save("tests/save_that_model.aml");
+    /// # std::fs::remove_file("tests/save_that_model.aml");
     /// ```
-    pub fn predict_from_vec(&mut self, x: Vec<Vec<f32>>) -> Vec<f32> {
-        self.predict(&DenseMatrix::from_2d_vec(&x))
+    pub fn save(&self, file_name: &str) {
+        let serial = bincode::serialize(&self).expect("Cannot serialize model.");
+        std::fs::File::create(file_name)
+            .and_then(|mut f| f.write_all(&serial))
+            .expect("Cannot write model to file.");
+    }
+}
+
+#[cfg_attr(docsrs, doc(cfg(feature = "csv")))]
+#[cfg(any(feature = "csv"))]
+impl SupervisedModel {
+    /// Create a new supervised model from a csv
+    /// ```
+    /// # use automl::{SupervisedModel, Settings};
+    /// let model = SupervisedModel::new_from_csv(
+    ///     "data/diabetes.csv",
+    ///     10,
+    ///     true,
+    ///     Settings::default_regression()
+    /// );
+    /// ```
+    pub fn new_from_csv(
+        filepath: &str,
+        target_index: usize,
+        header: bool,
+        settings: Settings,
+    ) -> Self {
+        let df = CsvReader::from_path(filepath)
+            .expect("Cannot find file")
+            .infer_schema(None)
+            .has_header(header)
+            .finish()
+            .expect("Cannot read file as CSV");
+
+        // Get target variables
+        let target_column_name = df.get_column_names()[target_index];
+        let series = df.column(target_column_name).unwrap().clone();
+        let target_df = DataFrame::new(vec![series]).unwrap();
+        let ndarray = target_df.to_ndarray::<Float32Type>().unwrap();
+        let y = ndarray.into_raw_vec();
+
+        // Get the rest of the data
+        let features = df.drop(target_column_name).unwrap();
+        let (height, width) = features.shape();
+        let ndarray = features.to_ndarray::<Float32Type>().unwrap();
+        let x = DenseMatrix::from_array(height, width, ndarray.as_slice().unwrap());
+
+        SupervisedModel::new(x, y, settings)
+    }
+
+    /// Create a new supervised model from a csv
+    /// ```no_run
+    /// # use automl::{SupervisedModel, Settings};
+    /// let mut model = SupervisedModel::new_from_csv(
+    ///     "data/diabetes.csv",
+    ///     10,
+    ///     true,
+    ///     Settings::default_regression()
+    /// );
+    /// model.predict_from_csv(
+    ///     "data/diabetes_without_target.csv",
+    ///     true
+    /// );
+    /// ```
+    pub fn predict_from_csv(&mut self, filepath: &str, header: bool) -> Vec<f32> {
+        let df = CsvReader::from_path(filepath)
+            .unwrap()
+            .infer_schema(None)
+            .has_header(header)
+            .finish()
+            .unwrap();
+
+        // Get the rest of the data
+        let (height, width) = df.shape();
+        let ndarray = df.to_ndarray::<Float32Type>().unwrap();
+        let x = DenseMatrix::from_array(height, width, ndarray.as_slice().unwrap());
+
+        // Predict
+        self.predict(&x)
+    }
+}
+
+#[cfg_attr(docsrs, doc(cfg(feature = "nd")))]
+#[cfg(any(feature = "nd"))]
+impl SupervisedModel {
+    /// Create a new supervised model using ndarray data
+    /// ```
+    /// # use automl::{SupervisedModel, Settings};
+    /// use ndarray::{arr1, arr2};
+    /// let model = SupervisedModel::new_from_ndarray(
+    ///     arr2(&[[1.0, 2.0], [3.0, 4.0]]),
+    ///     arr1(&[1.0, 2.0]),
+    ///     automl::Settings::default_regression(),
+    /// );
+    /// ```
+    pub fn new_from_ndarray(x: Array2<f32>, y: Array1<f32>, settings: Settings) -> Self {
+        SupervisedModel::new(
+            DenseMatrix::from_array(x.shape()[0], x.shape()[1], x.as_slice().unwrap()),
+            y.to_vec(),
+            settings,
+        )
     }
 
     /// Predict values using the final model based on ndarray.
@@ -433,8 +473,6 @@ impl SupervisedModel {
     ///     ])
     /// );
     /// ```
-    #[cfg_attr(docsrs, doc(cfg(feature = "nd")))]
-    #[cfg(any(feature = "nd"))]
     pub fn predict_from_ndarray(&mut self, x: Array2<f32>) -> Vec<f32> {
         self.predict(&DenseMatrix::from_array(
             x.shape()[0],
@@ -442,7 +480,11 @@ impl SupervisedModel {
             x.as_slice().unwrap(),
         ))
     }
+}
 
+#[cfg_attr(docsrs, doc(cfg(feature = "gui")))]
+#[cfg(any(feature = "gui"))]
+impl SupervisedModel {
     /// Runs an interactive GUI to demonstrate the final model
     /// ```no_run
     /// # use automl::{SupervisedModel, Settings};
@@ -454,28 +496,9 @@ impl SupervisedModel {
     /// model.run_gui();
     /// ```
     /// ![Example of interactive gui demo](https://raw.githubusercontent.com/cmccomb/rust-automl/master/assets/gui.png)
-    #[cfg_attr(docsrs, doc(cfg(feature = "gui")))]
-    #[cfg(any(feature = "gui"))]
     pub fn run_gui(self) {
         let native_options = eframe::NativeOptions::default();
         eframe::run_native(Box::new(self), native_options);
-    }
-
-    /// Save the supervised model to a file for later use
-    /// ```
-    /// # use automl::{SupervisedModel, Settings};
-    /// let mut model = SupervisedModel::new_from_dataset(
-    ///     smartcore::dataset::diabetes::load_dataset(),
-    ///     Settings::default_regression()
-    /// );
-    /// model.save("tests/save_that_model.aml");
-    /// # std::fs::remove_file("tests/save_that_model.aml");
-    /// ```
-    pub fn save(&self, file_name: &str) {
-        let serial = bincode::serialize(&self).expect("Cannot serialize model.");
-        std::fs::File::create(file_name)
-            .and_then(|mut f| f.write_all(&serial))
-            .expect("Cannot write model to file.");
     }
 }
 
