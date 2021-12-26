@@ -59,7 +59,8 @@ This crate has several features that add some additional methods
 
 ## Capabilities
 - Feature Engineering
-  - PCA
+  - PCA 
+  - SVD
   - Interaction terms
   - Polynomial terms
 - Regression
@@ -80,3 +81,5 @@ This crate has several features that add some additional methods
   - Gaussian Naive Bayes
 - Meta-learning
   - Blending
+- Save and load settings
+- Save and load models
