@@ -69,7 +69,7 @@ fn main() {
         );
 
     // Save the settings for later use
-    settings.save("examples/maximal_regression_settings.amls");
+    settings.save("examples/maximal_regression_settings.yaml");
 
     // Load a dataset from smartcore and add it to the regressor along with the customized settings
     let mut model =

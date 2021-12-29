@@ -50,7 +50,7 @@ fn main() {
         .with_categorical_nb_settings(CategoricalNBParameters::default().with_alpha(1.0));
 
     // Save the settings for later use
-    settings.save("examples/maximal_classification_settings.amls");
+    settings.save("examples/maximal_classification_settings.yaml");
 
     // Load a dataset from smartcore and add it to the regressor
     let mut model = SupervisedModel::new_from_dataset(
