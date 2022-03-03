@@ -360,6 +360,24 @@ impl SupervisedModel {
             .and_then(|mut f| f.write_all(&serial))
             .expect("Cannot write model to file.");
     }
+
+    /// Save the supervised model to a file for later use
+    /// ```
+    /// # use automl::{SupervisedModel, Settings, settings::Algorithm};
+    /// let mut model = SupervisedModel::new_from_dataset(
+    ///     smartcore::dataset::diabetes::load_dataset(),
+    ///     Settings::default_regression().only(Algorithm::Linear)
+    /// );
+    /// model.train();
+    /// model.save("tests/save_best_model.sc");
+    /// ```
+    pub fn save_best_model_only(&self, file_name: &str) {
+        if let FinalModel::Best = self.settings.final_model_approach {
+            std::fs::File::create(file_name)
+                .and_then(|mut f| f.write_all(&self.comparison[0].model))
+                .expect("Cannot write model to file.");
+        }
+    }
 }
 
 #[cfg_attr(docsrs, doc(cfg(feature = "csv")))]

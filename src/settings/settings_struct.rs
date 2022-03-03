@@ -291,6 +291,7 @@ impl Settings {
         self.skiplist.push(skip);
         self
     }
+
     /// Specify ony one algorithm to train
     /// ```
     /// # use automl::Settings;
@@ -298,23 +299,7 @@ impl Settings {
     /// let settings = Settings::default().only(Algorithm::RandomForestRegressor);
     /// ```
     pub fn only(mut self, only: Algorithm) -> Self {
-        self.skiplist = vec![
-            Algorithm::LogisticRegression,
-            Algorithm::RandomForestClassifier,
-            Algorithm::KNNClassifier,
-            Algorithm::SVC,
-            Algorithm::DecisionTreeClassifier,
-            Algorithm::CategoricalNaiveBayes,
-            Algorithm::GaussianNaiveBayes,
-            Algorithm::Linear,
-            Algorithm::Lasso,
-            Algorithm::Ridge,
-            Algorithm::ElasticNet,
-            Algorithm::SVR,
-            Algorithm::DecisionTreeRegressor,
-            Algorithm::RandomForestRegressor,
-            Algorithm::KNNRegressor,
-        ];
+        self.skiplist = Self::default().skiplist;
         self.skiplist.retain(|&algo| algo != only);
         self
     }
