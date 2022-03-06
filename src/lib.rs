@@ -361,17 +361,20 @@ impl SupervisedModel {
             .expect("Cannot write model to file.");
     }
 
-    /// Save the supervised model to a file for later use
+    /// Save the best model for later use as a smartcore native object.
     /// ```
     /// # use automl::{SupervisedModel, Settings, settings::Algorithm};
+    /// use std::io::Read;
+    ///
     /// let mut model = SupervisedModel::new_from_dataset(
     ///     smartcore::dataset::diabetes::load_dataset(),
     ///     Settings::default_regression().only(Algorithm::Linear)
     /// );
     /// model.train();
-    /// model.save("tests/save_best_model.sc");
+    /// model.save("tests/save_best.sc");
+    /// # std::fs::remove_file("tests/save_best.sc");
     /// ```
-    pub fn save_best_model_only(&self, file_name: &str) {
+    pub fn save_best(&self, file_name: &str) {
         if let FinalModel::Best = self.settings.final_model_approach {
             std::fs::File::create(file_name)
                 .and_then(|mut f| f.write_all(&self.comparison[0].model))

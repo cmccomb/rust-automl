@@ -13,7 +13,7 @@ fn main() {
 
     // Save the best model
     let file_name = "examples/best_model_only.sc";
-    model.save_best_model_only(file_name);
+    model.save_best(file_name);
 
     // Load that model for use directly in SmartCore
     let mut buf: Vec<u8> = Vec::new();
