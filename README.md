@@ -10,7 +10,7 @@ and provides some utilities to quickly train and compare models.
 # Install
 To use the latest released version of `AutoML`, add this to your `Cargo.toml`:
 ```toml
-automl = "0.2.4"
+automl = "0.2.5"
 ```
 To use the bleeding edge instead, add this:
 ```toml
