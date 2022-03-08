@@ -47,7 +47,10 @@ use ndarray::{Array1, Array2};
 use eframe::{egui, epi};
 
 #[cfg(any(feature = "csv"))]
-use polars::prelude::{CsvReader, DataFrame, Float32Type, SerReader};
+use {
+    polars::prelude::{CsvReader, DataFrame, Float32Type, SerReader},
+    utils::validate_and_read,
+};
 
 #[cfg(any(feature = "display"))]
 use comfy_table::{
@@ -127,11 +130,12 @@ impl SupervisedModel {
     }
 
     /// Predict values using the final model based on a vec.
-    /// ```no_run
+    /// ```
     /// # use automl::{SupervisedModel, Settings};
     /// let mut model = SupervisedModel::new_from_dataset(
     ///     smartcore::dataset::diabetes::load_dataset(),
     ///     Settings::default_regression()
+    /// # .only(automl::settings::Algorithm::Linear)
     /// );
     /// model.train();
     /// model.predict_from_vec(vec![vec![5.0; 10]; 5]);
@@ -141,11 +145,12 @@ impl SupervisedModel {
     }
 
     /// Runs a model comparison and trains a final model.
-    /// ```no_run
+    /// ```
     /// # use automl::{SupervisedModel, Settings};
     /// let mut model = SupervisedModel::new_from_dataset(
     ///     smartcore::dataset::diabetes::load_dataset(),
     ///     Settings::default_regression()
+    /// # .only(automl::settings::Algorithm::Linear)
     /// );
     /// model.train();
     /// ```
@@ -368,7 +373,8 @@ impl SupervisedModel {
     ///
     /// let mut model = SupervisedModel::new_from_dataset(
     ///     smartcore::dataset::diabetes::load_dataset(),
-    ///     Settings::default_regression().only(Algorithm::Linear)
+    ///     Settings::default_regression()
+    /// # .only(Algorithm::Linear)
     /// );
     /// model.train();
     /// model.save("tests/save_best.sc");
@@ -402,12 +408,7 @@ impl SupervisedModel {
         header: bool,
         settings: Settings,
     ) -> Self {
-        let df = CsvReader::from_path(filepath)
-            .expect("Cannot find file")
-            .infer_schema(None)
-            .has_header(header)
-            .finish()
-            .expect("Cannot read file as CSV");
+        let df = validate_and_read(filepath, header);
 
         // Get target variables
         let target_column_name = df.get_column_names()[target_index];
@@ -426,26 +427,23 @@ impl SupervisedModel {
     }
 
     /// Create a new supervised model from a csv
-    /// ```no_run
+    /// ```
     /// # use automl::{SupervisedModel, Settings};
     /// let mut model = SupervisedModel::new_from_csv(
     ///     "data/diabetes.csv",
     ///     10,
     ///     true,
     ///     Settings::default_regression()
+    /// # .only(automl::settings::Algorithm::Linear)
     /// );
+    /// model.train();
     /// model.predict_from_csv(
     ///     "data/diabetes_without_target.csv",
     ///     true
     /// );
     /// ```
     pub fn predict_from_csv(&mut self, filepath: &str, header: bool) -> Vec<f32> {
-        let df = CsvReader::from_path(filepath)
-            .unwrap()
-            .infer_schema(None)
-            .has_header(header)
-            .finish()
-            .unwrap();
+        let df = validate_and_read(filepath, header);
 
         // Get the rest of the data
         let (height, width) = df.shape();
@@ -479,12 +477,13 @@ impl SupervisedModel {
     }
 
     /// Predict values using the final model based on ndarray.
-    /// ```no_run
+    /// ```
     /// # use automl::{SupervisedModel, Settings};
     /// use ndarray::arr2;
     /// let mut model = SupervisedModel::new_from_dataset(
     ///     smartcore::dataset::diabetes::load_dataset(),
     ///     Settings::default_regression()
+    /// # .only(automl::settings::Algorithm::Linear)
     /// );
     /// model.train();
     /// model.predict_from_ndarray(
@@ -512,6 +511,7 @@ impl SupervisedModel {
     /// let mut model = SupervisedModel::new_from_dataset(
     ///     smartcore::dataset::diabetes::load_dataset(),
     ///     Settings::default_regression()
+    /// # .only(automl::settings::Algorithm::Linear)
     /// );
     /// model.train();
     /// model.run_gui();

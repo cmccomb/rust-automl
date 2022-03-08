@@ -57,6 +57,10 @@ This crate has several features that add some additional methods
 | `csv`     | Adds methods to read data from a .csv using [`polars`](https://crates.io/crates/polars).                  |
 | `gui`     | Adds a method for running a live demo GUI of a model through [`eframe`](https://crates.io/crates/eframe). |
 
+## Examples
+There are a few example files that can help you get up and running:
+| Description |
+
 ## Capabilities
 - Feature Engineering
   - PCA 

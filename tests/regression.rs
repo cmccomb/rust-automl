@@ -48,6 +48,24 @@ mod regression_tests {
     }
 
     #[test]
+    #[cfg(feature = "csv")]
+    fn test_new_from_csv_url() {
+        // let file_name = "data/diabetes.csv";
+        let file_name = "https://raw.githubusercontent.com/plotly/datasets/master/diabetes.csv";
+
+        // Set up the regressor settings and load data
+        let settings = Settings::default_regression().with_number_of_folds(2);
+
+        let mut regressor = SupervisedModel::new_from_csv(file_name, 8, true, settings);
+
+        // Compare models
+        regressor.train();
+
+        // Try to predict something
+        regressor.predict_from_vec(vec![vec![5.0 as f32; 8]; 8]);
+    }
+
+    #[test]
     fn test_add_interactions_preprocessing() {
         let settings =
             Settings::default_regression().with_preprocessing(PreProcessing::AddInteractions);
