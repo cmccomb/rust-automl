@@ -1,5 +1,3 @@
-use automl::settings::FinalModel;
-
 fn main() {
     #[cfg(feature = "csv")]
     {

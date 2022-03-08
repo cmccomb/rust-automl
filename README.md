@@ -45,7 +45,7 @@ will perform a comparison of classifier models using cross-validation. Printing 
 │ Support Vector Classifier      │ 4s 187ms 61us 708ns │ 0.57              │ 0.57             │
 └────────────────────────────────┴─────────────────────┴───────────────────┴──────────────────┘
 ```
-You can then train a final model using `classifier.train_final_model()` and perform inference using that model with the `predict` method.
+You can then perform inference using the best model with the `predict` method.
 
 ## Features
 This crate has several features that add some additional methods
@@ -57,9 +57,6 @@ This crate has several features that add some additional methods
 | `csv`     | Adds methods to read data from a .csv using [`polars`](https://crates.io/crates/polars).                  |
 | `gui`     | Adds a method for running a live demo GUI of a model through [`eframe`](https://crates.io/crates/eframe). |
 
-## Examples
-There are a few example files that can help you get up and running:
-| Description |
 
 ## Capabilities
 - Feature Engineering

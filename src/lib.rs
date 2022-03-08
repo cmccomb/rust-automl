@@ -7,7 +7,7 @@
 
 pub mod settings;
 pub use settings::Settings;
-use settings::{Algorithm, Distance, Kernel, Metric, PreProcessing};
+use settings::{Algorithm, Distance, FinalModel, Kernel, Metric, PreProcessing};
 
 mod algorithms;
 use algorithms::{
@@ -35,10 +35,9 @@ use smartcore::{
 use std::{
     cmp::Ordering::Equal,
     fmt::{Display, Formatter},
+    io::{Read, Write},
     time::Duration,
 };
-
-use std::io::{Read, Write};
 
 #[cfg(any(feature = "nd"))]
 use ndarray::{Array1, Array2};
@@ -48,18 +47,17 @@ use eframe::{egui, epi};
 
 #[cfg(any(feature = "csv"))]
 use {
-    polars::prelude::{CsvReader, DataFrame, Float32Type, SerReader},
+    polars::prelude::{DataFrame, Float32Type},
     utils::validate_and_read,
 };
 
 #[cfg(any(feature = "display"))]
-use comfy_table::{
-    modifiers::UTF8_SOLID_INNER_BORDERS, presets::UTF8_FULL, Attribute, Cell, Table,
+use {
+    comfy_table::{
+        modifiers::UTF8_SOLID_INNER_BORDERS, presets::UTF8_FULL, Attribute, Cell, Table,
+    },
+    humantime::format_duration,
 };
-
-use crate::settings::FinalModel;
-#[cfg(any(feature = "display"))]
-use humantime::format_duration;
 
 /// Trains and compares supervised models
 #[derive(serde::Serialize, serde::Deserialize)]
