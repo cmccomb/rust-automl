@@ -115,7 +115,7 @@ pub(crate) fn validate_and_read(file_path: &str, header: bool) -> DataFrame {
 
                 CsvReader::from_path(temp.path())
                     .expect("Cannot find file")
-                    .infer_schema(None)
+                    .infer_schema(Some(10))
                     .has_header(header)
                     .finish()
                     .expect("Cannot read file as CSV")

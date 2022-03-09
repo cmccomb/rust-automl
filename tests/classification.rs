@@ -11,17 +11,18 @@ mod classification_tests {
         // Set up the classifier settings and load data
         let settings = Settings::default_classification().with_number_of_folds(2);
 
-        let mut classifier = SupervisedModel::new_from_csv(file_name, 9, true, settings);
+        let mut classifier = SupervisedModel::new_from_csv(file_name, 30, true, settings);
 
         // Compare models
         classifier.train();
 
         // Try to predict something
-        classifier.predict_from_vec(vec![vec![5.0 as f32; 9]; 10]);
+        classifier.predict_from_vec(vec![vec![5.0 as f32; 30]; 10]);
         classifier.predict_from_csv("data/breast_cancer_without_target.csv", true);
         #[cfg(feature = "nd")]
-        classifier
-            .predict_from_ndarray(ndarray::Array2::from_shape_vec((10, 9), vec![5.0; 90]).unwrap());
+        classifier.predict_from_ndarray(
+            ndarray::Array2::from_shape_vec((10, 30), vec![5.0; 300]).unwrap(),
+        );
     }
 
     #[test]

@@ -23,6 +23,10 @@ mod new_from_dataset {
         classifier.predict_from_ndarray(
             ndarray::Array2::from_shape_vec((10, 30), vec![5.0; 300]).unwrap(),
         );
+
+        // Try to predict something from a csv
+        #[cfg(feature = "csv")]
+        classifier.predict_from_csv("data/breast_cancer_without_target.csv", true);
     }
 
     #[test]
