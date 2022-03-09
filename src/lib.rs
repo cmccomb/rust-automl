@@ -32,6 +32,7 @@ use smartcore::{
     linalg::{naive::dense_matrix::DenseMatrix, BaseMatrix},
     model_selection::{train_test_split, CrossValidationResult},
 };
+use std::fmt::Debug;
 use std::{
     cmp::Ordering::Equal,
     fmt::{Display, Formatter},
@@ -78,6 +79,27 @@ pub struct SupervisedModel {
     current_x: Vec<f32>,
 }
 
+pub struct Observations(DenseMatrix<f32>);
+pub struct Target(Vec<f32>);
+
+impl From<DenseMatrix<f32>> for Observations {
+    fn from(x: DenseMatrix<f32>) -> Self {
+        Observations(x)
+    }
+}
+
+impl From<Vec<Vec<f32>>> for Observations {
+    fn from(x: Vec<Vec<f32>>) -> Self {
+        Observations(DenseMatrix::from_2d_vec(&x))
+    }
+}
+
+impl From<Vec<f32>> for Target {
+    fn from(y: Vec<f32>) -> Self {
+        Target(y)
+    }
+}
+
 impl SupervisedModel {
     /// Create a new supervised model from a [smartcore toy dataset](https://docs.rs/smartcore/0.2.0/smartcore/dataset/index.html)
     /// ```
@@ -88,11 +110,27 @@ impl SupervisedModel {
     /// );
     /// ```
     pub fn new_from_dataset(dataset: Dataset<f32, f32>, settings: Settings) -> Self {
-        SupervisedModel::new(
+        SupervisedModel::build(
             DenseMatrix::from_array(dataset.num_samples, dataset.num_features, &dataset.data),
             dataset.target,
             settings,
         )
+    }
+
+    /// ```
+    /// # use automl::{SupervisedModel, Settings};
+    /// let model = automl::SupervisedModel::new(
+    ///     vec![vec![1.0; 5]; 5],
+    ///     vec![1.0; 5],
+    ///     automl::Settings::default_regression(),
+    /// );    
+    /// ```
+    pub fn new<X, Y>(x: X, y: Y, settings: Settings) -> Self
+    where
+        Observations: From<X>,
+        Target: From<Y>,
+    {
+        SupervisedModel::build(Observations::from(x).0, Target::from(y).0, settings)
     }
 
     /// Create a new supervised model using vec data
@@ -105,7 +143,7 @@ impl SupervisedModel {
     /// );    
     /// ```
     pub fn new_from_vec(x: Vec<Vec<f32>>, y: Vec<f32>, settings: Settings) -> Self {
-        SupervisedModel::new(DenseMatrix::from_2d_vec(&x), y, settings)
+        SupervisedModel::build(DenseMatrix::from_2d_vec(&x), y, settings)
     }
 
     /// Load the supervised model from a file saved previously
@@ -407,6 +445,7 @@ impl SupervisedModel {
         settings: Settings,
     ) -> Self {
         let df = validate_and_read(filepath, header);
+        let schema = df.schema();
 
         // Get target variables
         let target_column_name = df.get_column_names()[target_index];
@@ -421,7 +460,7 @@ impl SupervisedModel {
         let ndarray = features.to_ndarray::<Float32Type>().unwrap();
         let x = DenseMatrix::from_array(height, width, ndarray.as_slice().unwrap());
 
-        SupervisedModel::new(x, y, settings)
+        SupervisedModel::build(x, y, settings)
     }
 
     /// Create a new supervised model from a csv
@@ -467,7 +506,7 @@ impl SupervisedModel {
     /// );
     /// ```
     pub fn new_from_ndarray(x: Array2<f32>, y: Array1<f32>, settings: Settings) -> Self {
-        SupervisedModel::new(
+        SupervisedModel::build(
             DenseMatrix::from_array(x.shape()[0], x.shape()[1], x.as_slice().unwrap()),
             y.to_vec(),
             settings,
@@ -523,7 +562,7 @@ impl SupervisedModel {
 
 /// Private functions go here
 impl SupervisedModel {
-    fn new(x: DenseMatrix<f32>, y: Vec<f32>, settings: Settings) -> Self {
+    fn build(x: DenseMatrix<f32>, y: Vec<f32>, settings: Settings) -> Self {
         Self {
             settings,
             x_train: x.clone(),
