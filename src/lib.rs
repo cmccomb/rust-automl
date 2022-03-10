@@ -79,24 +79,37 @@ pub struct SupervisedModel {
     current_x: Vec<f32>,
 }
 
-pub struct Observations(DenseMatrix<f32>);
-pub struct Target(Vec<f32>);
+pub trait IntoDenseMatrix {
+    fn to_dense_matrix(self) -> DenseMatrix<f32>;
+}
 
-impl From<DenseMatrix<f32>> for Observations {
-    fn from(x: DenseMatrix<f32>) -> Self {
-        Observations(x)
+impl IntoDenseMatrix for Vec<Vec<f32>> {
+    fn to_dense_matrix(self) -> DenseMatrix<f32> {
+        DenseMatrix::from_2d_vec(&self)
     }
 }
 
-impl From<Vec<Vec<f32>>> for Observations {
-    fn from(x: Vec<Vec<f32>>) -> Self {
-        Observations(DenseMatrix::from_2d_vec(&x))
+#[cfg(any(feature = "nd"))]
+impl IntoDenseMatrix for Array2<f32> {
+    fn to_dense_matrix(self) -> DenseMatrix<f32> {
+        DenseMatrix::from_array(self.shape()[0], self.shape()[1], self.as_slice().unwrap())
     }
 }
 
-impl From<Vec<f32>> for Target {
-    fn from(y: Vec<f32>) -> Self {
-        Target(y)
+pub trait IntoVec {
+    fn into_vec(self) -> Vec<f32>;
+}
+
+impl IntoVec for Vec<f32> {
+    fn into_vec(self) -> Vec<f32> {
+        self
+    }
+}
+
+#[cfg(any(feature = "nd"))]
+impl IntoVec for Array1<f32> {
+    fn into_vec(self) -> Vec<f32> {
+        self.to_vec()
     }
 }
 
@@ -117,6 +130,7 @@ impl SupervisedModel {
         )
     }
 
+    /// Create a new supervised model This will work for vectors:
     /// ```
     /// # use automl::{SupervisedModel, Settings};
     /// let model = automl::SupervisedModel::new(
@@ -127,23 +141,10 @@ impl SupervisedModel {
     /// ```
     pub fn new<X, Y>(x: X, y: Y, settings: Settings) -> Self
     where
-        Observations: From<X>,
-        Target: From<Y>,
+        X: IntoDenseMatrix,
+        Y: IntoVec,
     {
-        SupervisedModel::build(Observations::from(x).0, Target::from(y).0, settings)
-    }
-
-    /// Create a new supervised model using vec data
-    /// ```
-    /// # use automl::{SupervisedModel, Settings};
-    /// let model = automl::SupervisedModel::new_from_vec(
-    ///     vec![vec![1.0; 5]; 5],
-    ///     vec![1.0; 5],
-    ///     automl::Settings::default_regression(),
-    /// );    
-    /// ```
-    pub fn new_from_vec(x: Vec<Vec<f32>>, y: Vec<f32>, settings: Settings) -> Self {
-        SupervisedModel::build(DenseMatrix::from_2d_vec(&x), y, settings)
+        SupervisedModel::build(x.to_dense_matrix(), y.into_vec(), settings)
     }
 
     /// Load the supervised model from a file saved previously
