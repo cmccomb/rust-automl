@@ -22,7 +22,7 @@ Running the following:
 ```rust
 let dataset = smartcore::dataset::breast_cancer::load_dataset();
 let settings = automl::Settings::default_classification();
-let mut classifier = automl::SupervisedModel::new_from_dataset(dataset, settings);
+let mut classifier = automl::SupervisedModel::new(dataset, settings);
 classifier.train();
 ```
 will perform a comparison of classifier models using cross-validation. Printing the classifier object will yield:

@@ -72,8 +72,7 @@ fn main() {
     settings.save("examples/maximal_regression_settings.yaml");
 
     // Load a dataset from smartcore and add it to the regressor along with the customized settings
-    let mut model =
-        SupervisedModel::new_from_dataset(smartcore::dataset::diabetes::load_dataset(), settings);
+    let mut model = SupervisedModel::new(smartcore::dataset::diabetes::load_dataset(), settings);
 
     // Run a model comparison with all models at default settings
     model.train();

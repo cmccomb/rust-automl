@@ -8,7 +8,7 @@ fn main() {
     // Set up and train a classification model with only one algorithm for simplicity
     let settings = Settings::default_classification().only(Algorithm::LogisticRegression);
     let dataset = smartcore::dataset::breast_cancer::load_dataset();
-    let mut model = SupervisedModel::new_from_dataset(dataset, settings);
+    let mut model = SupervisedModel::new(dataset, settings);
     model.train();
 
     // Save the best model

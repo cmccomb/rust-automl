@@ -79,8 +79,70 @@ pub struct SupervisedModel {
     current_x: Vec<f32>,
 }
 
+pub trait IntoSupervisedData {
+    fn to_supervised_data(self) -> (DenseMatrix<f32>, Vec<f32>);
+}
+
 pub trait IntoDenseMatrix {
     fn to_dense_matrix(self) -> DenseMatrix<f32>;
+}
+
+pub trait IntoVec {
+    fn into_vec(self) -> Vec<f32>;
+}
+
+impl IntoSupervisedData for Dataset<f32, f32> {
+    fn to_supervised_data(self) -> (DenseMatrix<f32>, Vec<f32>) {
+        (
+            DenseMatrix::from_array(self.num_samples, self.num_features, &self.data),
+            self.target,
+        )
+    }
+}
+
+impl IntoSupervisedData for (&str, usize, bool) {
+    fn to_supervised_data(self) -> (DenseMatrix<f32>, Vec<f32>) {
+        let (filepath, target_index, header) = self;
+        let df = validate_and_read(filepath, header);
+        let schema = df.schema();
+
+        // Get target variables
+        let target_column_name = df.get_column_names()[target_index];
+        let series = df.column(target_column_name).unwrap().clone();
+        let target_df = DataFrame::new(vec![series]).unwrap();
+        let ndarray = target_df.to_ndarray::<Float32Type>().unwrap();
+        let y = ndarray.into_raw_vec();
+
+        // Get the rest of the data
+        let features = df.drop(target_column_name).unwrap();
+        let (height, width) = features.shape();
+        let ndarray = features.to_ndarray::<Float32Type>().unwrap();
+        let x = DenseMatrix::from_array(height, width, ndarray.as_slice().unwrap());
+        (x, y)
+    }
+}
+
+impl IntoDenseMatrix for (&str, bool) {
+    fn to_dense_matrix(self) -> DenseMatrix<f32> {
+        let (filepath, header) = self;
+
+        let df = validate_and_read(filepath, header);
+
+        // Get the rest of the data
+        let (height, width) = df.shape();
+        let ndarray = df.to_ndarray::<Float32Type>().unwrap();
+        DenseMatrix::from_array(height, width, ndarray.as_slice().unwrap())
+    }
+}
+
+impl<X, Y> IntoSupervisedData for (X, Y)
+where
+    X: IntoDenseMatrix,
+    Y: IntoVec,
+{
+    fn to_supervised_data(self) -> (DenseMatrix<f32>, Vec<f32>) {
+        (self.0.to_dense_matrix(), self.1.into_vec())
+    }
 }
 
 impl IntoDenseMatrix for Vec<Vec<f32>> {
@@ -94,10 +156,6 @@ impl IntoDenseMatrix for Array2<f32> {
     fn to_dense_matrix(self) -> DenseMatrix<f32> {
         DenseMatrix::from_array(self.shape()[0], self.shape()[1], self.as_slice().unwrap())
     }
-}
-
-pub trait IntoVec {
-    fn into_vec(self) -> Vec<f32>;
 }
 
 impl IntoVec for Vec<f32> {
@@ -114,43 +172,68 @@ impl IntoVec for Array1<f32> {
 }
 
 impl SupervisedModel {
-    /// Create a new supervised model from a [smartcore toy dataset](https://docs.rs/smartcore/0.2.0/smartcore/dataset/index.html)
+    /// Create a new supervised model. This function accepts various types of syntax. For instance, it will work for vectors:
     /// ```
     /// # use automl::{SupervisedModel, Settings};
-    /// let model = SupervisedModel::new_from_dataset(
+    /// let model = automl::SupervisedModel::new(
+    ///     (vec![vec![1.0; 5]; 5],
+    ///     vec![1.0; 5]),
+    ///     automl::Settings::default_regression(),
+    /// );    
+    /// ```
+    /// It also works for some ndarray datatypes:
+    /// ```
+    /// # use automl::{SupervisedModel, Settings};
+    /// #[cfg(any(feature = "nd"))]
+    /// let model = SupervisedModel::new(
+    ///     (
+    ///         ndarray::arr2(&[[1.0, 2.0], [3.0, 4.0]]),
+    ///         ndarray::arr1(&[1.0, 2.0])
+    ///     ),
+    ///     automl::Settings::default_regression(),
+    /// );
+    /// ```
+    /// But you can also create a new supervised model from a [smartcore toy dataset](https://docs.rs/smartcore/0.2.0/smartcore/dataset/index.html)
+    /// ```
+    /// # use automl::{SupervisedModel, Settings};
+    /// let model = SupervisedModel::new(
     ///     smartcore::dataset::diabetes::load_dataset(),
     ///     Settings::default_regression()
     /// );
     /// ```
-    pub fn new_from_dataset(dataset: Dataset<f32, f32>, settings: Settings) -> Self {
-        SupervisedModel::build(
-            DenseMatrix::from_array(dataset.num_samples, dataset.num_features, &dataset.data),
-            dataset.target,
-            settings,
-        )
-    }
-
-    /// Create a new supervised model This will work for vectors:
+    /// You can even create a new supervised model directly from a CSV!
     /// ```
     /// # use automl::{SupervisedModel, Settings};
-    /// let model = automl::SupervisedModel::new(
-    ///     vec![vec![1.0; 5]; 5],
-    ///     vec![1.0; 5],
-    ///     automl::Settings::default_regression(),
-    /// );    
+    /// #[cfg(any(feature = "csv"))]
+    /// let model = SupervisedModel::new(
+    ///     ("data/diabetes.csv", 10, true),
+    ///     Settings::default_regression()
+    /// );
     /// ```
-    pub fn new<X, Y>(x: X, y: Y, settings: Settings) -> Self
+    /// And that CSV can even come from a URL
+    /// ```
+    /// # use automl::{SupervisedModel, Settings};
+    /// #[cfg(any(feature = "csv"))]
+    /// let mut model = automl::SupervisedModel::new(
+    ///         (
+    ///         "https://raw.githubusercontent.com/plotly/datasets/master/diabetes.csv",
+    ///         8,
+    ///         true,
+    ///     ),
+    ///     Settings::default_regression(),
+    /// );
+    pub fn new<D>(data: D, settings: Settings) -> Self
     where
-        X: IntoDenseMatrix,
-        Y: IntoVec,
+        D: IntoSupervisedData,
     {
-        SupervisedModel::build(x.to_dense_matrix(), y.into_vec(), settings)
+        let (x, y) = data.to_supervised_data();
+        SupervisedModel::build(x, y, settings)
     }
 
     /// Load the supervised model from a file saved previously
     /// ```
     /// # use automl::{SupervisedModel, Settings};
-    /// # let mut model = SupervisedModel::new_from_dataset(
+    /// # let mut model = SupervisedModel::new(
     /// #    smartcore::dataset::diabetes::load_dataset(),
     /// #    Settings::default_regression()
     /// # );
@@ -169,22 +252,68 @@ impl SupervisedModel {
     /// Predict values using the final model based on a vec.
     /// ```
     /// # use automl::{SupervisedModel, Settings};
-    /// let mut model = SupervisedModel::new_from_dataset(
-    ///     smartcore::dataset::diabetes::load_dataset(),
-    ///     Settings::default_regression()
+    /// # let mut model = SupervisedModel::new(
+    /// #     smartcore::dataset::diabetes::load_dataset(),
+    /// #    Settings::default_regression()
     /// # .only(automl::settings::Algorithm::Linear)
-    /// );
-    /// model.train();
-    /// model.predict_from_vec(vec![vec![5.0; 10]; 5]);
+    /// # );
+    /// # model.train();
+    /// model.predict(vec![vec![5.0; 10]; 5]);
     /// ```
-    pub fn predict_from_vec(&mut self, x: Vec<Vec<f32>>) -> Vec<f32> {
-        self.predict(&DenseMatrix::from_2d_vec(&x))
+    /// Or predict values using the final model based on ndarray.
+    /// ```
+    /// # use automl::{SupervisedModel, Settings};
+    /// # #[cfg(any(feature = "nd"))]
+    /// # let mut model = SupervisedModel::new(
+    /// #     smartcore::dataset::diabetes::load_dataset(),
+    /// #     Settings::default_regression()
+    /// # .only(automl::settings::Algorithm::Linear)
+    /// # );
+    /// # #[cfg(any(feature = "nd"))]
+    /// # model.train();
+    /// #[cfg(any(feature = "nd"))]
+    /// model.predict(
+    ///     ndarray::arr2(&[
+    ///         [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0],
+    ///         [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]
+    ///     ])
+    /// );
+    /// ```
+    /// You can also predict from a CSV file
+    /// ```
+    /// # use automl::{SupervisedModel, Settings};
+    /// # #[cfg(any(feature = "csv"))]
+    /// # let mut model = SupervisedModel::new(
+    /// #     ("data/diabetes.csv", 10, true),
+    /// #     Settings::default_regression()
+    /// # .only(automl::settings::Algorithm::Linear)
+    /// # );
+    /// # #[cfg(any(feature = "csv"))]
+    /// # model.train();
+    /// #[cfg(any(feature = "csv"))]
+    /// model.predict(
+    ///     (
+    ///         "data/diabetes_without_target.csv",
+    ///         true
+    ///     )
+    /// );
+    /// ```
+    pub fn predict<X>(&mut self, x: X) -> Vec<f32>
+    where
+        X: IntoDenseMatrix,
+    {
+        let x = &self.preprocess(x.to_dense_matrix().clone());
+        match self.settings.final_model_approach {
+            FinalModel::None => panic!(""),
+            FinalModel::Best => self.predict_by_model(x, &self.comparison[0]),
+            FinalModel::Blending { algorithm, .. } => self.predict_blended_model(x, algorithm),
+        }
     }
 
     /// Runs a model comparison and trains a final model.
     /// ```
     /// # use automl::{SupervisedModel, Settings};
-    /// let mut model = SupervisedModel::new_from_dataset(
+    /// let mut model = SupervisedModel::new(
     ///     smartcore::dataset::diabetes::load_dataset(),
     ///     Settings::default_regression()
     /// # .only(automl::settings::Algorithm::Linear)
@@ -389,7 +518,7 @@ impl SupervisedModel {
     /// Save the supervised model to a file for later use
     /// ```
     /// # use automl::{SupervisedModel, Settings};
-    /// let mut model = SupervisedModel::new_from_dataset(
+    /// let mut model = SupervisedModel::new(
     ///     smartcore::dataset::diabetes::load_dataset(),
     ///     Settings::default_regression()
     /// );
@@ -408,7 +537,7 @@ impl SupervisedModel {
     /// # use automl::{SupervisedModel, Settings, settings::Algorithm};
     /// use std::io::Read;
     ///
-    /// let mut model = SupervisedModel::new_from_dataset(
+    /// let mut model = SupervisedModel::new(
     ///     smartcore::dataset::diabetes::load_dataset(),
     ///     Settings::default_regression()
     /// # .only(Algorithm::Linear)
@@ -426,127 +555,13 @@ impl SupervisedModel {
     }
 }
 
-#[cfg_attr(docsrs, doc(cfg(feature = "csv")))]
-#[cfg(any(feature = "csv"))]
-impl SupervisedModel {
-    /// Create a new supervised model from a csv
-    /// ```
-    /// # use automl::{SupervisedModel, Settings};
-    /// let model = SupervisedModel::new_from_csv(
-    ///     "data/diabetes.csv",
-    ///     10,
-    ///     true,
-    ///     Settings::default_regression()
-    /// );
-    /// ```
-    pub fn new_from_csv(
-        filepath: &str,
-        target_index: usize,
-        header: bool,
-        settings: Settings,
-    ) -> Self {
-        let df = validate_and_read(filepath, header);
-        let schema = df.schema();
-
-        // Get target variables
-        let target_column_name = df.get_column_names()[target_index];
-        let series = df.column(target_column_name).unwrap().clone();
-        let target_df = DataFrame::new(vec![series]).unwrap();
-        let ndarray = target_df.to_ndarray::<Float32Type>().unwrap();
-        let y = ndarray.into_raw_vec();
-
-        // Get the rest of the data
-        let features = df.drop(target_column_name).unwrap();
-        let (height, width) = features.shape();
-        let ndarray = features.to_ndarray::<Float32Type>().unwrap();
-        let x = DenseMatrix::from_array(height, width, ndarray.as_slice().unwrap());
-
-        SupervisedModel::build(x, y, settings)
-    }
-
-    /// Create a new supervised model from a csv
-    /// ```
-    /// # use automl::{SupervisedModel, Settings};
-    /// let mut model = SupervisedModel::new_from_csv(
-    ///     "data/diabetes.csv",
-    ///     10,
-    ///     true,
-    ///     Settings::default_regression()
-    /// # .only(automl::settings::Algorithm::Linear)
-    /// );
-    /// model.train();
-    /// model.predict_from_csv(
-    ///     "data/diabetes_without_target.csv",
-    ///     true
-    /// );
-    /// ```
-    pub fn predict_from_csv(&mut self, filepath: &str, header: bool) -> Vec<f32> {
-        let df = validate_and_read(filepath, header);
-
-        // Get the rest of the data
-        let (height, width) = df.shape();
-        let ndarray = df.to_ndarray::<Float32Type>().unwrap();
-        let x = DenseMatrix::from_array(height, width, ndarray.as_slice().unwrap());
-
-        // Predict
-        self.predict(&x)
-    }
-}
-
-#[cfg_attr(docsrs, doc(cfg(feature = "nd")))]
-#[cfg(any(feature = "nd"))]
-impl SupervisedModel {
-    /// Create a new supervised model using ndarray data
-    /// ```
-    /// # use automl::{SupervisedModel, Settings};
-    /// use ndarray::{arr1, arr2};
-    /// let model = SupervisedModel::new_from_ndarray(
-    ///     arr2(&[[1.0, 2.0], [3.0, 4.0]]),
-    ///     arr1(&[1.0, 2.0]),
-    ///     automl::Settings::default_regression(),
-    /// );
-    /// ```
-    pub fn new_from_ndarray(x: Array2<f32>, y: Array1<f32>, settings: Settings) -> Self {
-        SupervisedModel::build(
-            DenseMatrix::from_array(x.shape()[0], x.shape()[1], x.as_slice().unwrap()),
-            y.to_vec(),
-            settings,
-        )
-    }
-
-    /// Predict values using the final model based on ndarray.
-    /// ```
-    /// # use automl::{SupervisedModel, Settings};
-    /// use ndarray::arr2;
-    /// let mut model = SupervisedModel::new_from_dataset(
-    ///     smartcore::dataset::diabetes::load_dataset(),
-    ///     Settings::default_regression()
-    /// # .only(automl::settings::Algorithm::Linear)
-    /// );
-    /// model.train();
-    /// model.predict_from_ndarray(
-    ///     arr2(&[
-    ///         [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0],
-    ///         [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]
-    ///     ])
-    /// );
-    /// ```
-    pub fn predict_from_ndarray(&mut self, x: Array2<f32>) -> Vec<f32> {
-        self.predict(&DenseMatrix::from_array(
-            x.shape()[0],
-            x.shape()[1],
-            x.as_slice().unwrap(),
-        ))
-    }
-}
-
 #[cfg_attr(docsrs, doc(cfg(feature = "gui")))]
 #[cfg(any(feature = "gui"))]
 impl SupervisedModel {
     /// Runs an interactive GUI to demonstrate the final model
     /// ```no_run
     /// # use automl::{SupervisedModel, Settings};
-    /// let mut model = SupervisedModel::new_from_dataset(
+    /// let mut model = SupervisedModel::new(
     ///     smartcore::dataset::diabetes::load_dataset(),
     ///     Settings::default_regression()
     /// # .only(automl::settings::Algorithm::Linear)
@@ -683,15 +698,6 @@ impl SupervisedModel {
             Algorithm::CategoricalNaiveBayes => {
                 CategoricalNaiveBayesClassifierWrapper::predict(x, saved_model, &self.settings)
             }
-        }
-    }
-
-    fn predict(&mut self, x: &DenseMatrix<f32>) -> Vec<f32> {
-        let x = &self.preprocess(x.clone());
-        match self.settings.final_model_approach {
-            FinalModel::None => panic!(""),
-            FinalModel::Best => self.predict_by_model(x, &self.comparison[0]),
-            FinalModel::Blending { algorithm, .. } => self.predict_blended_model(x, algorithm),
         }
     }
 
@@ -874,7 +880,7 @@ impl epi::App for SupervisedModel {
             // Add a label that shows the prediction
             ui.label(format!(
                 "Prediction: y = {}",
-                self.predict(&DenseMatrix::from_2d_vec(&vec![self.current_x.to_vec(); 1]))[0]
+                self.predict(vec![self.current_x.to_vec(); 1])[0]
             ));
 
             // Separating the model name and prediction from the input values

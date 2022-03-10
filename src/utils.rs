@@ -1,5 +1,6 @@
 use smartcore::{algorithm::neighbour::KNNAlgorithmName, neighbors::KNNWeightFunction};
 use std::fmt::{Debug, Display, Formatter};
+use std::ops::BitAnd;
 
 pub(crate) fn print_option<T: Display>(x: Option<T>) -> String {
     match x {
@@ -98,16 +99,22 @@ pub fn elementwise_multiply(v1: &Vec<f32>, v2: &Vec<f32>) -> Vec<f32> {
 }
 
 #[cfg(any(feature = "csv"))]
-use polars::prelude::{CsvReader, DataFrame, SerReader};
+use polars::prelude::{
+    BooleanChunked, BooleanChunkedBuilder, CsvReader, DataFrame, DataType, PolarsError, SerReader,
+};
 
 #[cfg(any(feature = "csv"))]
 pub(crate) fn validate_and_read(file_path: &str, header: bool) -> DataFrame {
     match CsvReader::from_path(file_path) {
         Ok(csv) => csv
-            .infer_schema(None)
+            .infer_schema(Some(10))
             .has_header(header)
             .finish()
-            .expect("Cannot read file as CSV"),
+            .expect("Cannot read file as CSV")
+            .remove_nulls()
+            .expect("Cannot remove null values")
+            .convert_to_float()
+            .expect("Cannot convert types"),
         Err(_) => {
             if let Ok(_) = url::Url::parse(file_path) {
                 let file_contents = minreq::get(file_path).send().unwrap();
@@ -119,9 +126,49 @@ pub(crate) fn validate_and_read(file_path: &str, header: bool) -> DataFrame {
                     .has_header(header)
                     .finish()
                     .expect("Cannot read file as CSV")
+                    .remove_nulls()
+                    .expect("Cannot remove null values")
+                    .convert_to_float()
+                    .expect("Cannot convert types")
             } else {
                 panic!("The string {} is not a valid URL or file path.", file_path)
             }
         }
+    }
+}
+#[cfg(any(feature = "csv"))]
+trait Cleanup {
+    fn convert_to_float(self) -> Result<DataFrame, PolarsError>;
+    fn remove_nulls(self) -> Result<DataFrame, PolarsError>;
+}
+
+#[cfg(any(feature = "csv"))]
+impl Cleanup for DataFrame {
+    fn convert_to_float(self) -> Result<DataFrame, PolarsError> {
+        for field in self.schema().fields() {
+            let name = field.name();
+            println!("{}", field.data_type().to_string());
+            match field.data_type() {
+                DataType::Boolean => {}
+                DataType::Utf8 => {}
+                DataType::Date => {}
+                DataType::Datetime => {}
+                DataType::Time => {}
+                DataType::List(_) => {}
+                DataType::Null => {}
+                DataType::Categorical => {}
+                _ => {}
+            }
+        }
+
+        Ok(self)
+    }
+
+    fn remove_nulls(self) -> Result<DataFrame, PolarsError> {
+        let mut mask = self.get_columns()[0].is_not_null();
+        for column in self.get_columns() {
+            mask = column.is_not_null().bitand(mask);
+        }
+        Ok(self.filter(&mask).expect("Cannot mask"))
     }
 }

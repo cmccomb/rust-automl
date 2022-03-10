@@ -1,6 +1,6 @@
 fn main() {
     // Define a default regressor from a dataset
-    let mut model = automl::SupervisedModel::new_from_dataset(
+    let mut model = automl::SupervisedModel::new(
         smartcore::dataset::diabetes::load_dataset(),
         automl::Settings::default_regression(),
     );
