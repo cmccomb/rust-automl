@@ -100,6 +100,7 @@ impl IntoSupervisedData for Dataset<f32, f32> {
     }
 }
 
+#[cfg(any(feature = "csv"))]
 impl IntoSupervisedData for (&str, usize, bool) {
     fn to_supervised_data(self) -> (DenseMatrix<f32>, Vec<f32>) {
         let (filepath, target_index, header) = self;
@@ -122,6 +123,7 @@ impl IntoSupervisedData for (&str, usize, bool) {
     }
 }
 
+#[cfg(any(feature = "csv"))]
 impl IntoDenseMatrix for (&str, bool) {
     fn to_dense_matrix(self) -> DenseMatrix<f32> {
         let (filepath, header) = self;
@@ -151,16 +153,16 @@ impl IntoDenseMatrix for Vec<Vec<f32>> {
     }
 }
 
+impl IntoVec for Vec<f32> {
+    fn into_vec(self) -> Vec<f32> {
+        self
+    }
+}
+
 #[cfg(any(feature = "nd"))]
 impl IntoDenseMatrix for Array2<f32> {
     fn to_dense_matrix(self) -> DenseMatrix<f32> {
         DenseMatrix::from_array(self.shape()[0], self.shape()[1], self.as_slice().unwrap())
-    }
-}
-
-impl IntoVec for Vec<f32> {
-    fn into_vec(self) -> Vec<f32> {
-        self
     }
 }
 
