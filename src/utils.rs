@@ -112,7 +112,7 @@ pub(crate) fn validate_and_read(file_path: &str, header: bool) -> DataFrame {
             .has_header(header)
             .finish()
             .expect("Cannot read file as CSV")
-            .remove_nulls()
+            .drop_nulls(None)
             .expect("Cannot remove null values")
             .convert_to_float()
             .expect("Cannot convert types"),
@@ -127,7 +127,7 @@ pub(crate) fn validate_and_read(file_path: &str, header: bool) -> DataFrame {
                     .has_header(header)
                     .finish()
                     .expect("Cannot read file as CSV")
-                    .remove_nulls()
+                    .drop_nulls(None)
                     .expect("Cannot remove null values")
                     .convert_to_float()
                     .expect("Cannot convert types")
@@ -140,7 +140,6 @@ pub(crate) fn validate_and_read(file_path: &str, header: bool) -> DataFrame {
 #[cfg(any(feature = "csv"))]
 trait Cleanup {
     fn convert_to_float(self) -> Result<DataFrame, PolarsError>;
-    fn remove_nulls(self) -> Result<DataFrame, PolarsError>;
 }
 
 #[cfg(any(feature = "csv"))]
@@ -168,13 +167,5 @@ impl Cleanup for DataFrame {
         // }
 
         Ok(self)
-    }
-
-    fn remove_nulls(self) -> Result<DataFrame, PolarsError> {
-        let mut mask = self.get_columns()[0].is_not_null();
-        for column in self.get_columns() {
-            mask = column.is_not_null().bitand(mask);
-        }
-        self.filter(&mask)
     }
 }
