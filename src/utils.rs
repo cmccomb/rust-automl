@@ -146,26 +146,26 @@ trait Cleanup {
 #[cfg(any(feature = "csv"))]
 impl Cleanup for DataFrame {
     fn convert_to_float(mut self) -> Result<DataFrame, PolarsError> {
-        for field in self.schema().fields() {
-            let name = field.name();
-            // Work in progress
-            // if field.data_type().to_string() == "str" {
-            //     let ca = self.column(name).unwrap().utf8().unwrap();
-            //     let vec_str: Vec<&str> = ca.into_no_null_iter().collect();
-            //     let mut unique = vec_str.clone();
-            //     unique.sort();
-            //     unique.dedup();
-            //     let mut new_encoding = vec![0; 0];
-            //     if unique.len() == vec_str.len() || unique.len() == 1 {
-            //         self.drop_in_place(name);
-            //     } else {
-            //         vec_str.into_iter().for_each(|x| {
-            //             new_encoding.push(unique.iter().position(|&y| y == x).unwrap() as u64)
-            //         });
-            //         self.with_column(Series::new(name, &new_encoding));
-            //     }
-            // }
-        }
+        // Work in progress
+        // for field in self.schema().fields() {
+        //     let name = field.name();
+        //     if field.data_type().to_string() == "str" {
+        //         let ca = self.column(name).unwrap().utf8().unwrap();
+        //         let vec_str: Vec<&str> = ca.into_no_null_iter().collect();
+        //         let mut unique = vec_str.clone();
+        //         unique.sort();
+        //         unique.dedup();
+        //         let mut new_encoding = vec![0; 0];
+        //         if unique.len() == vec_str.len() || unique.len() == 1 {
+        //             self.drop_in_place(name);
+        //         } else {
+        //             vec_str.into_iter().for_each(|x| {
+        //                 new_encoding.push(unique.iter().position(|&y| y == x).unwrap() as u64)
+        //             });
+        //             self.with_column(Series::new(name, &new_encoding));
+        //         }
+        //     }
+        // }
 
         Ok(self)
     }
