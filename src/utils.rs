@@ -100,7 +100,8 @@ pub fn elementwise_multiply(v1: &Vec<f32>, v2: &Vec<f32>) -> Vec<f32> {
 
 #[cfg(any(feature = "csv"))]
 use polars::prelude::{
-    BooleanChunked, BooleanChunkedBuilder, CsvReader, DataFrame, DataType, PolarsError, SerReader,
+    BooleanChunked, BooleanChunkedBuilder, CsvReader, DataFrame, DataType, NamedFrom, PolarsError,
+    SerReader, Series,
 };
 
 #[cfg(any(feature = "csv"))]
@@ -144,21 +145,26 @@ trait Cleanup {
 
 #[cfg(any(feature = "csv"))]
 impl Cleanup for DataFrame {
-    fn convert_to_float(self) -> Result<DataFrame, PolarsError> {
+    fn convert_to_float(mut self) -> Result<DataFrame, PolarsError> {
         for field in self.schema().fields() {
             let name = field.name();
-            println!("{}", field.data_type().to_string());
-            match field.data_type() {
-                DataType::Boolean => {}
-                DataType::Utf8 => {}
-                DataType::Date => {}
-                DataType::Datetime => {}
-                DataType::Time => {}
-                DataType::List(_) => {}
-                DataType::Null => {}
-                DataType::Categorical => {}
-                _ => {}
-            }
+            // Work in progress
+            // if field.data_type().to_string() == "str" {
+            //     let ca = self.column(name).unwrap().utf8().unwrap();
+            //     let vec_str: Vec<&str> = ca.into_no_null_iter().collect();
+            //     let mut unique = vec_str.clone();
+            //     unique.sort();
+            //     unique.dedup();
+            //     let mut new_encoding = vec![0; 0];
+            //     if unique.len() == vec_str.len() || unique.len() == 1 {
+            //         self.drop_in_place(name);
+            //     } else {
+            //         vec_str.into_iter().for_each(|x| {
+            //             new_encoding.push(unique.iter().position(|&y| y == x).unwrap() as u64)
+            //         });
+            //         self.with_column(Series::new(name, &new_encoding));
+            //     }
+            // }
         }
 
         Ok(self)
@@ -169,6 +175,6 @@ impl Cleanup for DataFrame {
         for column in self.get_columns() {
             mask = column.is_not_null().bitand(mask);
         }
-        Ok(self.filter(&mask).expect("Cannot mask"))
+        self.filter(&mask)
     }
 }

@@ -43,9 +43,6 @@ use std::{
 #[cfg(any(feature = "nd"))]
 use ndarray::{Array1, Array2};
 
-#[cfg(any(feature = "na"))]
-use nalgebra::DMatrix;
-
 #[cfg(any(feature = "gui"))]
 use eframe::{egui, epi};
 
@@ -89,7 +86,6 @@ impl IntoSupervisedData for (&str, usize, bool) {
     fn to_supervised_data(self) -> (DenseMatrix<f32>, Vec<f32>) {
         let (filepath, target_index, header) = self;
         let df = validate_and_read(filepath, header);
-        let schema = df.schema();
 
         // Get target variables
         let target_column_name = df.get_column_names()[target_index];
@@ -330,6 +326,7 @@ impl SupervisedModel {
         self.x_train = self.preprocess(self.x_train.clone());
 
         // Split validatino out if blending
+
         match &self.settings.final_model_approach {
             FinalModel::None => {}
             FinalModel::Best => {}
