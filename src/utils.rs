@@ -118,7 +118,7 @@ pub(crate) fn validate_and_read(file_path: &str, header: bool) -> DataFrame {
             .expect("Cannot convert types"),
         Err(_) => {
             if let Ok(_) = url::Url::parse(file_path) {
-                let file_contents = minreq::get(file_path).send().unwrap();
+                let file_contents = minreq::get(file_path).send().expect("Could not open URL");
                 let temp = temp_file::with_contents(file_contents.as_bytes());
 
                 CsvReader::from_path(temp.path())
