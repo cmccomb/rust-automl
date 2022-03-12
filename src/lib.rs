@@ -43,6 +43,9 @@ use std::{
 #[cfg(any(feature = "nd"))]
 use ndarray::{Array1, Array2};
 
+#[cfg(any(feature = "na"))]
+use nalgebra::DMatrix;
+
 #[cfg(any(feature = "gui"))]
 use eframe::{egui, epi};
 
@@ -59,25 +62,6 @@ use {
     },
     humantime::format_duration,
 };
-
-/// Trains and compares supervised models
-#[derive(serde::Serialize, serde::Deserialize)]
-pub struct SupervisedModel {
-    settings: Settings,
-    x_train: DenseMatrix<f32>,
-    y_train: Vec<f32>,
-    x_val: DenseMatrix<f32>,
-    y_val: Vec<f32>,
-    number_of_classes: usize,
-    comparison: Vec<Model>,
-    metamodel: Model,
-    preprocessing: (
-        Option<PCA<f32, DenseMatrix<f32>>>,
-        Option<SVD<f32, DenseMatrix<f32>>>,
-    ),
-    #[cfg(any(feature = "gui"))]
-    current_x: Vec<f32>,
-}
 
 pub trait IntoSupervisedData {
     fn to_supervised_data(self) -> (DenseMatrix<f32>, Vec<f32>);
@@ -171,6 +155,25 @@ impl IntoVec for Array1<f32> {
     fn into_vec(self) -> Vec<f32> {
         self.to_vec()
     }
+}
+
+/// Trains and compares supervised models
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct SupervisedModel {
+    settings: Settings,
+    x_train: DenseMatrix<f32>,
+    y_train: Vec<f32>,
+    x_val: DenseMatrix<f32>,
+    y_val: Vec<f32>,
+    number_of_classes: usize,
+    comparison: Vec<Model>,
+    metamodel: Model,
+    preprocessing: (
+        Option<PCA<f32, DenseMatrix<f32>>>,
+        Option<SVD<f32, DenseMatrix<f32>>>,
+    ),
+    #[cfg(any(feature = "gui"))]
+    current_x: Vec<f32>,
 }
 
 impl SupervisedModel {
