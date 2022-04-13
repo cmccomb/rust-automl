@@ -100,7 +100,8 @@ pub fn elementwise_multiply(v1: &Vec<f32>, v2: &Vec<f32>) -> Vec<f32> {
 
 #[cfg(any(feature = "csv"))]
 use polars::prelude::{
-    BooleanChunked, BooleanChunkedBuilder, CsvReader, DataFrame, DataType, PolarsError, SerReader,
+    BooleanChunked, BooleanChunkedBuilder, CsvReader, DataFrame, DataType, NamedFrom, PolarsError,
+    SerReader, Series,
 };
 
 #[cfg(any(feature = "csv"))]
@@ -111,16 +112,25 @@ pub(crate) fn validate_and_read(file_path: &str, header: bool) -> DataFrame {
             .has_header(header)
             .finish()
             .expect("Cannot read file as CSV")
-            .remove_nulls()
+            .drop_nulls(None)
             .expect("Cannot remove null values")
             .convert_to_float()
             .expect("Cannot convert types"),
         Err(_) => {
             if let Ok(_) = url::Url::parse(file_path) {
-                let file_contents = minreq::get(file_path).send().unwrap();
+                let file_contents = minreq::get(file_path).send().expect("Could not open URL");
                 let temp = temp_file::with_contents(file_contents.as_bytes());
 
-                validate_and_read(temp.path().to_str().unwrap(), header)
+                CsvReader::from_path(temp.path())
+                    .expect("Cannot find file")
+                    .infer_schema(Some(10))
+                    .has_header(header)
+                    .finish()
+                    .expect("Cannot read file as CSV")
+                    .drop_nulls(None)
+                    .expect("Cannot remove null values")
+                    .convert_to_float()
+                    .expect("Cannot convert types")
             } else {
                 panic!("The string {} is not a valid URL or file path.", file_path)
             }
@@ -130,36 +140,32 @@ pub(crate) fn validate_and_read(file_path: &str, header: bool) -> DataFrame {
 #[cfg(any(feature = "csv"))]
 trait Cleanup {
     fn convert_to_float(self) -> Result<DataFrame, PolarsError>;
-    fn remove_nulls(self) -> Result<DataFrame, PolarsError>;
 }
 
 #[cfg(any(feature = "csv"))]
 impl Cleanup for DataFrame {
-    fn convert_to_float(self) -> Result<DataFrame, PolarsError> {
-        for field in self.schema().fields() {
-            let name = field.name();
-            println!("{}", field.data_type().to_string());
-            match field.data_type() {
-                DataType::Boolean => {}
-                DataType::Utf8 => {}
-                DataType::Date => {}
-                DataType::Datetime => {}
-                DataType::Time => {}
-                DataType::List(_) => {}
-                DataType::Null => {}
-                DataType::Categorical => {}
-                _ => {}
-            }
-        }
+    fn convert_to_float(mut self) -> Result<DataFrame, PolarsError> {
+        // Work in progress
+        // for field in self.schema().fields() {
+        //     let name = field.name();
+        //     if field.data_type().to_string() == "str" {
+        //         let ca = self.column(name).unwrap().utf8().unwrap();
+        //         let vec_str: Vec<&str> = ca.into_no_null_iter().collect();
+        //         let mut unique = vec_str.clone();
+        //         unique.sort();
+        //         unique.dedup();
+        //         let mut new_encoding = vec![0; 0];
+        //         if unique.len() == vec_str.len() || unique.len() == 1 {
+        //             self.drop_in_place(name);
+        //         } else {
+        //             vec_str.into_iter().for_each(|x| {
+        //                 new_encoding.push(unique.iter().position(|&y| y == x).unwrap() as u64)
+        //             });
+        //             self.with_column(Series::new(name, &new_encoding));
+        //         }
+        //     }
+        // }
 
         Ok(self)
-    }
-
-    fn remove_nulls(self) -> Result<DataFrame, PolarsError> {
-        let mut mask = self.get_columns()[0].is_not_null();
-        for column in self.get_columns() {
-            mask = column.is_not_null().bitand(mask);
-        }
-        Ok(self.filter(&mask).expect("Cannot mask"))
     }
 }

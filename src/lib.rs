@@ -32,7 +32,6 @@ use smartcore::{
     linalg::{naive::dense_matrix::DenseMatrix, BaseMatrix},
     model_selection::{train_test_split, CrossValidationResult},
 };
-use std::fmt::Debug;
 use std::{
     cmp::Ordering::Equal,
     fmt::{Display, Formatter},
@@ -42,9 +41,6 @@ use std::{
 
 #[cfg(any(feature = "nd"))]
 use ndarray::{Array1, Array2};
-
-#[cfg(any(feature = "na"))]
-use nalgebra::DMatrix;
 
 #[cfg(any(feature = "gui"))]
 use eframe::{egui, epi};
@@ -63,15 +59,23 @@ use {
     humantime::format_duration,
 };
 
+/// This trait must be implemented for any types passed to the `SupervisedModel::new` as data.
 pub trait IntoSupervisedData {
+    /// Converts the struct into paired features and labels
     fn to_supervised_data(self) -> (DenseMatrix<f32>, Vec<f32>);
 }
 
-pub trait IntoDenseMatrix {
+/// Types that implement this trait can be paired in a tupl with a type implementing `IntoLabels` to
+/// automatically satisfy `IntoSupervisedData`. This trait is also required for data that is passed to `predict`.
+pub trait IntoFeatures {
+    /// Converts the struct into a dense matrix of features
     fn to_dense_matrix(self) -> DenseMatrix<f32>;
 }
 
-pub trait IntoVec {
+/// Types that implement this trait can be paired in a tuple with a type implementing `IntoFeatures`
+/// to automatically satisfy `IntoSupervisedData`.
+pub trait IntoLabels {
+    /// Converts the struct into a vector of labels
     fn into_vec(self) -> Vec<f32>;
 }
 
@@ -89,7 +93,6 @@ impl IntoSupervisedData for (&str, usize, bool) {
     fn to_supervised_data(self) -> (DenseMatrix<f32>, Vec<f32>) {
         let (filepath, target_index, header) = self;
         let df = validate_and_read(filepath, header);
-        let schema = df.schema();
 
         // Get target variables
         let target_column_name = df.get_column_names()[target_index];
@@ -108,7 +111,7 @@ impl IntoSupervisedData for (&str, usize, bool) {
 }
 
 #[cfg(any(feature = "csv"))]
-impl IntoDenseMatrix for (&str, bool) {
+impl IntoFeatures for (&str, bool) {
     fn to_dense_matrix(self) -> DenseMatrix<f32> {
         let (filepath, header) = self;
 
@@ -123,35 +126,35 @@ impl IntoDenseMatrix for (&str, bool) {
 
 impl<X, Y> IntoSupervisedData for (X, Y)
 where
-    X: IntoDenseMatrix,
-    Y: IntoVec,
+    X: IntoFeatures,
+    Y: IntoLabels,
 {
     fn to_supervised_data(self) -> (DenseMatrix<f32>, Vec<f32>) {
         (self.0.to_dense_matrix(), self.1.into_vec())
     }
 }
 
-impl IntoDenseMatrix for Vec<Vec<f32>> {
+impl IntoFeatures for Vec<Vec<f32>> {
     fn to_dense_matrix(self) -> DenseMatrix<f32> {
         DenseMatrix::from_2d_vec(&self)
     }
 }
 
-impl IntoVec for Vec<f32> {
+impl IntoLabels for Vec<f32> {
     fn into_vec(self) -> Vec<f32> {
         self
     }
 }
 
 #[cfg(any(feature = "nd"))]
-impl IntoDenseMatrix for Array2<f32> {
+impl IntoFeatures for Array2<f32> {
     fn to_dense_matrix(self) -> DenseMatrix<f32> {
         DenseMatrix::from_array(self.shape()[0], self.shape()[1], self.as_slice().unwrap())
     }
 }
 
 #[cfg(any(feature = "nd"))]
-impl IntoVec for Array1<f32> {
+impl IntoLabels for Array1<f32> {
     fn into_vec(self) -> Vec<f32> {
         self.to_vec()
     }
@@ -305,7 +308,7 @@ impl SupervisedModel {
     /// ```
     pub fn predict<X>(&mut self, x: X) -> Vec<f32>
     where
-        X: IntoDenseMatrix,
+        X: IntoFeatures,
     {
         let x = &self.preprocess(x.to_dense_matrix().clone());
         match self.settings.final_model_approach {
@@ -330,25 +333,22 @@ impl SupervisedModel {
         self.x_train = self.preprocess(self.x_train.clone());
 
         // Split validatino out if blending
-        match &self.settings.final_model_approach {
-            FinalModel::None => {}
-            FinalModel::Best => {}
-            FinalModel::Blending {
-                meta_training_fraction,
-                meta_testing_fraction: _,
-                algorithm: _,
-            } => {
-                let (x_train, x_val, y_train, y_val) = train_test_split(
-                    &self.x_train,
-                    &self.y_train,
-                    *meta_training_fraction,
-                    self.settings.shuffle,
-                );
-                self.x_train = x_train;
-                self.y_train = y_train;
-                self.y_val = y_val;
-                self.x_val = x_val;
-            }
+        if let FinalModel::Blending {
+            meta_training_fraction,
+            meta_testing_fraction: _,
+            algorithm: _,
+        } = &self.settings.final_model_approach
+        {
+            let (x_train, x_val, y_train, y_val) = train_test_split(
+                &self.x_train,
+                &self.y_train,
+                *meta_training_fraction,
+                self.settings.shuffle,
+            );
+            self.x_train = x_train;
+            self.y_train = y_train;
+            self.y_val = y_val;
+            self.x_val = x_val;
         }
 
         // Run logistic regression

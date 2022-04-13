@@ -211,8 +211,8 @@ impl Settings {
         let mut buf: Vec<u8> = Vec::new();
         std::fs::File::open(&file_name)
             .and_then(|mut f| f.read_to_end(&mut buf))
-            .expect("Cannot load settings from file.");
-        serde_yaml::from_slice(&*buf).unwrap()
+            .expect("Cannot read settings file.");
+        serde_yaml::from_slice(&*buf).expect("Cannot deserialize settings file.")
     }
 
     /// Save the current settings to a file for later use
