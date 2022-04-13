@@ -89,7 +89,10 @@ impl IntoSupervisedData for Dataset<f32, f32> {
 }
 
 #[cfg(any(feature = "csv"))]
-impl IntoSupervisedData for (&str, usize, bool) {
+impl<P> IntoSupervisedData for (P, usize, bool)
+where
+    P: AsRef<std::path::Path>,
+{
     fn to_supervised_data(self) -> (DenseMatrix<f32>, Vec<f32>) {
         let (filepath, target_index, header) = self;
         let df = validate_and_read(filepath, header);
@@ -111,7 +114,10 @@ impl IntoSupervisedData for (&str, usize, bool) {
 }
 
 #[cfg(any(feature = "csv"))]
-impl IntoFeatures for (&str, bool) {
+impl<P> IntoFeatures for (P, bool)
+where
+    P: AsRef<std::path::Path>,
+{
     fn to_dense_matrix(self) -> DenseMatrix<f32> {
         let (filepath, header) = self;
 

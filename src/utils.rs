@@ -105,8 +105,11 @@ use polars::prelude::{
 };
 
 #[cfg(any(feature = "csv"))]
-pub(crate) fn validate_and_read(file_path: &str, header: bool) -> DataFrame {
-    match CsvReader::from_path(file_path) {
+pub(crate) fn validate_and_read<P>(file_path: P, header: bool) -> DataFrame
+where
+    P: AsRef<std::path::Path>,
+{
+    match CsvReader::from_path(file_path.as_ref()) {
         Ok(csv) => csv
             .infer_schema(Some(10))
             .has_header(header)
@@ -117,13 +120,14 @@ pub(crate) fn validate_and_read(file_path: &str, header: bool) -> DataFrame {
             .convert_to_float()
             .expect("Cannot convert types"),
         Err(_) => {
-            if let Ok(_) = url::Url::parse(file_path) {
-                let file_contents = minreq::get(file_path).send().expect("Could not open URL");
+            let url = file_path.as_ref().to_str().unwrap();
+            if let Ok(_) = url::Url::parse(url) {
+                let file_contents = minreq::get(url).send().expect("Could not open URL");
                 let temp = temp_file::with_contents(file_contents.as_bytes());
 
                 validate_and_read(temp.path().to_str().unwrap(), header)
             } else {
-                panic!("The string {} is not a valid URL or file path.", file_path)
+                panic!("The string {} is not a valid URL or file path.", url)
             }
         }
     }
