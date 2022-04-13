@@ -18,24 +18,38 @@ impl super::ModelWrapper for LassoRegressorWrapper {
                 Lasso::fit,
                 x,
                 y,
-                settings.lasso_settings.as_ref().unwrap().clone(),
+                settings
+                    .lasso_settings
+                    .as_ref()
+                    .expect("No settings provided for the LASSO regression algorithm.")
+                    .clone(),
                 settings.get_kfolds(),
                 settings.get_metric(),
             )
-            .unwrap(),
+            .expect("Error during cross-validation."),
             Algorithm::Lasso,
         )
     }
 
     fn train(x: &DenseMatrix<f32>, y: &Vec<f32>, settings: &Settings) -> Vec<u8> {
         bincode::serialize(
-            &Lasso::fit(x, y, settings.lasso_settings.as_ref().unwrap().clone()).unwrap(),
+            &Lasso::fit(
+                x,
+                y,
+                settings
+                    .lasso_settings
+                    .as_ref()
+                    .expect("No settings provided for the LASSO regression algorithm.")
+                    .clone(),
+            )
+            .expect("Error during training."),
         )
-        .unwrap()
+        .expect("Cannot serialize trained model.")
     }
 
     fn predict(x: &DenseMatrix<f32>, final_model: &Vec<u8>, _settings: &Settings) -> Vec<f32> {
-        let model: Lasso<f32, DenseMatrix<f32>> = bincode::deserialize(&*final_model).unwrap();
-        model.predict(x).unwrap()
+        let model: Lasso<f32, DenseMatrix<f32>> =
+            bincode::deserialize(&*final_model).expect("Cannot deserialize trained model.");
+        model.predict(x).expect("Error during inference.")
     }
 }
