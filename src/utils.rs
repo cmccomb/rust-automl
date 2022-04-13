@@ -120,16 +120,7 @@ pub(crate) fn validate_and_read(file_path: &str, header: bool) -> DataFrame {
                 let file_contents = minreq::get(file_path).send().unwrap();
                 let temp = temp_file::with_contents(file_contents.as_bytes());
 
-                CsvReader::from_path(temp.path())
-                    .expect("Cannot find file")
-                    .infer_schema(Some(10))
-                    .has_header(header)
-                    .finish()
-                    .expect("Cannot read file as CSV")
-                    .remove_nulls()
-                    .expect("Cannot remove null values")
-                    .convert_to_float()
-                    .expect("Cannot convert types")
+                validate_and_read(temp.path().to_str().unwrap(), header)
             } else {
                 panic!("The string {} is not a valid URL or file path.", file_path)
             }
