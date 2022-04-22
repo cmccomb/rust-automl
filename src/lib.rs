@@ -51,7 +51,6 @@ use {
     utils::validate_and_read,
 };
 
-#[cfg(any(feature = "display"))]
 use {
     comfy_table::{
         modifiers::UTF8_SOLID_INNER_BORDERS, presets::UTF8_FULL, Attribute, Cell, Table,
@@ -65,7 +64,7 @@ pub trait IntoSupervisedData {
     fn to_supervised_data(self) -> (DenseMatrix<f32>, Vec<f32>);
 }
 
-/// Types that implement this trait can be paired in a tupl with a type implementing `IntoLabels` to
+/// Types that implement this trait can be paired in a tuple with a type implementing `IntoLabels` to
 /// automatically satisfy `IntoSupervisedData`. This trait is also required for data that is passed to `predict`.
 pub trait IntoFeatures {
     /// Converts the struct into a dense matrix of features
@@ -804,8 +803,6 @@ impl SupervisedModel {
     }
 }
 
-#[cfg_attr(docsrs, doc(cfg(feature = "display")))]
-#[cfg(any(feature = "display"))]
 impl Display for SupervisedModel {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut table = Table::new();

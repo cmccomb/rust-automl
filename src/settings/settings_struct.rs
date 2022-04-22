@@ -1,4 +1,3 @@
-#[cfg(any(feature = "display"))]
 use comfy_table::{
     modifiers::UTF8_SOLID_INNER_BORDERS, presets::UTF8_FULL, Attribute, Cell, Table,
 };
@@ -571,8 +570,6 @@ impl Settings {
     }
 }
 
-#[cfg_attr(docsrs, doc(cfg(feature = "display")))]
-#[cfg(any(feature = "display"))]
 impl Display for Settings {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         // Prep new table

@@ -52,9 +52,8 @@ This crate has several features that add some additional methods
 
 | Feature   | Description                                                                                               |
 |:----------|:----------------------------------------------------------------------------------------------------------|
-| `display` | Enabled by default, this uses [`comfy_table`](https://crates.io/crates/comfy-table) to format tables.     |
 | `nd`      | Adds methods for predicting/reading data using [`ndarray`](https://crates.io/crates/ndarray).             |
-| `csv`     | Adds methods to read data from a .csv using [`polars`](https://crates.io/crates/polars).                  |
+| `csv`     | Adds methods for predicting/reading data from a .csv using [`polars`](https://crates.io/crates/polars).   |
 | `gui`     | Adds a method for running a live demo GUI of a model through [`eframe`](https://crates.io/crates/eframe). |
 
 

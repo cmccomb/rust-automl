@@ -78,7 +78,6 @@ fn main() {
     model.train();
 
     // Print the results
-    #[cfg(feature = "display")]
     println!("{}", model);
 
     // Save teh model for later
