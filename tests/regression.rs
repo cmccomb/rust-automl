@@ -11,14 +11,14 @@ mod regression_tests {
         // Set up the regressor settings and load data
         let settings = Settings::default_regression().with_number_of_folds(2);
 
-        let mut regressor = SupervisedModel::new((file_name, 10, true), settings);
+        let mut regressor = SupervisedModel::new((file_name, 10), settings);
 
         // Compare models
         regressor.train();
 
         // Try to predict something
         regressor.predict(vec![vec![5.0 as f32; 10]; 10]);
-        regressor.predict(("data/diabetes_without_target.csv", true));
+        regressor.predict("data/diabetes_without_target.csv");
         #[cfg(feature = "nd")]
         regressor.predict(ndarray::Array2::from_shape_vec((10, 10), vec![5.0; 100]).unwrap());
     }
@@ -32,7 +32,7 @@ mod regression_tests {
         // Set up the regressor settings and load data
         let settings = Settings::default_regression().with_number_of_folds(2);
 
-        let mut regressor = SupervisedModel::new((file_name, 8, true), settings);
+        let mut regressor = SupervisedModel::new((file_name, 8), settings);
 
         // Compare models
         regressor.train();

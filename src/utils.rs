@@ -105,14 +105,23 @@ use polars::prelude::{
 };
 
 #[cfg(any(feature = "csv"))]
-pub(crate) fn validate_and_read<P>(file_path: P, header: bool) -> DataFrame
+pub(crate) fn validate_and_read<P>(file_path: P) -> DataFrame
 where
     P: AsRef<std::path::Path>,
 {
-    match CsvReader::from_path(file_path.as_ref()) {
+    let file_path_as_str = file_path.as_ref().to_str().unwrap();
+
+    match CsvReader::from_path(file_path_as_str) {
         Ok(csv) => csv
             .infer_schema(Some(10))
-            .has_header(header)
+            .has_header(
+                csv_sniffer::Sniffer::new()
+                    .sniff_path(file_path_as_str.clone())
+                    .expect("Cannot sniff file")
+                    .dialect
+                    .header
+                    .has_header_row,
+            )
             .finish()
             .expect("Cannot read file as CSV")
             .drop_nulls(None)
@@ -120,14 +129,18 @@ where
             .convert_to_float()
             .expect("Cannot convert types"),
         Err(_) => {
-            let url = file_path.as_ref().to_str().unwrap();
-            if let Ok(_) = url::Url::parse(url) {
-                let file_contents = minreq::get(url).send().expect("Could not open URL");
+            if let Ok(_) = url::Url::parse(file_path_as_str) {
+                let file_contents = minreq::get(file_path_as_str)
+                    .send()
+                    .expect("Could not open URL");
                 let temp = temp_file::with_contents(file_contents.as_bytes());
 
-                validate_and_read(temp.path().to_str().unwrap(), header)
+                validate_and_read(temp.path().to_str().unwrap())
             } else {
-                panic!("The string {} is not a valid URL or file path.", url)
+                panic!(
+                    "The string {} is not a valid URL or file path.",
+                    file_path_as_str
+                )
             }
         }
     }

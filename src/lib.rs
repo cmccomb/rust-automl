@@ -89,13 +89,10 @@ impl IntoSupervisedData for Dataset<f32, f32> {
 }
 
 #[cfg(any(feature = "csv"))]
-impl<P> IntoSupervisedData for (P, usize, bool)
-where
-    P: AsRef<std::path::Path>,
-{
+impl IntoSupervisedData for (&str, usize) {
     fn to_supervised_data(self) -> (DenseMatrix<f32>, Vec<f32>) {
-        let (filepath, target_index, header) = self;
-        let df = validate_and_read(filepath, header);
+        let (filepath, target_index) = self;
+        let df = validate_and_read(filepath);
 
         // Get target variables
         let target_column_name = df.get_column_names()[target_index];
@@ -114,14 +111,9 @@ where
 }
 
 #[cfg(any(feature = "csv"))]
-impl<P> IntoFeatures for (P, bool)
-where
-    P: AsRef<std::path::Path>,
-{
+impl IntoFeatures for &str {
     fn to_dense_matrix(self) -> DenseMatrix<f32> {
-        let (filepath, header) = self;
-
-        let df = validate_and_read(filepath, header);
+        let df = validate_and_read(self);
 
         // Get the rest of the data
         let (height, width) = df.shape();
@@ -220,7 +212,7 @@ impl SupervisedModel {
     /// # use automl::{SupervisedModel, Settings};
     /// #[cfg(any(feature = "csv"))]
     /// let model = SupervisedModel::new(
-    ///     ("data/diabetes.csv", 10, true),
+    ///     ("data/diabetes.csv", 10),
     ///     Settings::default_regression()
     /// );
     /// ```
@@ -232,7 +224,6 @@ impl SupervisedModel {
     ///         (
     ///         "https://raw.githubusercontent.com/plotly/datasets/master/diabetes.csv",
     ///         8,
-    ///         true,
     ///     ),
     ///     Settings::default_regression(),
     /// );
@@ -298,19 +289,14 @@ impl SupervisedModel {
     /// # use automl::{SupervisedModel, Settings};
     /// # #[cfg(any(feature = "csv"))]
     /// # let mut model = SupervisedModel::new(
-    /// #     ("data/diabetes.csv", 10, true),
+    /// #     ("data/diabetes.csv", 10),
     /// #     Settings::default_regression()
     /// # .only(automl::settings::Algorithm::Linear)
     /// # );
     /// # #[cfg(any(feature = "csv"))]
     /// # model.train();
     /// #[cfg(any(feature = "csv"))]
-    /// model.predict(
-    ///     (
-    ///         "data/diabetes_without_target.csv",
-    ///         true
-    ///     )
-    /// );
+    /// model.predict("data/diabetes_without_target.csv");
     /// ```
     pub fn predict<X>(&mut self, x: X) -> Vec<f32>
     where

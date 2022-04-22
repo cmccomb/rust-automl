@@ -8,7 +8,6 @@ fn main() {
             (
                 "https://raw.githubusercontent.com/plotly/datasets/master/diabetes.csv",
                 8,
-                true,
             ),
             settings,
         );

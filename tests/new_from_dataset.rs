@@ -24,7 +24,7 @@ mod new_from_dataset {
 
         // Try to predict something from a csv
         #[cfg(feature = "csv")]
-        classifier.predict(("data/breast_cancer_without_target.csv", true));
+        classifier.predict("data/breast_cancer_without_target.csv");
     }
 
     #[test]
@@ -45,6 +45,6 @@ mod new_from_dataset {
 
         // Try to predict something from a csv
         #[cfg(feature = "csv")]
-        regressor.predict(("data/diabetes_without_target.csv", true));
+        regressor.predict("data/diabetes_without_target.csv");
     }
 }
