@@ -13,7 +13,7 @@ keywords = ["machine-learning", "ml", "ai", "smartcore", "automl"]
 categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
-smartcore = "0.2.1"
+smartcore = {version = "0.2.1", features=["serde"]}
 serde = {version = "1.0.130", features=["derive"]}
 bincode = "1.3.3"
 itertools = "0.10.1"

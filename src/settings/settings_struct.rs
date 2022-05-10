@@ -43,7 +43,7 @@ pub struct Settings {
     pub(crate) decision_tree_regressor_settings: Option<DecisionTreeRegressorParameters>,
     pub(crate) random_forest_regressor_settings: Option<RandomForestRegressorParameters>,
     pub(crate) knn_regressor_settings: Option<KNNRegressorParameters>,
-    pub(crate) logistic_settings: Option<LogisticRegressionParameters>,
+    pub(crate) logistic_settings: Option<LogisticRegressionParameters<f32>>,
     pub(crate) random_forest_classifier_settings: Option<RandomForestClassifierParameters>,
     pub(crate) knn_classifier_settings: Option<KNNClassifierParameters>,
     pub(crate) svc_settings: Option<SVCParameters>,
@@ -342,7 +342,7 @@ impl Settings {
     /// let settings = Settings::default()
     ///     .with_logistic_settings(LogisticRegressionParameters::default());
     /// ```
-    pub fn with_logistic_settings(mut self, settings: LogisticRegressionParameters) -> Self {
+    pub fn with_logistic_settings(mut self, settings: LogisticRegressionParameters<f32>) -> Self {
         self.logistic_settings = Some(settings);
         self
     }

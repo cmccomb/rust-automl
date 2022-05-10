@@ -1,6 +1,5 @@
 use smartcore::{algorithm::neighbour::KNNAlgorithmName, neighbors::KNNWeightFunction};
 use std::fmt::{Debug, Display, Formatter};
-use std::ops::BitAnd;
 
 pub(crate) fn print_option<T: Display>(x: Option<T>) -> String {
     match x {
