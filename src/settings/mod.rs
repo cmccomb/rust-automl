@@ -74,7 +74,8 @@
 //! use automl::settings::{
 //!     Algorithm, CategoricalNBParameters, DecisionTreeClassifierParameters, Distance,
 //!     GaussianNBParameters, KNNAlgorithmName, KNNClassifierParameters, KNNWeightFunction, Kernel,
-//!     LogisticRegressionParameters, Metric, RandomForestClassifierParameters, SVCParameters,
+//!     LogisticRegressionParameters, LogisticRegressionSolverName, Metric,
+//!     RandomForestClassifierParameters, SVCParameters,
 //! };
 //!
 //! let settings = automl::Settings::default_classification()
@@ -91,7 +92,11 @@
 //!             .with_n_trees(100)
 //!             .with_min_samples_split(20),
 //!     )
-//!     .with_logistic_settings(LogisticRegressionParameters::default())
+//!     .with_logistic_settings(
+//!         LogisticRegressionParameters::default()
+//!             .with_alpha(1.0)
+//!             .with_solver(LogisticRegressionSolverName::LBFGS),
+//!     )
 //!     .with_svc_settings(
 //!         SVCParameters::default()
 //!             .with_epoch(10)
@@ -159,6 +164,9 @@ pub use smartcore::ensemble::random_forest_classifier::RandomForestClassifierPar
 
 /// Parameters for logistic regression (re-export from [Smartcore](https://docs.rs/smartcore/))
 pub use smartcore::linear::logistic_regression::LogisticRegressionParameters;
+
+/// Parameters for logistic regression (re-export from [Smartcore](https://docs.rs/smartcore/))
+pub use smartcore::linear::logistic_regression::LogisticRegressionSolverName;
 
 /// Parameters for decision tree classification (re-export from [Smartcore](https://docs.rs/smartcore/))
 pub use smartcore::tree::decision_tree_classifier::DecisionTreeClassifierParameters;
