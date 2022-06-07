@@ -9,6 +9,8 @@ pub mod settings;
 pub use settings::Settings;
 use settings::{Algorithm, Distance, FinalModel, Kernel, Metric, PreProcessing};
 
+pub mod cookbook;
+
 mod algorithms;
 use algorithms::{
     CategoricalNaiveBayesClassifierWrapper, DecisionTreeClassifierWrapper,
