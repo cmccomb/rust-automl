@@ -25,7 +25,11 @@ fn main() {
                 .with_n_trees(100)
                 .with_min_samples_split(20),
         )
-        .with_logistic_settings(LogisticRegressionParameters::default())
+        .with_logistic_settings(
+            LogisticRegressionParameters::default()
+                .with_alpha(1.0)
+                .with_solver(LogisticRegressionSolverName::LBFGS),
+        )
         .with_svc_settings(
             SVCParameters::default()
                 .with_epoch(10)
