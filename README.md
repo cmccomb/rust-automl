@@ -10,7 +10,7 @@ and provides some utilities to quickly train and compare models.
 # Install
 To use the latest released version of `AutoML`, add this to your `Cargo.toml`:
 ```toml
-automl = "0.2.5"
+automl = "0.2.6"
 ```
 To use the bleeding edge instead, add this:
 ```toml
@@ -54,8 +54,6 @@ This crate has several features that add some additional methods
 |:----------|:----------------------------------------------------------------------------------------------------------|
 | `nd`      | Adds methods for predicting/reading data using [`ndarray`](https://crates.io/crates/ndarray).             |
 | `csv`     | Adds methods for predicting/reading data from a .csv using [`polars`](https://crates.io/crates/polars).   |
-| `gui`     | Adds a method for running a live demo GUI of a model through [`eframe`](https://crates.io/crates/eframe). |
-
 
 ## Capabilities
 - Feature Engineering

@@ -44,9 +44,6 @@ use std::{
 #[cfg(any(feature = "nd"))]
 use ndarray::{Array1, Array2};
 
-#[cfg(any(feature = "gui"))]
-use eframe::{egui, epi};
-
 #[cfg(any(feature = "csv"))]
 use {
     polars::prelude::{DataFrame, Float32Type},
@@ -174,8 +171,6 @@ pub struct SupervisedModel {
         Option<PCA<f32, DenseMatrix<f32>>>,
         Option<SVD<f32, DenseMatrix<f32>>>,
     ),
-    #[cfg(any(feature = "gui"))]
-    current_x: Vec<f32>,
 }
 
 impl SupervisedModel {
@@ -553,27 +548,6 @@ impl SupervisedModel {
     }
 }
 
-#[cfg_attr(docsrs, doc(cfg(feature = "gui")))]
-#[cfg(any(feature = "gui"))]
-impl SupervisedModel {
-    /// Runs an interactive GUI to demonstrate the final model
-    /// ```no_run
-    /// # use automl::{SupervisedModel, Settings};
-    /// let mut model = SupervisedModel::new(
-    ///     smartcore::dataset::diabetes::load_dataset(),
-    ///     Settings::default_regression()
-    /// # .only(automl::settings::Algorithm::Linear)
-    /// );
-    /// model.train();
-    /// model.run_gui();
-    /// ```
-    /// ![Example of interactive gui demo](https://raw.githubusercontent.com/cmccomb/rust-automl/master/assets/gui.png)
-    pub fn run_gui(self) {
-        let native_options = eframe::NativeOptions::default();
-        eframe::run_native(Box::new(self), native_options);
-    }
-}
-
 /// Private functions go here
 impl SupervisedModel {
     fn build(x: DenseMatrix<f32>, y: Vec<f32>, settings: Settings) -> Self {
@@ -585,8 +559,6 @@ impl SupervisedModel {
             y_val: vec![],
             number_of_classes: Self::count_classes(&y),
             comparison: vec![],
-            #[cfg(any(feature = "gui"))]
-            current_x: vec![0.0; x.shape().1],
             preprocessing: (None, None),
             metamodel: Default::default(),
         }
@@ -862,54 +834,6 @@ impl Display for SupervisedModel {
 
         // Write
         write!(f, "{}\n{}", table, meta_table)
-    }
-}
-
-#[cfg_attr(docsrs, doc(cfg(feature = "gui")))]
-#[cfg(any(feature = "gui"))]
-impl epi::App for SupervisedModel {
-    fn update(&mut self, ctx: &egui::CtxRef, _frame: &mut epi::Frame<'_>) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            // Add a heading that displays the type of model this is
-            ui.heading(format!("{}", self.comparison[0].name));
-
-            // Add a label that shows the prediction
-            ui.label(format!(
-                "Prediction: y = {}",
-                self.predict(vec![self.current_x.to_vec(); 1])[0]
-            ));
-
-            // Separating the model name and prediction from the input values
-            ui.separator();
-
-            // Step through input values to make sliders
-            for i in 0..self.current_x.len() {
-                // Figure out the maximum in the training dataa
-                let maxx = self
-                    .x_train
-                    .get_col_as_vec(i)
-                    .iter()
-                    .cloned()
-                    .fold(0. / 0., f32::max);
-
-                // Figure out the minimum in the training data
-                let minn = self
-                    .x_train
-                    .get_col_as_vec(i)
-                    .iter()
-                    .cloned()
-                    .fold(0. / 0., f32::min);
-
-                // Add the slider
-                ui.add(
-                    egui::Slider::new(&mut self.current_x[i], minn..=maxx).text(format!("x_{}", i)),
-                );
-            }
-        });
-    }
-
-    fn name(&self) -> &str {
-        "Model Demo"
     }
 }
 
