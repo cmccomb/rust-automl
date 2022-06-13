@@ -3,7 +3,6 @@
 #![warn(rustdoc::missing_doc_code_examples)]
 #![warn(clippy::missing_docs_in_private_items)]
 #![doc = include_str!("../README.md")]
-#![cfg_attr(docsrs, feature(doc_cfg))]
 
 pub mod settings;
 pub use settings::Settings;
