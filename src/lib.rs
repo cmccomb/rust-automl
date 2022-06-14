@@ -293,7 +293,7 @@ impl SupervisedModel {
     /// #[cfg(any(feature = "csv"))]
     /// model.predict("data/diabetes_without_target.csv");
     /// ```
-    pub fn predict<X>(&mut self, x: X) -> Vec<f32>
+    pub fn predict<X>(&self, x: X) -> Vec<f32>
     where
         X: IntoFeatures,
     {
@@ -625,7 +625,7 @@ impl SupervisedModel {
         };
     }
 
-    fn predict_blended_model(&mut self, x: &DenseMatrix<f32>, algo: Algorithm) -> Vec<f32> {
+    fn predict_blended_model(&self, x: &DenseMatrix<f32>, algo: Algorithm) -> Vec<f32> {
         // Make the data
         let mut meta_x: Vec<Vec<f32>> = Vec::new();
         for i in 0..self.comparison.len() {
