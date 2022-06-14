@@ -322,6 +322,20 @@ impl SupervisedModel {
     /// model.train();
     /// ```
     pub fn train(&mut self) {
+        // Train any necessary preprocessing
+        if let PreProcessing::ReplaceWithPCA {
+            number_of_components,
+        } = self.settings.preprocessing
+        {
+            self.train_pca(self.x_train.clone(), number_of_components);
+        }
+        if let PreProcessing::ReplaceWithSVD {
+            number_of_components,
+        } = self.settings.preprocessing
+        {
+            self.train_svd(self.x_train.clone(), number_of_components);
+        }
+
         // Preprocess the data
         self.x_train = self.preprocess(self.x_train.clone());
 
@@ -727,17 +741,18 @@ impl SupervisedModel {
         x
     }
 
-    fn pca_features(&mut self, x: DenseMatrix<f32>, n: usize) -> DenseMatrix<f32> {
-        if let None = self.preprocessing.0 {
-            let pca = PCA::fit(
-                &x,
-                PCAParameters::default()
-                    .with_n_components(n)
-                    .with_use_correlation_matrix(true),
-            )
-            .unwrap();
-            self.preprocessing.0 = Some(pca);
-        }
+    fn train_pca(&mut self, x: DenseMatrix<f32>, n: usize) {
+        let pca = PCA::fit(
+            &x,
+            PCAParameters::default()
+                .with_n_components(n)
+                .with_use_correlation_matrix(true),
+        )
+        .unwrap();
+        self.preprocessing.0 = Some(pca);
+    }
+
+    fn pca_features(&self, x: DenseMatrix<f32>, n: usize) -> DenseMatrix<f32> {
         self.preprocessing
             .0
             .as_ref()
@@ -746,11 +761,12 @@ impl SupervisedModel {
             .unwrap()
     }
 
-    fn svd_features(&mut self, x: DenseMatrix<f32>, n: usize) -> DenseMatrix<f32> {
-        if let None = self.preprocessing.1 {
-            let svd = SVD::fit(&x, SVDParameters::default().with_n_components(n)).unwrap();
-            self.preprocessing.1 = Some(svd);
-        }
+    fn train_svd(&mut self, x: DenseMatrix<f32>, n: usize) {
+        let svd = SVD::fit(&x, SVDParameters::default().with_n_components(n)).unwrap();
+        self.preprocessing.1 = Some(svd);
+    }
+
+    fn svd_features(&self, x: DenseMatrix<f32>, n: usize) -> DenseMatrix<f32> {
         self.preprocessing
             .1
             .as_ref()
@@ -759,7 +775,7 @@ impl SupervisedModel {
             .unwrap()
     }
 
-    fn preprocess(&mut self, x: DenseMatrix<f32>) -> DenseMatrix<f32> {
+    fn preprocess(&self, x: DenseMatrix<f32>) -> DenseMatrix<f32> {
         match self.settings.preprocessing {
             PreProcessing::None => x,
             PreProcessing::AddInteractions => SupervisedModel::interaction_features(x),
