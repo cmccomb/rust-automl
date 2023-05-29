@@ -1,6 +1,6 @@
 [package]
 name = "automl"
-version = "0.2.6"
+version = "0.2.7"
 authors = ["Chris McComb <ccmcc2012@gmail.com>"]
 description = "Automated machine learning for classification and regression"
 edition = "2021"
