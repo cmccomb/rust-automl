@@ -263,51 +263,49 @@ pub enum Algorithm {
 }
 
 impl Algorithm {
+    /// Get the `predict` method for the underlying algorithm.
     pub(crate) fn get_predictor(
         &self,
-    ) -> Box<dyn Fn(&DenseMatrix<f32>, &Vec<u8>, &Settings) -> Vec<f32>> {
+    ) -> fn(&DenseMatrix<f32>, &Vec<u8>, &Settings) -> Vec<f32> {
         match self {
-            Algorithm::Linear => Box::new(LinearRegressorWrapper::predict),
-            Algorithm::Lasso => Box::new(LassoRegressorWrapper::predict),
-            Algorithm::Ridge => Box::new(RidgeRegressorWrapper::predict),
-            Algorithm::ElasticNet => Box::new(ElasticNetRegressorWrapper::predict),
-            Algorithm::RandomForestRegressor => Box::new(RandomForestRegressorWrapper::predict),
-            Algorithm::KNNRegressor => Box::new(KNNRegressorWrapper::predict),
-            Algorithm::SVR => Box::new(SupportVectorRegressorWrapper::predict),
-            Algorithm::DecisionTreeRegressor => Box::new(DecisionTreeRegressorWrapper::predict),
-            Algorithm::LogisticRegression => Box::new(LogisticRegressionWrapper::predict),
-            Algorithm::RandomForestClassifier => Box::new(RandomForestClassifierWrapper::predict),
-            Algorithm::DecisionTreeClassifier => Box::new(DecisionTreeClassifierWrapper::predict),
-            Algorithm::KNNClassifier => Box::new(KNNClassifierWrapper::predict),
-            Algorithm::SVC => Box::new(SupportVectorClassifierWrapper::predict),
-            Algorithm::GaussianNaiveBayes => Box::new(GaussianNaiveBayesClassifierWrapper::predict),
-            Algorithm::CategoricalNaiveBayes => {
-                Box::new(CategoricalNaiveBayesClassifierWrapper::predict)
-            }
+            Algorithm::Linear => LinearRegressorWrapper::predict,
+            Algorithm::Lasso => LassoRegressorWrapper::predict,
+            Algorithm::Ridge => RidgeRegressorWrapper::predict,
+            Algorithm::ElasticNet => ElasticNetRegressorWrapper::predict,
+            Algorithm::RandomForestRegressor => RandomForestRegressorWrapper::predict,
+            Algorithm::KNNRegressor => KNNRegressorWrapper::predict,
+            Algorithm::SVR => SupportVectorRegressorWrapper::predict,
+            Algorithm::DecisionTreeRegressor => DecisionTreeRegressorWrapper::predict,
+            Algorithm::LogisticRegression => LogisticRegressionWrapper::predict,
+            Algorithm::RandomForestClassifier => RandomForestClassifierWrapper::predict,
+            Algorithm::DecisionTreeClassifier => DecisionTreeClassifierWrapper::predict,
+            Algorithm::KNNClassifier => KNNClassifierWrapper::predict,
+            Algorithm::SVC => SupportVectorClassifierWrapper::predict,
+            Algorithm::GaussianNaiveBayes => GaussianNaiveBayesClassifierWrapper::predict,
+            Algorithm::CategoricalNaiveBayes => CategoricalNaiveBayesClassifierWrapper::predict,
         }
     }
 
+    /// Get the `train` method for the underlying algorithm.
     pub(crate) fn get_trainer(
         &self,
-    ) -> Box<dyn Fn(&DenseMatrix<f32>, &Vec<f32>, &Settings) -> Vec<u8>> {
+    ) -> fn(&DenseMatrix<f32>, &Vec<f32>, &Settings) -> Vec<u8> {
         match self {
-            Algorithm::Linear => Box::new(LinearRegressorWrapper::train),
-            Algorithm::Lasso => Box::new(LassoRegressorWrapper::train),
-            Algorithm::Ridge => Box::new(RidgeRegressorWrapper::train),
-            Algorithm::ElasticNet => Box::new(ElasticNetRegressorWrapper::train),
-            Algorithm::RandomForestRegressor => Box::new(RandomForestRegressorWrapper::train),
-            Algorithm::KNNRegressor => Box::new(KNNRegressorWrapper::train),
-            Algorithm::SVR => Box::new(SupportVectorRegressorWrapper::train),
-            Algorithm::DecisionTreeRegressor => Box::new(DecisionTreeRegressorWrapper::train),
-            Algorithm::LogisticRegression => Box::new(LogisticRegressionWrapper::train),
-            Algorithm::RandomForestClassifier => Box::new(RandomForestClassifierWrapper::train),
-            Algorithm::DecisionTreeClassifier => Box::new(DecisionTreeClassifierWrapper::train),
-            Algorithm::KNNClassifier => Box::new(KNNClassifierWrapper::train),
-            Algorithm::SVC => Box::new(SupportVectorClassifierWrapper::train),
-            Algorithm::GaussianNaiveBayes => Box::new(GaussianNaiveBayesClassifierWrapper::train),
-            Algorithm::CategoricalNaiveBayes => {
-                Box::new(CategoricalNaiveBayesClassifierWrapper::train)
-            }
+            Algorithm::Linear => LinearRegressorWrapper::train,
+            Algorithm::Lasso => LassoRegressorWrapper::train,
+            Algorithm::Ridge => RidgeRegressorWrapper::train,
+            Algorithm::ElasticNet => ElasticNetRegressorWrapper::train,
+            Algorithm::RandomForestRegressor => RandomForestRegressorWrapper::train,
+            Algorithm::KNNRegressor => KNNRegressorWrapper::train,
+            Algorithm::SVR => SupportVectorRegressorWrapper::train,
+            Algorithm::DecisionTreeRegressor => DecisionTreeRegressorWrapper::train,
+            Algorithm::LogisticRegression => LogisticRegressionWrapper::train,
+            Algorithm::RandomForestClassifier => RandomForestClassifierWrapper::train,
+            Algorithm::DecisionTreeClassifier => DecisionTreeClassifierWrapper::train,
+            Algorithm::KNNClassifier => KNNClassifierWrapper::train,
+            Algorithm::SVC => SupportVectorClassifierWrapper::train,
+            Algorithm::GaussianNaiveBayes => GaussianNaiveBayesClassifierWrapper::train,
+            Algorithm::CategoricalNaiveBayes => CategoricalNaiveBayesClassifierWrapper::train,
         }
     }
 }

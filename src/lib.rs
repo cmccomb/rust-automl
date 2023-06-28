@@ -600,17 +600,17 @@ impl SupervisedModel {
 
         // Train the model
         // let model = LassoRegressorWrapper::train(&x_train, &y_train, &self.settings);
-        let model = (*algo.get_trainer())(&x_train, &y_train, &self.settings);
+        let model = algo.get_trainer()(&x_train, &y_train, &self.settings);
 
         // Score the model
-        let train_score = (*self.settings.get_metric())(
+        let train_score = self.settings.get_metric()(
             &y_train,
-            &(*algo.get_predictor())(&x_train, &model, &self.settings),
+            &algo.get_predictor()(&x_train, &model, &self.settings),
             // &LassoRegressorWrapper::predict(&x_train, &model, &self.settings),
         );
-        let test_score = (*self.settings.get_metric())(
+        let test_score = self.settings.get_metric()(
             &y_test,
-            &(*algo.get_predictor())(&x_test, &model, &self.settings),
+            &algo.get_predictor()(&x_test, &model, &self.settings),
             // &LassoRegressorWrapper::predict(&x_test, &model, &self.settings),
         );
 
@@ -638,7 +638,7 @@ impl SupervisedModel {
         let metamodel = &self.metamodel.model;
 
         // Train the model
-        (*algo.get_predictor())(&xdm, metamodel, &self.settings)
+        algo.get_predictor()(&xdm, metamodel, &self.settings)
     }
 
     fn predict_by_model(&self, x: &DenseMatrix<f32>, model: &Model) -> Vec<f32> {

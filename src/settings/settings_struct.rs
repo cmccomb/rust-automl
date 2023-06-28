@@ -1,3 +1,5 @@
+//! Settings for the automl crate
+
 use comfy_table::{
     modifiers::UTF8_SOLID_INNER_BORDERS, presets::UTF8_FULL, Attribute, Cell, Table,
 };
@@ -25,30 +27,55 @@ use std::fmt::{Display, Formatter};
 use std::io::{Read, Write};
 
 /// Settings for supervised models
+/// 
+/// Any algorithms in the `skiplist` member will be skipped during training.
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct Settings {
+    /// The metric to sort by
     pub(crate) sort_by: Metric,
+    /// The type of model to train
     model_type: ModelType,
+    /// The algorithms to skip
     pub(crate) skiplist: Vec<Algorithm>,
+    /// The number of folds for cross-validation
     number_of_folds: usize,
+    /// Whether or not to shuffle the data
     pub(crate) shuffle: bool,
+    /// Whether or not to be verbose
     verbose: bool,
+    /// The approach to use for the final model
     pub(crate) final_model_approach: FinalModel,
+    /// The kind of preprocessing to perform
     pub(crate) preprocessing: PreProcessing,
+    /// Optional settings for linear regression
     pub(crate) linear_settings: Option<LinearRegressionParameters>,
+    /// Optional settings for support vector regressor
     pub(crate) svr_settings: Option<SVRParameters>,
+    /// Optional settings for lasso regression
     pub(crate) lasso_settings: Option<LassoParameters<f32>>,
+    /// Optional settings for ridge regression
     pub(crate) ridge_settings: Option<RidgeRegressionParameters<f32>>,
+    /// Optional settings for elastic net
     pub(crate) elastic_net_settings: Option<ElasticNetParameters<f32>>,
+    /// Optional settings for decision tree regressor
     pub(crate) decision_tree_regressor_settings: Option<DecisionTreeRegressorParameters>,
+    /// Optional settings for random forest regressor
     pub(crate) random_forest_regressor_settings: Option<RandomForestRegressorParameters>,
+    /// Optional settings for KNN regressor
     pub(crate) knn_regressor_settings: Option<KNNRegressorParameters>,
+    /// Optional settings for logistic regression
     pub(crate) logistic_settings: Option<LogisticRegressionParameters<f32>>,
+    /// Optional settings for random forest
     pub(crate) random_forest_classifier_settings: Option<RandomForestClassifierParameters>,
+    /// Optional settings for KNN classifier
     pub(crate) knn_classifier_settings: Option<KNNClassifierParameters>,
+    /// Optional settings for support vector classifier
     pub(crate) svc_settings: Option<SVCParameters>,
+    /// Optional settings for decision tree classifier
     pub(crate) decision_tree_classifier_settings: Option<DecisionTreeClassifierParameters>,
+    /// Optional settings for Gaussian Naive Bayes
     pub(crate) gaussian_nb_settings: Option<GaussianNBParameters<f32>>,
+    /// Optional settings for Categorical Naive Bayes
     pub(crate) categorical_nb_settings: Option<CategoricalNBParameters<f32>>,
 }
 
@@ -99,20 +126,22 @@ impl Default for Settings {
 }
 
 impl Settings {
+    /// Get the k-fold cross-validator
     pub(crate) fn get_kfolds(&self) -> KFold {
         KFold::default()
             .with_n_splits(self.number_of_folds)
             .with_shuffle(self.shuffle)
     }
 
-    pub(crate) fn get_metric(&self) -> Box<dyn Fn(&Vec<f32>, &Vec<f32>) -> f32> {
-        Box::new(match self.sort_by {
+    /// Get the metric to sort by
+    pub(crate) fn get_metric(&self) -> fn(&Vec<f32>, &Vec<f32>) -> f32 {
+        match self.sort_by {
             Metric::RSquared => r2,
             Metric::MeanAbsoluteError => mean_absolute_error,
             Metric::MeanSquaredError => mean_squared_error,
             Metric::Accuracy => accuracy,
             Metric::None => panic!("A metric must be set."),
-        })
+        }
     }
 
     /// Creates default settings for regression
@@ -208,10 +237,10 @@ impl Settings {
     /// ```
     pub fn new_from_file(file_name: &str) -> Self {
         let mut buf: Vec<u8> = Vec::new();
-        std::fs::File::open(&file_name)
+        std::fs::File::open(file_name)
             .and_then(|mut f| f.read_to_end(&mut buf))
             .expect("Cannot read settings file.");
-        serde_yaml::from_slice(&*buf).expect("Cannot deserialize settings file.")
+        serde_yaml::from_slice(&buf).expect("Cannot deserialize settings file.")
     }
 
     /// Save the current settings to a file for later use
@@ -224,7 +253,7 @@ impl Settings {
     pub fn save(&self, file_name: &str) {
         let serial = serde_yaml::to_string(&self).expect("Cannot serialize settings.");
         std::fs::File::create(file_name)
-            .and_then(|mut f| f.write_all((&serial).as_ref()))
+            .and_then(|mut f| f.write_all(serial.as_ref()))
             .expect("Cannot write settings to file.")
     }
 
@@ -577,11 +606,11 @@ impl Display for Settings {
 
         // Get list of algorithms to skip
         let mut skiplist = String::new();
-        if self.skiplist.len() == 0 {
+        if self.skiplist.is_empty() {
             skiplist.push_str("None ");
         } else {
             for algorithm_to_skip in &self.skiplist {
-                skiplist.push_str(&*format!("{}\n", algorithm_to_skip));
+                skiplist.push_str(&format!("{}\n", algorithm_to_skip));
             }
         }
 
@@ -608,7 +637,7 @@ impl Display for Settings {
             ])
             .add_row(vec![
                 "    Skipped Algorithms",
-                &*format!("{}", &skiplist[0..skiplist.len() - 1]),
+                &skiplist[0..skiplist.len() - 1],
             ]);
         if !self.skiplist.contains(&Algorithm::Linear) {
             table
@@ -792,20 +821,14 @@ impl Display for Settings {
                 ])
                 .add_row(vec![
                     "    Search algorithm",
-                    &*format!(
-                        "{}",
-                        print_knn_search_algorithm(
-                            &self.knn_regressor_settings.as_ref().unwrap().algorithm
-                        )
+                    &print_knn_search_algorithm(
+                        &self.knn_regressor_settings.as_ref().unwrap().algorithm
                     ),
                 ])
                 .add_row(vec![
                     "    Weighting function",
-                    &*format!(
-                        "{}",
-                        print_knn_weight_function(
-                            &self.knn_regressor_settings.as_ref().unwrap().weight
-                        )
+                    &print_knn_weight_function(
+                        &self.knn_regressor_settings.as_ref().unwrap().weight
                     ),
                 ])
                 .add_row(vec![
@@ -922,20 +945,14 @@ impl Display for Settings {
                 ])
                 .add_row(vec![
                     "    Search algorithm",
-                    &*format!(
-                        "{}",
-                        print_knn_search_algorithm(
-                            &self.knn_classifier_settings.as_ref().unwrap().algorithm
-                        )
+                    &print_knn_search_algorithm(
+                        &self.knn_classifier_settings.as_ref().unwrap().algorithm
                     ),
                 ])
                 .add_row(vec![
                     "    Weighting function",
-                    &*format!(
-                        "{}",
-                        print_knn_weight_function(
-                            &self.knn_classifier_settings.as_ref().unwrap().weight
-                        )
+                    &print_knn_weight_function(
+                        &self.knn_classifier_settings.as_ref().unwrap().weight
                     ),
                 ])
                 .add_row(vec![
@@ -1041,14 +1058,18 @@ impl Display for Settings {
                 ]);
         }
 
-        write!(f, "{}\n", table)
+        writeln!(f, "{table}")
     }
 }
 
+/// Model type to train
 #[derive(serde::Serialize, serde::Deserialize)]
 enum ModelType {
+    /// No model type specified
     None,
+    /// Regression model
     Regression,
+    /// Classification model
     Classification,
 }
 

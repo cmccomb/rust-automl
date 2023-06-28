@@ -50,7 +50,22 @@ use smartcore::model_selection::CrossValidationResult;
 use crate::settings::FinalModel;
 use std::time::{Duration, Instant};
 
+/// Trait for wrapping models
 pub trait ModelWrapper {
+    /// Perform cross-validation and return the results
+    /// 
+    /// # Arguments
+    /// 
+    /// * `x` - The input data
+    /// * `y` - The output data
+    /// * `settings` - The settings for the model
+    /// 
+    /// # Returns
+    /// 
+    /// * `CrossValidationResult<f32>` - The cross-validation results
+    /// * `Algorithm` - The algorithm used
+    /// * `Duration` - The time taken to perform the cross-validation
+    /// * `Vec<u8>` - The final model
     fn cv_model(
         x: &DenseMatrix<f32>,
         y: &Vec<f32>,

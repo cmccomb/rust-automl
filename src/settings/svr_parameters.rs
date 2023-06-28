@@ -1,11 +1,17 @@
+//! Support Vector Regression parameters
+
 pub use crate::utils::Kernel;
 
 /// Parameters for support vector regression
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct SVRParameters {
+    /// Epsilon in the epsilon-SVR model.
     pub(crate) eps: f32,
+    /// Regularization parameter.
     pub(crate) c: f32,
+    /// Tolerance for stopping criterion.
     pub(crate) tol: f32,
+    /// Kernel to use for the SVR model
     pub(crate) kernel: Kernel,
 }
 
