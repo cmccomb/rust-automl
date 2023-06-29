@@ -76,6 +76,6 @@ mod regression_tests {
         regressor.train();
 
         // Try to predict something
-        regressor.predict(vec![vec![5.0 as f32; 10]; 10]);
+        regressor.predict(vec![vec![5.0_f32; 10]; 10]);
     }
 }

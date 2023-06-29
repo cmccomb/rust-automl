@@ -58,6 +58,6 @@ mod classification_tests {
         classifier.train();
 
         // Try to predict something
-        classifier.predict(vec![vec![5.0 as f32; 30]; 10]);
+        classifier.predict(vec![vec![5.0_f32; 30]; 10]);
     }
 }
