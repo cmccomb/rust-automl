@@ -4,3 +4,4 @@ Cargo.lock
 /examples/*.aml
 /examples/*.yaml
 /examples/*.sc
+.vscode
