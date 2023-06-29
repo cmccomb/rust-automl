@@ -1,3 +1,30 @@
+//! # Algorithms
+//! 
+//! This module contains the wrappers for the algorithms provided by this crate.
+//! The algorithms are all available through the common interface of the `ModelWrapper` trait.
+//! 
+//! The available algorithms include:
+//! 
+//! * Classification algorithms:
+//!   - Logistic Regression
+//!   - Random Forest Classifier
+//!   - K-Nearest Neighbors Classifier
+//!   - Decision Tree Classifier
+//!   - Gaussian Naive Bayes Classifier
+//!   - Categorical Naive Bayes Classifier
+//!   - Support Vector Classifier
+//! 
+//! * Regression algorithms:
+//!   - Linear Regression
+//!   - Elastic Net Regressor
+//!   - Lasso Regressor
+//!   - K-Nearest Neighbors Regressor
+//!   - Ridge Regressor
+//!   - Random Forest Regressor
+//!   - Decision Tree Regressor
+//!   - Support Vector Regressor
+//! 
+
 mod linear_regressor;
 pub(crate) use linear_regressor::LinearRegressorWrapper;
 
@@ -85,16 +112,16 @@ pub trait ModelWrapper {
         )
     }
 
-    // Perform cross-validation
+    /// Perform cross-validation
     fn cv(
         x: &DenseMatrix<f32>,
         y: &Vec<f32>,
         settings: &Settings,
     ) -> (CrossValidationResult<f32>, Algorithm);
 
-    // Train a model
+    /// Train a model
     fn train(x: &DenseMatrix<f32>, y: &Vec<f32>, settings: &Settings) -> Vec<u8>;
 
-    // Perform a prediction
+    /// Perform a prediction
     fn predict(x: &DenseMatrix<f32>, final_model: &Vec<u8>, settings: &Settings) -> Vec<f32>;
 }

@@ -1,11 +1,17 @@
+//! Random Forest Classifier
+
 use smartcore::{
     ensemble::random_forest_classifier::RandomForestClassifier,
-    linalg::naive::dense_matrix::DenseMatrix, model_selection::cross_validate,
-    model_selection::CrossValidationResult,
+    linalg::naive::dense_matrix::DenseMatrix,
+    model_selection::{cross_validate, CrossValidationResult},
 };
 
 use crate::{Algorithm, Settings};
 
+/// The Random Forest Classifier.
+/// 
+/// See [scikit-learn's user guide](https://scikit-learn.org/stable/modules/ensemble.html#random-forests)
+/// for a more in-depth description of the algorithm.
 pub(crate) struct RandomForestClassifierWrapper {}
 
 impl super::ModelWrapper for RandomForestClassifierWrapper {
@@ -49,7 +55,7 @@ impl super::ModelWrapper for RandomForestClassifierWrapper {
     }
 
     fn predict(x: &DenseMatrix<f32>, final_model: &Vec<u8>, _settings: &Settings) -> Vec<f32> {
-        let model: RandomForestClassifier<f32> = bincode::deserialize(&*final_model).unwrap();
+        let model: RandomForestClassifier<f32> = bincode::deserialize(final_model).unwrap();
         model.predict(x).unwrap()
     }
 }

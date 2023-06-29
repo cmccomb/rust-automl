@@ -1,3 +1,5 @@
+//! Linear regression algorithm.
+
 use smartcore::{
     linalg::naive::dense_matrix::DenseMatrix, linear::linear_regression::LinearRegression,
     model_selection::cross_validate, model_selection::CrossValidationResult,
@@ -5,6 +7,10 @@ use smartcore::{
 
 use crate::{Algorithm, Settings};
 
+/// The Linear regression algorithm.
+/// 
+/// See [scikit-learn's user guide](https://scikit-learn.org/stable/modules/linear_model.html#ordinary-least-squares)
+/// for a more in-depth description of the algorithm.
 pub(crate) struct LinearRegressorWrapper {}
 
 impl super::ModelWrapper for LinearRegressorWrapper {
@@ -49,7 +55,7 @@ impl super::ModelWrapper for LinearRegressorWrapper {
 
     fn predict(x: &DenseMatrix<f32>, final_model: &Vec<u8>, _settings: &Settings) -> Vec<f32> {
         let model: LinearRegression<f32, DenseMatrix<f32>> =
-            bincode::deserialize(&*final_model).expect("Cannot deserialize trained model.");
+            bincode::deserialize(final_model).expect("Cannot deserialize trained model.");
         model.predict(x).expect("Error during inference.")
     }
 }

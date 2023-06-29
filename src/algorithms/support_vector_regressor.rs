@@ -1,3 +1,5 @@
+//! Support Vector Regressor
+
 use smartcore::{
     linalg::naive::dense_matrix::DenseMatrix,
     model_selection::cross_validate,
@@ -10,6 +12,10 @@ use smartcore::{
 
 use crate::{Algorithm, Kernel, Settings};
 
+/// The Support Vector Regressor.
+/// 
+/// See [scikit-learn's user guide](https://scikit-learn.org/stable/modules/svm.html#svm-regression)
+/// for a more in-depth description of the algorithm.
 pub(crate) struct SupportVectorRegressorWrapper {}
 
 impl super::ModelWrapper for SupportVectorRegressorWrapper {
@@ -120,84 +126,24 @@ impl super::ModelWrapper for SupportVectorRegressorWrapper {
         match settings.svr_settings.as_ref().unwrap().kernel {
             Kernel::Linear => {
                 let model: SVR<f32, DenseMatrix<f32>, LinearKernel> =
-                    bincode::deserialize(&*final_model).unwrap();
+                    bincode::deserialize(final_model).unwrap();
                 model.predict(x).unwrap()
             }
             Kernel::Polynomial(_, _, _) => {
                 let model: SVR<f32, DenseMatrix<f32>, PolynomialKernel<f32>> =
-                    bincode::deserialize(&*final_model).unwrap();
+                    bincode::deserialize(final_model).unwrap();
                 model.predict(x).unwrap()
             }
             Kernel::RBF(_) => {
                 let model: SVR<f32, DenseMatrix<f32>, RBFKernel<f32>> =
-                    bincode::deserialize(&*final_model).unwrap();
+                    bincode::deserialize(final_model).unwrap();
                 model.predict(x).unwrap()
             }
             Kernel::Sigmoid(_, _) => {
                 let model: SVR<f32, DenseMatrix<f32>, SigmoidKernel<f32>> =
-                    bincode::deserialize(&*final_model).unwrap();
+                    bincode::deserialize(final_model).unwrap();
                 model.predict(x).unwrap()
             }
         }
     }
 }
-
-//
-// let start = Instant::now();
-// let cv = match self.settings.svr_settings.as_ref().unwrap().kernel {
-// Kernel::Linear => cross_validate(
-// SVR::fit,
-// &self.x,
-// &self.y,
-// SmartcoreSVRParameters::default()
-// .with_tol(self.settings.svr_settings.as_ref().unwrap().tol)
-// .with_c(self.settings.svr_settings.as_ref().unwrap().c)
-// .with_eps(self.settings.svr_settings.as_ref().unwrap().c)
-// .with_kernel(Kernels::linear()),
-// self.get_kfolds(),
-// metric,
-// )
-// .unwrap(),
-// Kernel::Polynomial(degree, gamma, coef) => cross_validate(
-// SVR::fit,
-// &self.x,
-// &self.y,
-// SmartcoreSVRParameters::default()
-// .with_tol(self.settings.svr_settings.as_ref().unwrap().tol)
-// .with_c(self.settings.svr_settings.as_ref().unwrap().c)
-// .with_eps(self.settings.svr_settings.as_ref().unwrap().c)
-// .with_kernel(Kernels::polynomial(degree, gamma, coef)),
-// self.get_kfolds(),
-// metric,
-// )
-// .unwrap(),
-// Kernel::RBF(gamma) => cross_validate(
-// SVR::fit,
-// &self.x,
-// &self.y,
-// SmartcoreSVRParameters::default()
-// .with_tol(self.settings.svr_settings.as_ref().unwrap().tol)
-// .with_c(self.settings.svr_settings.as_ref().unwrap().c)
-// .with_eps(self.settings.svr_settings.as_ref().unwrap().c)
-// .with_kernel(Kernels::rbf(gamma)),
-// self.get_kfolds(),
-// metric,
-// )
-// .unwrap(),
-// Kernel::Sigmoid(gamma, coef) => cross_validate(
-// SVR::fit,
-// &self.x,
-// &self.y,
-// SmartcoreSVRParameters::default()
-// .with_tol(self.settings.svr_settings.as_ref().unwrap().tol)
-// .with_c(self.settings.svr_settings.as_ref().unwrap().c)
-// .with_eps(self.settings.svr_settings.as_ref().unwrap().c)
-// .with_kernel(Kernels::sigmoid(gamma, coef)),
-// self.get_kfolds(),
-// metric,
-// )
-// .unwrap(),
-// };
-// let end = Instant::now();
-// let d = end.duration_since(start);
-// self.add_model(Algorithm::SVR, cv, d);
