@@ -4,7 +4,7 @@ use smartcore::{algorithm::neighbour::KNNAlgorithmName, neighbors::KNNWeightFunc
 use std::fmt::{Debug, Display, Formatter};
 
 /// Convert an Option<T> to a String for printing in display mode.
-pub(crate) fn print_option<T: Display>(x: Option<T>) -> String {
+pub fn print_option<T: Display>(x: Option<T>) -> String {
     match x {
         None => "None".to_string(),
         Some(y) => format!("{y}"),
@@ -12,7 +12,7 @@ pub(crate) fn print_option<T: Display>(x: Option<T>) -> String {
 }
 
 /// Convert an Option<T> to a String for printing in debug mode.
-pub(crate) fn debug_option<T: Debug>(x: Option<T>) -> String {
+pub fn debug_option<T: Debug>(x: Option<T>) -> String {
     match x {
         None => "None".to_string(),
         Some(y) => format!("{y:#?}"),
@@ -20,7 +20,7 @@ pub(crate) fn debug_option<T: Debug>(x: Option<T>) -> String {
 }
 
 /// Get the name for a knn weight function.
-pub(crate) fn print_knn_weight_function(f: &KNNWeightFunction) -> String {
+pub fn print_knn_weight_function(f: &KNNWeightFunction) -> String {
     match f {
         KNNWeightFunction::Uniform => "Uniform".to_string(),
         KNNWeightFunction::Distance => "Distance".to_string(),
@@ -28,7 +28,7 @@ pub(crate) fn print_knn_weight_function(f: &KNNWeightFunction) -> String {
 }
 
 /// Get the name for a knn search algorithm.
-pub(crate) fn print_knn_search_algorithm(a: &KNNAlgorithmName) -> String {
+pub fn print_knn_search_algorithm(a: &KNNAlgorithmName) -> String {
     match a {
         KNNAlgorithmName::LinearSearch => "Linear Search".to_string(),
         KNNAlgorithmName::CoverTree => "Cover Tree".to_string(),

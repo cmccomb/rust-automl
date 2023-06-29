@@ -18,7 +18,7 @@ use crate::{Algorithm, Distance, Settings};
 ///
 /// See [scikit-learn's user guide](https://scikit-learn.org/stable/modules/neighbors.html#classification)
 /// for a more in-depth description of the algorithm.
-pub(crate) struct KNNClassifierWrapper {}
+pub struct KNNClassifierWrapper {}
 
 impl super::ModelWrapper for KNNClassifierWrapper {
     fn cv(

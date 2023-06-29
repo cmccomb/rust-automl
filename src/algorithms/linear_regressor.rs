@@ -12,7 +12,7 @@ use crate::{Algorithm, Settings};
 ///
 /// See [scikit-learn's user guide](https://scikit-learn.org/stable/modules/linear_model.html#ordinary-least-squares)
 /// for a more in-depth description of the algorithm.
-pub(crate) struct LinearRegressorWrapper {}
+pub struct LinearRegressorWrapper {}
 
 impl super::ModelWrapper for LinearRegressorWrapper {
     fn cv(

@@ -11,7 +11,7 @@ use crate::{Algorithm, Settings};
 ///
 /// See [scikit-learn's user guide](https://scikit-learn.org/stable/modules/linear_model.html#elastic-net)
 /// for a more in-depth description of the algorithm.
-pub(crate) struct ElasticNetRegressorWrapper {}
+pub struct ElasticNetRegressorWrapper {}
 
 impl super::ModelWrapper for ElasticNetRegressorWrapper {
     fn cv(

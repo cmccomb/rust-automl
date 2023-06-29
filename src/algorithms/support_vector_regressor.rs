@@ -16,7 +16,7 @@ use crate::{Algorithm, Kernel, Settings};
 ///
 /// See [scikit-learn's user guide](https://scikit-learn.org/stable/modules/svm.html#svm-regression)
 /// for a more in-depth description of the algorithm.
-pub(crate) struct SupportVectorRegressorWrapper {}
+pub struct SupportVectorRegressorWrapper {}
 
 impl super::ModelWrapper for SupportVectorRegressorWrapper {
     fn cv(

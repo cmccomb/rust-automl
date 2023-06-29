@@ -12,7 +12,7 @@ use crate::{Algorithm, Settings};
 ///
 /// See [scikit-learn's user guide](https://scikit-learn.org/stable/modules/naive_bayes.html#categorical-naive-bayes)
 /// for a more in-depth description of the algorithm.
-pub(crate) struct CategoricalNaiveBayesClassifierWrapper {}
+pub struct CategoricalNaiveBayesClassifierWrapper {}
 
 impl super::ModelWrapper for CategoricalNaiveBayesClassifierWrapper {
     fn cv(

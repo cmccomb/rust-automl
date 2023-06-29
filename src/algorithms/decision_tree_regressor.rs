@@ -12,7 +12,7 @@ use crate::{Algorithm, Settings};
 ///
 /// See [scikit-learn's user guide](https://scikit-learn.org/stable/modules/tree.html#regression)
 /// for a more in-depth description of the algorithm.
-pub(crate) struct DecisionTreeRegressorWrapper {}
+pub struct DecisionTreeRegressorWrapper {}
 
 impl super::ModelWrapper for DecisionTreeRegressorWrapper {
     fn cv(

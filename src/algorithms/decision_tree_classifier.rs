@@ -12,7 +12,7 @@ use crate::{Algorithm, Settings};
 ///
 /// See [scikit-learn's user guide](https://scikit-learn.org/stable/modules/tree.html#classification)
 /// for a more in-depth description of the algorithm.
-pub(crate) struct DecisionTreeClassifierWrapper {}
+pub struct DecisionTreeClassifierWrapper {}
 
 impl super::ModelWrapper for DecisionTreeClassifierWrapper {
     fn cv(

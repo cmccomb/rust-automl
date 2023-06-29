@@ -19,7 +19,7 @@ use crate::{Algorithm, Distance, Settings};
 ///
 /// See [scikit-learn's user guide](https://scikit-learn.org/stable/modules/neighbors.html#regression)
 /// for a more in-depth description of the algorithm.
-pub(crate) struct KNNRegressorWrapper {}
+pub struct KNNRegressorWrapper {}
 
 impl super::ModelWrapper for KNNRegressorWrapper {
     fn cv(

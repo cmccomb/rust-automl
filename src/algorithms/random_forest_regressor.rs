@@ -12,7 +12,7 @@ use crate::{Algorithm, Settings};
 ///
 /// See [scikit-learn's user guide](https://scikit-learn.org/stable/modules/ensemble.html#random-forests)
 /// for a more in-depth description of the algorithm.
-pub(crate) struct RandomForestRegressorWrapper {}
+pub struct RandomForestRegressorWrapper {}
 
 impl super::ModelWrapper for RandomForestRegressorWrapper {
     fn cv(

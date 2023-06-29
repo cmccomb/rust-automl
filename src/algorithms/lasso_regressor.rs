@@ -11,7 +11,7 @@ use crate::{Algorithm, Settings};
 ///
 /// See [scikit-learn's user guide](https://scikit-learn.org/stable/modules/linear_model.html#lasso)
 /// for a more in-depth description of the algorithm.
-pub(crate) struct LassoRegressorWrapper {}
+pub struct LassoRegressorWrapper {}
 
 impl super::ModelWrapper for LassoRegressorWrapper {
     fn cv(
