@@ -1,8 +1,9 @@
 //! Linear regression algorithm.
 
 use smartcore::{
-    linalg::naive::dense_matrix::DenseMatrix, linear::linear_regression::LinearRegression,
-    model_selection::cross_validate, model_selection::CrossValidationResult,
+    linalg::naive::dense_matrix::DenseMatrix,
+    linear::linear_regression::LinearRegression,
+    model_selection::{cross_validate, CrossValidationResult},
 };
 
 use crate::{Algorithm, Settings};

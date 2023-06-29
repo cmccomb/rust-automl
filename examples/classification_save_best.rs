@@ -17,7 +17,7 @@ fn main() {
 
     // Load that model for use directly in SmartCore
     let mut buf: Vec<u8> = Vec::new();
-    std::fs::File::open(&file_name)
+    std::fs::File::open(file_name)
         .and_then(|mut f| f.read_to_end(&mut buf))
         .expect("Cannot load model from file.");
     let model: LogisticRegression<f32, DenseMatrix<f32>> =
