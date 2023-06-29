@@ -105,10 +105,7 @@ pub fn elementwise_multiply(v1: &[f32], v2: &[f32]) -> Vec<f32> {
 }
 
 #[cfg(any(feature = "csv"))]
-use polars::prelude::{
-    BooleanChunked, BooleanChunkedBuilder, CsvReader, DataFrame, DataType, NamedFrom, PolarsError,
-    SerReader, Series,
-};
+use polars::prelude::{CsvReader, DataFrame, PolarsError, SerReader};
 
 #[cfg(any(feature = "csv"))]
 pub(crate) fn validate_and_read<P>(file_path: P) -> DataFrame
