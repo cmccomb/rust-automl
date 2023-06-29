@@ -177,11 +177,10 @@ pub struct SupervisedModel {
     comparison: Vec<Model>,
     /// The final model.
     metamodel: Model,
-    /// The preprocessing pipeline.
-    preprocessing: (
-        Option<PCA<f32, DenseMatrix<f32>>>,
-        Option<SVD<f32, DenseMatrix<f32>>>,
-    ),
+    /// PCA model for preprocessing.
+    preprocessing_pca: Option<PCA<f32, DenseMatrix<f32>>>,
+    /// SVD model for preprocessing.
+    preprocessing_svd: Option<SVD<f32, DenseMatrix<f32>>>,
 }
 
 impl SupervisedModel {
@@ -591,8 +590,9 @@ impl SupervisedModel {
             x_val: DenseMatrix::new(0, 0, vec![]),
             y_val: vec![],
             comparison: vec![],
-            preprocessing: (None, None),
             metamodel: Default::default(),
+            preprocessing_pca: None,
+            preprocessing_svd: None,
         }
     }
 
@@ -746,7 +746,7 @@ impl SupervisedModel {
                 .with_use_correlation_matrix(true),
         )
         .unwrap();
-        self.preprocessing.0 = Some(pca);
+        self.preprocessing_pca = Some(pca);
     }
 
     /// Get PCA features for the data using the trained PCA preprocessor.
@@ -755,8 +755,7 @@ impl SupervisedModel {
     ///
     /// * `x` - The input data
     fn pca_features(&self, x: DenseMatrix<f32>, _: usize) -> DenseMatrix<f32> {
-        self.preprocessing
-            .0
+        self.preprocessing_pca
             .as_ref()
             .unwrap()
             .transform(&x)
@@ -771,13 +770,12 @@ impl SupervisedModel {
     /// * `n` - The number of components to use
     fn train_svd(&mut self, x: DenseMatrix<f32>, n: usize) {
         let svd = SVD::fit(&x, SVDParameters::default().with_n_components(n)).unwrap();
-        self.preprocessing.1 = Some(svd);
+        self.preprocessing_svd = Some(svd);
     }
 
     /// Get SVD features for the data.
     fn svd_features(&self, x: DenseMatrix<f32>, _: usize) -> DenseMatrix<f32> {
-        self.preprocessing
-            .1
+        self.preprocessing_svd
             .as_ref()
             .unwrap()
             .transform(&x)
