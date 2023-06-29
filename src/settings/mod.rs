@@ -218,11 +218,11 @@ pub enum Metric {
 impl Display for Metric {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Metric::RSquared => write!(f, "R^2"),
-            Metric::MeanAbsoluteError => write!(f, "MAE"),
-            Metric::MeanSquaredError => write!(f, "MSE"),
-            Metric::Accuracy => write!(f, "Accuracy"),
-            Metric::None => panic!("A metric must be set."),
+            Self::RSquared => write!(f, "R^2"),
+            Self::MeanAbsoluteError => write!(f, "MAE"),
+            Self::MeanSquaredError => write!(f, "MSE"),
+            Self::Accuracy => write!(f, "Accuracy"),
+            Self::None => panic!("A metric must be set."),
         }
     }
 }
@@ -266,42 +266,42 @@ impl Algorithm {
     /// Get the `predict` method for the underlying algorithm.
     pub(crate) fn get_predictor(&self) -> fn(&DenseMatrix<f32>, &Vec<u8>, &Settings) -> Vec<f32> {
         match self {
-            Algorithm::Linear => LinearRegressorWrapper::predict,
-            Algorithm::Lasso => LassoRegressorWrapper::predict,
-            Algorithm::Ridge => RidgeRegressorWrapper::predict,
-            Algorithm::ElasticNet => ElasticNetRegressorWrapper::predict,
-            Algorithm::RandomForestRegressor => RandomForestRegressorWrapper::predict,
-            Algorithm::KNNRegressor => KNNRegressorWrapper::predict,
-            Algorithm::SVR => SupportVectorRegressorWrapper::predict,
-            Algorithm::DecisionTreeRegressor => DecisionTreeRegressorWrapper::predict,
-            Algorithm::LogisticRegression => LogisticRegressionWrapper::predict,
-            Algorithm::RandomForestClassifier => RandomForestClassifierWrapper::predict,
-            Algorithm::DecisionTreeClassifier => DecisionTreeClassifierWrapper::predict,
-            Algorithm::KNNClassifier => KNNClassifierWrapper::predict,
-            Algorithm::SVC => SupportVectorClassifierWrapper::predict,
-            Algorithm::GaussianNaiveBayes => GaussianNaiveBayesClassifierWrapper::predict,
-            Algorithm::CategoricalNaiveBayes => CategoricalNaiveBayesClassifierWrapper::predict,
+            Self::Linear => LinearRegressorWrapper::predict,
+            Self::Lasso => LassoRegressorWrapper::predict,
+            Self::Ridge => RidgeRegressorWrapper::predict,
+            Self::ElasticNet => ElasticNetRegressorWrapper::predict,
+            Self::RandomForestRegressor => RandomForestRegressorWrapper::predict,
+            Self::KNNRegressor => KNNRegressorWrapper::predict,
+            Self::SVR => SupportVectorRegressorWrapper::predict,
+            Self::DecisionTreeRegressor => DecisionTreeRegressorWrapper::predict,
+            Self::LogisticRegression => LogisticRegressionWrapper::predict,
+            Self::RandomForestClassifier => RandomForestClassifierWrapper::predict,
+            Self::DecisionTreeClassifier => DecisionTreeClassifierWrapper::predict,
+            Self::KNNClassifier => KNNClassifierWrapper::predict,
+            Self::SVC => SupportVectorClassifierWrapper::predict,
+            Self::GaussianNaiveBayes => GaussianNaiveBayesClassifierWrapper::predict,
+            Self::CategoricalNaiveBayes => CategoricalNaiveBayesClassifierWrapper::predict,
         }
     }
 
     /// Get the `train` method for the underlying algorithm.
     pub(crate) fn get_trainer(&self) -> fn(&DenseMatrix<f32>, &Vec<f32>, &Settings) -> Vec<u8> {
         match self {
-            Algorithm::Linear => LinearRegressorWrapper::train,
-            Algorithm::Lasso => LassoRegressorWrapper::train,
-            Algorithm::Ridge => RidgeRegressorWrapper::train,
-            Algorithm::ElasticNet => ElasticNetRegressorWrapper::train,
-            Algorithm::RandomForestRegressor => RandomForestRegressorWrapper::train,
-            Algorithm::KNNRegressor => KNNRegressorWrapper::train,
-            Algorithm::SVR => SupportVectorRegressorWrapper::train,
-            Algorithm::DecisionTreeRegressor => DecisionTreeRegressorWrapper::train,
-            Algorithm::LogisticRegression => LogisticRegressionWrapper::train,
-            Algorithm::RandomForestClassifier => RandomForestClassifierWrapper::train,
-            Algorithm::DecisionTreeClassifier => DecisionTreeClassifierWrapper::train,
-            Algorithm::KNNClassifier => KNNClassifierWrapper::train,
-            Algorithm::SVC => SupportVectorClassifierWrapper::train,
-            Algorithm::GaussianNaiveBayes => GaussianNaiveBayesClassifierWrapper::train,
-            Algorithm::CategoricalNaiveBayes => CategoricalNaiveBayesClassifierWrapper::train,
+            Self::Linear => LinearRegressorWrapper::train,
+            Self::Lasso => LassoRegressorWrapper::train,
+            Self::Ridge => RidgeRegressorWrapper::train,
+            Self::ElasticNet => ElasticNetRegressorWrapper::train,
+            Self::RandomForestRegressor => RandomForestRegressorWrapper::train,
+            Self::KNNRegressor => KNNRegressorWrapper::train,
+            Self::SVR => SupportVectorRegressorWrapper::train,
+            Self::DecisionTreeRegressor => DecisionTreeRegressorWrapper::train,
+            Self::LogisticRegression => LogisticRegressionWrapper::train,
+            Self::RandomForestClassifier => RandomForestClassifierWrapper::train,
+            Self::DecisionTreeClassifier => DecisionTreeClassifierWrapper::train,
+            Self::KNNClassifier => KNNClassifierWrapper::train,
+            Self::SVC => SupportVectorClassifierWrapper::train,
+            Self::GaussianNaiveBayes => GaussianNaiveBayesClassifierWrapper::train,
+            Self::CategoricalNaiveBayes => CategoricalNaiveBayesClassifierWrapper::train,
         }
     }
 }
@@ -309,21 +309,21 @@ impl Algorithm {
 impl Display for Algorithm {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Algorithm::DecisionTreeRegressor => write!(f, "Decision Tree Regressor"),
-            Algorithm::KNNRegressor => write!(f, "KNN Regressor"),
-            Algorithm::RandomForestRegressor => write!(f, "Random Forest Regressor"),
-            Algorithm::Linear => write!(f, "Linear Regressor"),
-            Algorithm::Ridge => write!(f, "Ridge Regressor"),
-            Algorithm::Lasso => write!(f, "LASSO Regressor"),
-            Algorithm::ElasticNet => write!(f, "Elastic Net Regressor"),
-            Algorithm::SVR => write!(f, "Support Vector Regressor"),
-            Algorithm::DecisionTreeClassifier => write!(f, "Decision Tree Classifier"),
-            Algorithm::KNNClassifier => write!(f, "KNN Classifier"),
-            Algorithm::RandomForestClassifier => write!(f, "Random Forest Classifier"),
-            Algorithm::LogisticRegression => write!(f, "Logistic Regression Classifier"),
-            Algorithm::SVC => write!(f, "Support Vector Classifier"),
-            Algorithm::GaussianNaiveBayes => write!(f, "Gaussian Naive Bayes"),
-            Algorithm::CategoricalNaiveBayes => write!(f, "Categorical Naive Bayes"),
+            Self::DecisionTreeRegressor => write!(f, "Decision Tree Regressor"),
+            Self::KNNRegressor => write!(f, "KNN Regressor"),
+            Self::RandomForestRegressor => write!(f, "Random Forest Regressor"),
+            Self::Linear => write!(f, "Linear Regressor"),
+            Self::Ridge => write!(f, "Ridge Regressor"),
+            Self::Lasso => write!(f, "LASSO Regressor"),
+            Self::ElasticNet => write!(f, "Elastic Net Regressor"),
+            Self::SVR => write!(f, "Support Vector Regressor"),
+            Self::DecisionTreeClassifier => write!(f, "Decision Tree Classifier"),
+            Self::KNNClassifier => write!(f, "KNN Classifier"),
+            Self::RandomForestClassifier => write!(f, "Random Forest Classifier"),
+            Self::LogisticRegression => write!(f, "Logistic Regression Classifier"),
+            Self::SVC => write!(f, "Support Vector Classifier"),
+            Self::GaussianNaiveBayes => write!(f, "Gaussian Naive Bayes"),
+            Self::CategoricalNaiveBayes => write!(f, "Categorical Naive Bayes"),
         }
     }
 }
@@ -355,12 +355,12 @@ pub enum PreProcessing {
 impl Display for PreProcessing {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            PreProcessing::None => write!(f, "None"),
-            PreProcessing::AddInteractions => write!(f, "Interaction terms added"),
-            PreProcessing::AddPolynomial { order } => {
+            Self::None => write!(f, "None"),
+            Self::AddInteractions => write!(f, "Interaction terms added"),
+            Self::AddPolynomial { order } => {
                 write!(f, "Polynomial terms added (order = {})", order)
             }
-            PreProcessing::ReplaceWithPCA {
+            Self::ReplaceWithPCA {
                 number_of_components,
             } => write!(
                 f,
@@ -368,7 +368,7 @@ impl Display for PreProcessing {
                 number_of_components
             ),
 
-            PreProcessing::ReplaceWithSVD {
+            Self::ReplaceWithSVD {
                 number_of_components,
             } => write!(
                 f,

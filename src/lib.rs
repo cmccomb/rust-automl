@@ -239,7 +239,7 @@ impl SupervisedModel {
         D: IntoSupervisedData,
     {
         let (x, y) = data.to_supervised_data();
-        SupervisedModel::build(x, y, settings)
+        Self::build(x, y, settings)
     }
 
     /// Load the supervised model from a file saved previously
@@ -796,10 +796,8 @@ impl SupervisedModel {
     fn preprocess(&self, x: DenseMatrix<f32>) -> DenseMatrix<f32> {
         match self.settings.preprocessing {
             PreProcessing::None => x,
-            PreProcessing::AddInteractions => SupervisedModel::interaction_features(x),
-            PreProcessing::AddPolynomial { order } => {
-                SupervisedModel::polynomial_features(x, order)
-            }
+            PreProcessing::AddInteractions => Self::interaction_features(x),
+            PreProcessing::AddPolynomial { order } => Self::polynomial_features(x, order),
             PreProcessing::ReplaceWithPCA {
                 number_of_components,
             } => self.pca_features(x, number_of_components),
@@ -926,7 +924,7 @@ struct Model {
 
 impl Default for Model {
     fn default() -> Self {
-        Model {
+        Self {
             score: CrossValidationResult {
                 test_score: vec![],
                 train_score: vec![],

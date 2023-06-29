@@ -54,14 +54,14 @@ pub enum Kernel {
 impl Display for Kernel {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Kernel::Linear => write!(f, "Linear"),
-            Kernel::Polynomial(degree, gamma, coef) => write!(
+            Self::Linear => write!(f, "Linear"),
+            Self::Polynomial(degree, gamma, coef) => write!(
                 f,
                 "Polynomial\n    degree = {}\n    gamma = {}\n    coef = {}",
                 degree, gamma, coef
             ),
-            Kernel::RBF(gamma) => write!(f, "RBF\n    gamma = {}", gamma),
-            Kernel::Sigmoid(gamma, coef) => {
+            Self::RBF(gamma) => write!(f, "RBF\n    gamma = {}", gamma),
+            Self::Sigmoid(gamma, coef) => {
                 write!(f, "Sigmoid\n    gamma = {}\n    coef = {}", gamma, coef)
             }
         }
@@ -90,11 +90,11 @@ pub enum Distance {
 impl Display for Distance {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Distance::Euclidean => write!(f, "Euclidean"),
-            Distance::Manhattan => write!(f, "Manhattan"),
-            Distance::Minkowski(n) => write!(f, "Minkowski\n    p = {}", n),
-            Distance::Mahalanobis => write!(f, "Mahalanobis"),
-            Distance::Hamming => write!(f, "Hamming"),
+            Self::Euclidean => write!(f, "Euclidean"),
+            Self::Manhattan => write!(f, "Manhattan"),
+            Self::Minkowski(n) => write!(f, "Minkowski\n    p = {}", n),
+            Self::Mahalanobis => write!(f, "Mahalanobis"),
+            Self::Hamming => write!(f, "Hamming"),
         }
     }
 }

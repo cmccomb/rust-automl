@@ -81,7 +81,7 @@ pub struct Settings {
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings {
+        Self {
             sort_by: Metric::RSquared,
             model_type: ModelType::None,
             final_model_approach: FinalModel::Best,
@@ -150,7 +150,7 @@ impl Settings {
     /// let settings = Settings::default_regression();
     /// ```
     pub fn default_regression() -> Self {
-        Settings {
+        Self {
             sort_by: Metric::RSquared,
             model_type: ModelType::Regression,
             final_model_approach: FinalModel::Best,
@@ -191,7 +191,7 @@ impl Settings {
     /// let settings = Settings::default_classification();
     /// ```
     pub fn default_classification() -> Self {
-        Settings {
+        Self {
             sort_by: Metric::Accuracy,
             model_type: ModelType::Classification,
             final_model_approach: FinalModel::Best,
@@ -1076,9 +1076,9 @@ enum ModelType {
 impl Display for ModelType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            ModelType::None => write!(f, "None"),
-            ModelType::Regression => write!(f, "Regression"),
-            ModelType::Classification => write!(f, "Classification"),
+            Self::None => write!(f, "None"),
+            Self::Regression => write!(f, "Regression"),
+            Self::Classification => write!(f, "Classification"),
         }
     }
 }
