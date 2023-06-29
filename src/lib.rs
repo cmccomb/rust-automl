@@ -257,6 +257,7 @@ impl SupervisedModel {
     /// let model = SupervisedModel::new_from_file("tests/load_that_model.aml");
     /// # std::fs::remove_file("tests/load_that_model.aml");
     /// ```
+    #[must_use]
     pub fn new_from_file(file_name: &str) -> Self {
         let mut buf: Vec<u8> = Vec::new();
         std::fs::File::open(file_name)

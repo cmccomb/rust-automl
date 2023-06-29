@@ -18,24 +18,28 @@ pub struct KNNClassifierParameters {
 
 impl KNNClassifierParameters {
     /// Define the number of nearest neighbors to use
+    #[must_use]
     pub const fn with_k(mut self, k: usize) -> Self {
         self.k = k;
         self
     }
 
     /// Define the weighting function to use with KNN regression
+    #[must_use]
     pub const fn with_weight(mut self, weight: KNNWeightFunction) -> Self {
         self.weight = weight;
         self
     }
 
     /// Define the search algorithm to use with KNN regression
+    #[must_use]
     pub const fn with_algorithm(mut self, algorithm: KNNAlgorithmName) -> Self {
         self.algorithm = algorithm;
         self
     }
 
     /// Define the distance metric to use with KNN regression
+    #[must_use]
     pub const fn with_distance(mut self, distance: Distance) -> Self {
         self.distance = distance;
         self
