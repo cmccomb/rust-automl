@@ -362,17 +362,11 @@ impl Display for PreProcessing {
             }
             Self::ReplaceWithPCA {
                 number_of_components,
-            } => write!(
-                f,
-                "Replaced with PCA features (n = {number_of_components})"
-            ),
+            } => write!(f, "Replaced with PCA features (n = {number_of_components})"),
 
             Self::ReplaceWithSVD {
                 number_of_components,
-            } => write!(
-                f,
-                "Replaced with SVD features (n = {number_of_components})"
-            ),
+            } => write!(f, "Replaced with SVD features (n = {number_of_components})"),
         }
     }
 }

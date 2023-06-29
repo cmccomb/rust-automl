@@ -17,7 +17,7 @@ mod classification_tests {
         classifier.train();
 
         // Try to predict something
-        classifier.predict(vec![vec![5.0 as f32; 30]; 10]);
+        classifier.predict(vec![vec![5.0_f32; 30]; 10]);
         classifier.predict("data/breast_cancer_without_target.csv");
         #[cfg(feature = "nd")]
         classifier.predict(ndarray::Array2::from_shape_vec((10, 30), vec![5.0; 300]).unwrap());

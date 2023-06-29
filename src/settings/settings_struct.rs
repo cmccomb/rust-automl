@@ -384,7 +384,10 @@ impl Settings {
     ///     .with_logistic_settings(LogisticRegressionParameters::default());
     /// ```
     #[must_use]
-    pub const fn with_logistic_settings(mut self, settings: LogisticRegressionParameters<f32>) -> Self {
+    pub const fn with_logistic_settings(
+        mut self,
+        settings: LogisticRegressionParameters<f32>,
+    ) -> Self {
         self.logistic_settings = Some(settings);
         self
     }
@@ -472,7 +475,10 @@ impl Settings {
     ///     );
     /// ```
     #[must_use]
-    pub const fn with_categorical_nb_settings(mut self, settings: CategoricalNBParameters<f32>) -> Self {
+    pub const fn with_categorical_nb_settings(
+        mut self,
+        settings: CategoricalNBParameters<f32>,
+    ) -> Self {
         self.categorical_nb_settings = Some(settings);
         self
     }

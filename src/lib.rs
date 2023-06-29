@@ -1,15 +1,16 @@
+#![deny(clippy::correctness)]
 #![warn(
     clippy::all,
+    clippy::suspicious,
+    clippy::complexity,
+    clippy::perf,
+    clippy::style,
     clippy::pedantic,
     clippy::nursery,
+    clippy::missing_docs_in_private_items
 )]
-#![allow(
-    clippy::module_name_repetitions,
-    clippy::too_many_lines,
-)]
-#![warn(missing_docs)]
-#![warn(rustdoc::missing_doc_code_examples)]
-#![warn(clippy::missing_docs_in_private_items)]
+#![allow(clippy::module_name_repetitions, clippy::too_many_lines)]
+#![warn(missing_docs, rustdoc::missing_doc_code_examples)]
 #![doc = include_str!("../README.md")]
 
 pub mod settings;
@@ -310,9 +311,9 @@ impl SupervisedModel {
     /// #[cfg(any(feature = "csv"))]
     /// model.predict("data/diabetes_without_target.csv");
     /// ```
-    /// 
+    ///
     /// # Panics
-    /// 
+    ///
     /// If the model has not been trained, this function will panic.
     pub fn predict<X: IntoFeatures>(&self, x: X) -> Vec<f32> {
         let x = &self.preprocess(x.to_dense_matrix());

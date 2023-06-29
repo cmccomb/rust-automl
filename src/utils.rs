@@ -101,48 +101,49 @@ pub fn elementwise_multiply(v1: &[f32], v2: &[f32]) -> Vec<f32> {
 use polars::prelude::{CsvReader, DataFrame, PolarsError, SerReader};
 
 #[cfg(any(feature = "csv"))]
-pub(crate) fn validate_and_read<P>(file_path: P) -> DataFrame
+/// Read and validate a csv file or URL into a polars `DataFrame`.
+pub fn validate_and_read<P>(file_path: P) -> DataFrame
 where
     P: AsRef<std::path::Path>,
 {
     let file_path_as_str = file_path.as_ref().to_str().unwrap();
 
-    match CsvReader::from_path(file_path_as_str) {
-        Ok(csv) => csv
-            .infer_schema(Some(10))
-            .has_header(
-                csv_sniffer::Sniffer::new()
-                    .sniff_path(file_path_as_str.clone())
-                    .expect("Cannot sniff file")
-                    .dialect
-                    .header
-                    .has_header_row,
-            )
-            .finish()
-            .expect("Cannot read file as CSV")
-            .drop_nulls(None)
-            .expect("Cannot remove null values")
-            .convert_to_float()
-            .expect("Cannot convert types"),
-        Err(_) => {
-            if let Ok(_) = url::Url::parse(file_path_as_str) {
+    CsvReader::from_path(file_path_as_str).map_or_else(
+        |_| {
+            if url::Url::parse(file_path_as_str).is_ok() {
                 let file_contents = minreq::get(file_path_as_str)
                     .send()
                     .expect("Could not open URL");
                 let temp = temp_file::with_contents(file_contents.as_bytes());
-
                 validate_and_read(temp.path().to_str().unwrap())
             } else {
-                panic!(
-                    "The string {} is not a valid URL or file path.",
-                    file_path_as_str
-                )
+                panic!("The string {file_path_as_str} is not a valid URL or file path.")
             }
-        }
-    }
+        },
+        |csv| {
+            csv.infer_schema(Some(10))
+                .has_header(
+                    csv_sniffer::Sniffer::new()
+                        .sniff_path(file_path_as_str)
+                        .expect("Cannot sniff file")
+                        .dialect
+                        .header
+                        .has_header_row,
+                )
+                .finish()
+                .expect("Cannot read file as CSV")
+                .drop_nulls(None)
+                .expect("Cannot remove null values")
+                .convert_to_float()
+                .expect("Cannot convert types")
+        },
+    )
 }
+
+/// Trait to convert to a polars `DataFrame`.
 #[cfg(any(feature = "csv"))]
 trait Cleanup {
+    /// Convert to a polars `DataFrame` with all columns of type float.
     fn convert_to_float(self) -> Result<DataFrame, PolarsError>;
 }
 
