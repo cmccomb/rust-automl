@@ -155,6 +155,7 @@ trait Cleanup {
 
 #[cfg(any(feature = "csv"))]
 impl Cleanup for DataFrame {
+    #[allow(unused_mut)]
     fn convert_to_float(mut self) -> Result<DataFrame, PolarsError> {
         // Work in progress
         // for field in self.schema().fields() {
