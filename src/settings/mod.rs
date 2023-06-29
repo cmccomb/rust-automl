@@ -264,7 +264,7 @@ pub enum Algorithm {
 
 impl Algorithm {
     /// Get the `predict` method for the underlying algorithm.
-    pub(crate) fn get_predictor(&self) -> fn(&DenseMatrix<f32>, &Vec<u8>, &Settings) -> Vec<f32> {
+    pub(crate) fn get_predictor(self) -> fn(&DenseMatrix<f32>, &Vec<u8>, &Settings) -> Vec<f32> {
         match self {
             Self::Linear => LinearRegressorWrapper::predict,
             Self::Lasso => LassoRegressorWrapper::predict,
@@ -285,7 +285,7 @@ impl Algorithm {
     }
 
     /// Get the `train` method for the underlying algorithm.
-    pub(crate) fn get_trainer(&self) -> fn(&DenseMatrix<f32>, &Vec<f32>, &Settings) -> Vec<u8> {
+    pub(crate) fn get_trainer(self) -> fn(&DenseMatrix<f32>, &Vec<f32>, &Settings) -> Vec<u8> {
         match self {
             Self::Linear => LinearRegressorWrapper::train,
             Self::Lasso => LassoRegressorWrapper::train,
@@ -358,22 +358,20 @@ impl Display for PreProcessing {
             Self::None => write!(f, "None"),
             Self::AddInteractions => write!(f, "Interaction terms added"),
             Self::AddPolynomial { order } => {
-                write!(f, "Polynomial terms added (order = {})", order)
+                write!(f, "Polynomial terms added (order = {order})")
             }
             Self::ReplaceWithPCA {
                 number_of_components,
             } => write!(
                 f,
-                "Replaced with PCA features (n = {})",
-                number_of_components
+                "Replaced with PCA features (n = {number_of_components})"
             ),
 
             Self::ReplaceWithSVD {
                 number_of_components,
             } => write!(
                 f,
-                "Replaced with SVD features (n = {})",
-                number_of_components
+                "Replaced with SVD features (n = {number_of_components})"
             ),
         }
     }

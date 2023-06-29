@@ -254,7 +254,7 @@ impl Settings {
         let serial = serde_yaml::to_string(&self).expect("Cannot serialize settings.");
         std::fs::File::create(file_name)
             .and_then(|mut f| f.write_all(serial.as_ref()))
-            .expect("Cannot write settings to file.")
+            .expect("Cannot write settings to file.");
     }
 
     /// Specify number of folds for cross-validation
@@ -262,6 +262,7 @@ impl Settings {
     /// # use automl::Settings;
     /// let settings = Settings::default().with_number_of_folds(3);
     /// ```
+    #[must_use]
     pub const fn with_number_of_folds(mut self, n: usize) -> Self {
         self.number_of_folds = n;
         self
@@ -611,7 +612,7 @@ impl Display for Settings {
             skiplist.push_str("None ");
         } else {
             for algorithm_to_skip in &self.skiplist {
-                skiplist.push_str(&format!("{}\n", algorithm_to_skip));
+                skiplist.push_str(&format!("{algorithm_to_skip}\n"));
             }
         }
 

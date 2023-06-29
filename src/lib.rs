@@ -1,6 +1,11 @@
 #![warn(
     clippy::all,
+    clippy::pedantic,
     clippy::nursery,
+)]
+#![allow(
+    clippy::module_name_repetitions,
+    clippy::too_many_lines,
 )]
 #![warn(missing_docs)]
 #![warn(rustdoc::missing_doc_code_examples)]
@@ -304,10 +309,11 @@ impl SupervisedModel {
     /// #[cfg(any(feature = "csv"))]
     /// model.predict("data/diabetes_without_target.csv");
     /// ```
-    pub fn predict<X>(&self, x: X) -> Vec<f32>
-    where
-        X: IntoFeatures,
-    {
+    /// 
+    /// # Panics
+    /// 
+    /// If the model has not been trained, this function will panic.
+    pub fn predict<X: IntoFeatures>(&self, x: X) -> Vec<f32> {
         let x = &self.preprocess(x.to_dense_matrix());
         match self.settings.final_model_approach {
             FinalModel::None => panic!(""),
@@ -332,13 +338,13 @@ impl SupervisedModel {
             number_of_components,
         } = self.settings.preprocessing
         {
-            self.train_pca(self.x_train.clone(), number_of_components);
+            self.train_pca(&self.x_train.clone(), number_of_components);
         }
         if let PreProcessing::ReplaceWithSVD {
             number_of_components,
         } = self.settings.preprocessing
         {
-            self.train_svd(self.x_train.clone(), number_of_components);
+            self.train_svd(&self.x_train.clone(), number_of_components);
         }
 
         // Preprocess the data
@@ -528,7 +534,7 @@ impl SupervisedModel {
             meta_testing_fraction,
         } = self.settings.final_model_approach
         {
-            self.train_blended_model(algorithm, meta_training_fraction, meta_testing_fraction)
+            self.train_blended_model(algorithm, meta_training_fraction, meta_testing_fraction);
         }
     }
 
@@ -590,7 +596,7 @@ impl SupervisedModel {
             x_val: DenseMatrix::new(0, 0, vec![]),
             y_val: vec![],
             comparison: vec![],
-            metamodel: Default::default(),
+            metamodel: Model::default(),
             preprocessing_pca: None,
             preprocessing_svd: None,
         }
@@ -612,7 +618,7 @@ impl SupervisedModel {
         // Make the data
         let mut meta_x: Vec<Vec<f32>> = Vec::new();
         for model in &self.comparison {
-            meta_x.push(self.predict_by_model(&self.x_val, model))
+            meta_x.push(self.predict_by_model(&self.x_val, model));
         }
         let xdm = DenseMatrix::from_2d_vec(&meta_x).transpose();
 
@@ -646,7 +652,7 @@ impl SupervisedModel {
                 train_score: vec![train_score; 1],
             },
             name: algo,
-            duration: Default::default(),
+            duration: Duration::default(),
             model,
         };
     }
@@ -666,7 +672,7 @@ impl SupervisedModel {
         let mut meta_x: Vec<Vec<f32>> = Vec::new();
         for i in 0..self.comparison.len() {
             let model = &self.comparison[i];
-            meta_x.push(self.predict_by_model(x, model))
+            meta_x.push(self.predict_by_model(x, model));
         }
 
         //
@@ -738,9 +744,9 @@ impl SupervisedModel {
     ///
     /// * `x` - The input data
     /// * `n` - The number of components to use
-    fn train_pca(&mut self, x: DenseMatrix<f32>, n: usize) {
+    fn train_pca(&mut self, x: &DenseMatrix<f32>, n: usize) {
         let pca = PCA::fit(
-            &x,
+            x,
             PCAParameters::default()
                 .with_n_components(n)
                 .with_use_correlation_matrix(true),
@@ -754,11 +760,11 @@ impl SupervisedModel {
     /// # Arguments
     ///
     /// * `x` - The input data
-    fn pca_features(&self, x: DenseMatrix<f32>, _: usize) -> DenseMatrix<f32> {
+    fn pca_features(&self, x: &DenseMatrix<f32>, _: usize) -> DenseMatrix<f32> {
         self.preprocessing_pca
             .as_ref()
             .unwrap()
-            .transform(&x)
+            .transform(x)
             .unwrap()
     }
 
@@ -768,21 +774,21 @@ impl SupervisedModel {
     ///
     /// * `x` - The input data
     /// * `n` - The number of components to use
-    fn train_svd(&mut self, x: DenseMatrix<f32>, n: usize) {
-        let svd = SVD::fit(&x, SVDParameters::default().with_n_components(n)).unwrap();
+    fn train_svd(&mut self, x: &DenseMatrix<f32>, n: usize) {
+        let svd = SVD::fit(x, SVDParameters::default().with_n_components(n)).unwrap();
         self.preprocessing_svd = Some(svd);
     }
 
     /// Get SVD features for the data.
-    fn svd_features(&self, x: DenseMatrix<f32>, _: usize) -> DenseMatrix<f32> {
+    fn svd_features(&self, x: &DenseMatrix<f32>, _: usize) -> DenseMatrix<f32> {
         self.preprocessing_svd
             .as_ref()
             .unwrap()
-            .transform(&x)
+            .transform(x)
             .unwrap()
     }
 
-    /// Preprocess the data.
+    /// Pre process the data.
     ///
     /// # Arguments
     ///
@@ -798,10 +804,10 @@ impl SupervisedModel {
             PreProcessing::AddPolynomial { order } => Self::polynomial_features(x, order),
             PreProcessing::ReplaceWithPCA {
                 number_of_components,
-            } => self.pca_features(x, number_of_components),
+            } => self.pca_features(&x, number_of_components),
             PreProcessing::ReplaceWithSVD {
                 number_of_components,
-            } => self.svd_features(x, number_of_components),
+            } => self.svd_features(&x, number_of_components),
         }
     }
 
@@ -902,7 +908,7 @@ impl Display for SupervisedModel {
         meta_table.add_row(row_vec);
 
         // Write
-        write!(f, "{}\n{}", table, meta_table)
+        write!(f, "{table}\n{meta_table}")
     }
 }
 
@@ -934,7 +940,7 @@ impl Default for Model {
     }
 }
 
-/// This is a wrapper for the CrossValidationResult
+/// This is a wrapper for the `CrossValidationResult`
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(remote = "CrossValidationResult::<f32>")]
 struct CrossValidationResultDef {

@@ -51,12 +51,11 @@ impl Display for Kernel {
             Self::Linear => write!(f, "Linear"),
             Self::Polynomial(degree, gamma, coef) => write!(
                 f,
-                "Polynomial\n    degree = {}\n    gamma = {}\n    coef = {}",
-                degree, gamma, coef
+                "Polynomial\n    degree = {degree}\n    gamma = {gamma}\n    coef = {coef}"
             ),
-            Self::RBF(gamma) => write!(f, "RBF\n    gamma = {}", gamma),
+            Self::RBF(gamma) => write!(f, "RBF\n    gamma = {gamma}"),
             Self::Sigmoid(gamma, coef) => {
-                write!(f, "Sigmoid\n    gamma = {}\n    coef = {}", gamma, coef)
+                write!(f, "Sigmoid\n    gamma = {gamma}\n    coef = {coef}")
             }
         }
     }
@@ -86,7 +85,7 @@ impl Display for Distance {
         match self {
             Self::Euclidean => write!(f, "Euclidean"),
             Self::Manhattan => write!(f, "Manhattan"),
-            Self::Minkowski(n) => write!(f, "Minkowski\n    p = {}", n),
+            Self::Minkowski(n) => write!(f, "Minkowski\n    p = {n}"),
             Self::Mahalanobis => write!(f, "Mahalanobis"),
             Self::Hamming => write!(f, "Hamming"),
         }
