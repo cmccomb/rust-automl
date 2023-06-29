@@ -404,7 +404,7 @@ pub enum FinalModel {
 
 impl FinalModel {
     /// Default values for a blending model (linear regression, 30% of all data reserved for training the blending model)
-    pub fn default_blending() -> FinalModel {
+    pub const fn default_blending() -> Self {
         Self::Blending {
             algorithm: Algorithm::Linear,
             meta_training_fraction: 0.15,

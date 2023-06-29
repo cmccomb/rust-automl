@@ -262,7 +262,7 @@ impl Settings {
     /// # use automl::Settings;
     /// let settings = Settings::default().with_number_of_folds(3);
     /// ```
-    pub fn with_number_of_folds(mut self, n: usize) -> Self {
+    pub const fn with_number_of_folds(mut self, n: usize) -> Self {
         self.number_of_folds = n;
         self
     }
@@ -272,7 +272,7 @@ impl Settings {
     /// # use automl::Settings;
     /// let settings = Settings::default().shuffle_data(true);
     /// ```
-    pub fn shuffle_data(mut self, shuffle: bool) -> Self {
+    pub const fn shuffle_data(mut self, shuffle: bool) -> Self {
         self.shuffle = shuffle;
         self
     }
@@ -282,7 +282,7 @@ impl Settings {
     /// # use automl::Settings;
     /// let settings = Settings::default().verbose(true);
     /// ```
-    pub fn verbose(mut self, verbose: bool) -> Self {
+    pub const fn verbose(mut self, verbose: bool) -> Self {
         self.verbose = verbose;
         self
     }
@@ -293,7 +293,7 @@ impl Settings {
     /// use automl::settings::PreProcessing;
     /// let settings = Settings::default().with_preprocessing(PreProcessing::AddInteractions);
     /// ```
-    pub fn with_preprocessing(mut self, pre: PreProcessing) -> Self {
+    pub const fn with_preprocessing(mut self, pre: PreProcessing) -> Self {
         self.preprocessing = pre;
         self
     }
@@ -304,7 +304,7 @@ impl Settings {
     /// use automl::settings::FinalModel;
     /// let settings = Settings::default().with_final_model(FinalModel::Best);
     /// ```
-    pub fn with_final_model(mut self, approach: FinalModel) -> Self {
+    pub const fn with_final_model(mut self, approach: FinalModel) -> Self {
         self.final_model_approach = approach;
         self
     }
@@ -338,7 +338,7 @@ impl Settings {
     /// use automl::settings::Metric;
     /// let settings = Settings::default().sorted_by(Metric::RSquared);
     /// ```
-    pub fn sorted_by(mut self, sort_by: Metric) -> Self {
+    pub const fn sorted_by(mut self, sort_by: Metric) -> Self {
         self.sort_by = sort_by;
         self
     }
@@ -356,7 +356,7 @@ impl Settings {
     ///         .with_min_samples_split(20)
     ///     );
     /// ```
-    pub fn with_random_forest_classifier_settings(
+    pub const fn with_random_forest_classifier_settings(
         mut self,
         settings: RandomForestClassifierParameters,
     ) -> Self {
@@ -371,7 +371,7 @@ impl Settings {
     /// let settings = Settings::default()
     ///     .with_logistic_settings(LogisticRegressionParameters::default());
     /// ```
-    pub fn with_logistic_settings(mut self, settings: LogisticRegressionParameters<f32>) -> Self {
+    pub const fn with_logistic_settings(mut self, settings: LogisticRegressionParameters<f32>) -> Self {
         self.logistic_settings = Some(settings);
         self
     }
@@ -388,7 +388,7 @@ impl Settings {
     ///         .with_kernel(Kernel::Linear)
     ///     );
     /// ```
-    pub fn with_svc_settings(mut self, settings: SVCParameters) -> Self {
+    pub const fn with_svc_settings(mut self, settings: SVCParameters) -> Self {
         self.svc_settings = Some(settings);
         self
     }
@@ -404,7 +404,7 @@ impl Settings {
     ///         .with_min_samples_leaf(20)
     ///     );
     /// ```
-    pub fn with_decision_tree_classifier_settings(
+    pub const fn with_decision_tree_classifier_settings(
         mut self,
         settings: DecisionTreeClassifierParameters,
     ) -> Self {
@@ -425,7 +425,7 @@ impl Settings {
     ///         .with_weight(KNNWeightFunction::Uniform)
     ///     );
     /// ```
-    pub fn with_knn_classifier_settings(mut self, settings: KNNClassifierParameters) -> Self {
+    pub const fn with_knn_classifier_settings(mut self, settings: KNNClassifierParameters) -> Self {
         self.knn_classifier_settings = Some(settings);
         self
     }
@@ -439,6 +439,7 @@ impl Settings {
     ///         .with_priors(vec![1.0, 1.0])
     ///     );
     /// ```
+    #[allow(clippy::missing_const_for_fn)]
     pub fn with_gaussian_nb_settings(mut self, settings: GaussianNBParameters<f32>) -> Self {
         self.gaussian_nb_settings = Some(settings);
         self
@@ -453,7 +454,7 @@ impl Settings {
     ///         .with_alpha(1.0)
     ///     );
     /// ```
-    pub fn with_categorical_nb_settings(mut self, settings: CategoricalNBParameters<f32>) -> Self {
+    pub const fn with_categorical_nb_settings(mut self, settings: CategoricalNBParameters<f32>) -> Self {
         self.categorical_nb_settings = Some(settings);
         self
     }
@@ -467,7 +468,7 @@ impl Settings {
     ///         .with_solver(LinearRegressionSolverName::QR)
     ///     );
     /// ```
-    pub fn with_linear_settings(mut self, settings: LinearRegressionParameters) -> Self {
+    pub const fn with_linear_settings(mut self, settings: LinearRegressionParameters) -> Self {
         self.linear_settings = Some(settings);
         self
     }
@@ -484,7 +485,7 @@ impl Settings {
     ///         .with_max_iter(10_000)
     ///     );
     /// ```
-    pub fn with_lasso_settings(mut self, settings: LassoParameters<f32>) -> Self {
+    pub const fn with_lasso_settings(mut self, settings: LassoParameters<f32>) -> Self {
         self.lasso_settings = Some(settings);
         self
     }
@@ -500,7 +501,7 @@ impl Settings {
     ///         .with_solver(RidgeRegressionSolverName::Cholesky)
     ///     );
     /// ```
-    pub fn with_ridge_settings(mut self, settings: RidgeRegressionParameters<f32>) -> Self {
+    pub const fn with_ridge_settings(mut self, settings: RidgeRegressionParameters<f32>) -> Self {
         self.ridge_settings = Some(settings);
         self
     }
@@ -518,7 +519,7 @@ impl Settings {
     ///         .with_l1_ratio(0.5)    
     ///     );
     /// ```
-    pub fn with_elastic_net_settings(mut self, settings: ElasticNetParameters<f32>) -> Self {
+    pub const fn with_elastic_net_settings(mut self, settings: ElasticNetParameters<f32>) -> Self {
         self.elastic_net_settings = Some(settings);
         self
     }
@@ -536,7 +537,7 @@ impl Settings {
     ///         .with_weight(KNNWeightFunction::Uniform)
     ///     );
     /// ```
-    pub fn with_knn_regressor_settings(mut self, settings: KNNRegressorParameters) -> Self {
+    pub const fn with_knn_regressor_settings(mut self, settings: KNNRegressorParameters) -> Self {
         self.knn_regressor_settings = Some(settings);
         self
     }
@@ -553,7 +554,7 @@ impl Settings {
     ///         .with_kernel(Kernel::Linear)
     ///     );
     /// ```
-    pub fn with_svr_settings(mut self, settings: SVRParameters) -> Self {
+    pub const fn with_svr_settings(mut self, settings: SVRParameters) -> Self {
         self.svr_settings = Some(settings);
         self
     }
@@ -571,7 +572,7 @@ impl Settings {
     ///         .with_min_samples_split(20)
     ///     );
     /// ```
-    pub fn with_random_forest_regressor_settings(
+    pub const fn with_random_forest_regressor_settings(
         mut self,
         settings: RandomForestRegressorParameters,
     ) -> Self {
@@ -590,7 +591,7 @@ impl Settings {
     ///         .with_min_samples_leaf(20)
     ///     );
     /// ```
-    pub fn with_decision_tree_regressor_settings(
+    pub const fn with_decision_tree_regressor_settings(
         mut self,
         settings: DecisionTreeRegressorParameters,
     ) -> Self {
