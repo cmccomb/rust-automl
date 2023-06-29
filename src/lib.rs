@@ -564,7 +564,7 @@ impl SupervisedModel {
     /// # std::fs::remove_file("tests/save_best.sc");
     /// ```
     pub fn save_best(&self, file_name: &str) {
-        if let FinalModel::Best = self.settings.final_model_approach {
+        if matches!(self.settings.final_model_approach, FinalModel::Best) {
             std::fs::File::create(file_name)
                 .and_then(|mut f| f.write_all(&self.comparison[0].model))
                 .expect("Cannot write model to file.");

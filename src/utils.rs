@@ -5,18 +5,12 @@ use std::fmt::{Debug, Display, Formatter};
 
 /// Convert an Option<T> to a String for printing in display mode.
 pub fn print_option<T: Display>(x: Option<T>) -> String {
-    match x {
-        None => "None".to_string(),
-        Some(y) => format!("{y}"),
-    }
+    x.map_or_else(|| "None".to_string(), |y| format!("{y}"))
 }
 
 /// Convert an Option<T> to a String for printing in debug mode.
 pub fn debug_option<T: Debug>(x: Option<T>) -> String {
-    match x {
-        None => "None".to_string(),
-        Some(y) => format!("{y:#?}"),
-    }
+    x.map_or_else(|| "None".to_string(), |y| format!("{y:#?}"))
 }
 
 /// Get the name for a knn weight function.
