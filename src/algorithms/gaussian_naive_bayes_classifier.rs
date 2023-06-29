@@ -9,7 +9,7 @@ use smartcore::{
 use crate::{Algorithm, Settings};
 
 /// The Gaussian Naive Bayes Classifier.
-/// 
+///
 /// See [scikit-learn's user guide](https://scikit-learn.org/stable/modules/naive_bayes.html#gaussian-naive-bayes)
 /// for a more in-depth description of the algorithm.
 pub(crate) struct GaussianNaiveBayesClassifierWrapper {}

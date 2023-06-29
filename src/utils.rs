@@ -100,7 +100,7 @@ impl Display for Distance {
 }
 
 /// Function to do element-wise multiplication fo two vectors
-pub fn elementwise_multiply(v1: &Vec<f32>, v2: &Vec<f32>) -> Vec<f32> {
+pub fn elementwise_multiply(v1: &[f32], v2: &[f32]) -> Vec<f32> {
     v1.iter().zip(v2).map(|(&i1, &i2)| i1 * i2).collect()
 }
 

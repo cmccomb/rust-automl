@@ -8,7 +8,7 @@ use smartcore::{
 use crate::{Algorithm, Settings};
 
 /// The Elastic Net Regressor.
-/// 
+///
 /// See [scikit-learn's user guide](https://scikit-learn.org/stable/modules/linear_model.html#elastic-net)
 /// for a more in-depth description of the algorithm.
 pub(crate) struct ElasticNetRegressorWrapper {}

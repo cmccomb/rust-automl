@@ -264,9 +264,7 @@ pub enum Algorithm {
 
 impl Algorithm {
     /// Get the `predict` method for the underlying algorithm.
-    pub(crate) fn get_predictor(
-        &self,
-    ) -> fn(&DenseMatrix<f32>, &Vec<u8>, &Settings) -> Vec<f32> {
+    pub(crate) fn get_predictor(&self) -> fn(&DenseMatrix<f32>, &Vec<u8>, &Settings) -> Vec<f32> {
         match self {
             Algorithm::Linear => LinearRegressorWrapper::predict,
             Algorithm::Lasso => LassoRegressorWrapper::predict,
@@ -287,9 +285,7 @@ impl Algorithm {
     }
 
     /// Get the `train` method for the underlying algorithm.
-    pub(crate) fn get_trainer(
-        &self,
-    ) -> fn(&DenseMatrix<f32>, &Vec<f32>, &Settings) -> Vec<u8> {
+    pub(crate) fn get_trainer(&self) -> fn(&DenseMatrix<f32>, &Vec<f32>, &Settings) -> Vec<u8> {
         match self {
             Algorithm::Linear => LinearRegressorWrapper::train,
             Algorithm::Lasso => LassoRegressorWrapper::train,

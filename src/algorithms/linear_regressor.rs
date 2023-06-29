@@ -9,7 +9,7 @@ use smartcore::{
 use crate::{Algorithm, Settings};
 
 /// The Linear regression algorithm.
-/// 
+///
 /// See [scikit-learn's user guide](https://scikit-learn.org/stable/modules/linear_model.html#ordinary-least-squares)
 /// for a more in-depth description of the algorithm.
 pub(crate) struct LinearRegressorWrapper {}

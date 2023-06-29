@@ -9,7 +9,7 @@ use smartcore::{
 use crate::{Algorithm, Settings};
 
 /// The Decision Tree Regressor.
-/// 
+///
 /// See [scikit-learn's user guide](https://scikit-learn.org/stable/modules/tree.html#regression)
 /// for a more in-depth description of the algorithm.
 pub(crate) struct DecisionTreeRegressorWrapper {}

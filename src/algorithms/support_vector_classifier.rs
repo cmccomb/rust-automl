@@ -13,7 +13,7 @@ use smartcore::{
 use crate::{Algorithm, Kernel, Settings};
 
 /// The Support Vector Classifier.
-/// 
+///
 /// See [scikit-learn's user guide](https://scikit-learn.org/stable/modules/svm.html#svm-classification)
 /// for a more in-depth description of the algorithm.
 pub(crate) struct SupportVectorClassifierWrapper {}

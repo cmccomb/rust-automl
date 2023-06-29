@@ -27,7 +27,7 @@ use std::fmt::{Display, Formatter};
 use std::io::{Read, Write};
 
 /// Settings for supervised models
-/// 
+///
 /// Any algorithms in the `skiplist` member will be skipped during training.
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct Settings {
@@ -822,13 +822,13 @@ impl Display for Settings {
                 .add_row(vec![
                     "    Search algorithm",
                     &print_knn_search_algorithm(
-                        &self.knn_regressor_settings.as_ref().unwrap().algorithm
+                        &self.knn_regressor_settings.as_ref().unwrap().algorithm,
                     ),
                 ])
                 .add_row(vec![
                     "    Weighting function",
                     &print_knn_weight_function(
-                        &self.knn_regressor_settings.as_ref().unwrap().weight
+                        &self.knn_regressor_settings.as_ref().unwrap().weight,
                     ),
                 ])
                 .add_row(vec![
@@ -946,13 +946,13 @@ impl Display for Settings {
                 .add_row(vec![
                     "    Search algorithm",
                     &print_knn_search_algorithm(
-                        &self.knn_classifier_settings.as_ref().unwrap().algorithm
+                        &self.knn_classifier_settings.as_ref().unwrap().algorithm,
                     ),
                 ])
                 .add_row(vec![
                     "    Weighting function",
                     &print_knn_weight_function(
-                        &self.knn_classifier_settings.as_ref().unwrap().weight
+                        &self.knn_classifier_settings.as_ref().unwrap().weight,
                     ),
                 ])
                 .add_row(vec![

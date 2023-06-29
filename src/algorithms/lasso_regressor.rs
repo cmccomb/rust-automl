@@ -8,7 +8,7 @@ use smartcore::{
 use crate::{Algorithm, Settings};
 
 /// The LASSO regression algorithm.
-/// 
+///
 /// See [scikit-learn's user guide](https://scikit-learn.org/stable/modules/linear_model.html#lasso)
 /// for a more in-depth description of the algorithm.
 pub(crate) struct LassoRegressorWrapper {}

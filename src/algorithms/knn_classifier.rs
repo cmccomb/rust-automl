@@ -15,7 +15,7 @@ use smartcore::{
 use crate::{Algorithm, Distance, Settings};
 
 /// The KNN Classifier.
-/// 
+///
 /// See [scikit-learn's user guide](https://scikit-learn.org/stable/modules/neighbors.html#classification)
 /// for a more in-depth description of the algorithm.
 pub(crate) struct KNNClassifierWrapper {}
@@ -305,8 +305,7 @@ impl super::ModelWrapper for KNNClassifierWrapper {
                 model.predict(x).unwrap()
             }
             Distance::Hamming => {
-                let model: KNNClassifier<f32, Hamming> =
-                    bincode::deserialize(final_model).unwrap();
+                let model: KNNClassifier<f32, Hamming> = bincode::deserialize(final_model).unwrap();
                 model.predict(x).unwrap()
             }
         }

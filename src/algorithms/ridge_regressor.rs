@@ -8,7 +8,7 @@ use smartcore::{
 use crate::{Algorithm, Settings};
 
 /// The Ridge regression algorithm.
-/// 
+///
 /// See [scikit-learn's user guide](https://scikit-learn.org/stable/modules/linear_model.html#ridge-regression)
 /// for a more in-depth description of the algorithm.
 pub(crate) struct RidgeRegressorWrapper {}

@@ -16,7 +16,7 @@ use smartcore::{
 use crate::{Algorithm, Distance, Settings};
 
 /// The KNN Regressor.
-/// 
+///
 /// See [scikit-learn's user guide](https://scikit-learn.org/stable/modules/neighbors.html#regression)
 /// for a more in-depth description of the algorithm.
 pub(crate) struct KNNRegressorWrapper {}
@@ -313,8 +313,7 @@ impl super::ModelWrapper for KNNRegressorWrapper {
                 model.predict(x).unwrap()
             }
             Distance::Hamming => {
-                let model: KNNRegressor<f32, Hamming> =
-                    bincode::deserialize(final_model).unwrap();
+                let model: KNNRegressor<f32, Hamming> = bincode::deserialize(final_model).unwrap();
                 model.predict(x).unwrap()
             }
         }

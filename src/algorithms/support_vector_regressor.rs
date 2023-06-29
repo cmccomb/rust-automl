@@ -13,7 +13,7 @@ use smartcore::{
 use crate::{Algorithm, Kernel, Settings};
 
 /// The Support Vector Regressor.
-/// 
+///
 /// See [scikit-learn's user guide](https://scikit-learn.org/stable/modules/svm.html#svm-regression)
 /// for a more in-depth description of the algorithm.
 pub(crate) struct SupportVectorRegressorWrapper {}

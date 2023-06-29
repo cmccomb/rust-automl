@@ -524,7 +524,10 @@ impl SupervisedModel {
             algorithm,
             meta_training_fraction,
             meta_testing_fraction,
-            } = self.settings.final_model_approach { self.train_blended_model(algorithm, meta_training_fraction, meta_testing_fraction) }
+        } = self.settings.final_model_approach
+        {
+            self.train_blended_model(algorithm, meta_training_fraction, meta_testing_fraction)
+        }
     }
 
     /// Save the supervised model to a file for later use
@@ -570,9 +573,9 @@ impl SupervisedModel {
 /// Private functions go here
 impl SupervisedModel {
     /// Build a new supervised model
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `x` - The input data
     /// * `y` - The output data
     /// * `settings` - The settings for the model
@@ -591,9 +594,9 @@ impl SupervisedModel {
     }
 
     /// Train the supervised model.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `algo` - The algorithm to use
     /// * `training_fraction` - The fraction of the data to use for training
     /// * `testing_fraction` - The fraction of the data to use for testing
@@ -646,14 +649,14 @@ impl SupervisedModel {
     }
 
     /// Predict using all of the trained models.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `x` - The input data
     /// * `algo` - The algorithm to use
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// * The predicted values
     fn predict_blended_model(&self, x: &DenseMatrix<f32>, algo: Algorithm) -> Vec<f32> {
         // Make the data
@@ -672,21 +675,21 @@ impl SupervisedModel {
     }
 
     /// Predict using a single model.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `x` - The input data
     /// * `model` - The model to use
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// * The predicted values
     fn predict_by_model(&self, x: &DenseMatrix<f32>, model: &Model) -> Vec<f32> {
         model.name.get_predictor()(x, &model.model, &self.settings)
     }
 
     /// Get interaction features for the data.
-    /// 
+    ///
     /// # Arguments
     fn interaction_features(mut x: DenseMatrix<f32>) -> DenseMatrix<f32> {
         let (_, width) = x.shape();
@@ -701,14 +704,14 @@ impl SupervisedModel {
     }
 
     /// Get polynomial features for the data.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `x` - The input data
     /// * `order` - The order of the polynomial
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// * The data with polynomial features
     fn polynomial_features(mut x: DenseMatrix<f32>, order: usize) -> DenseMatrix<f32> {
         let (height, width) = x.shape();
@@ -727,9 +730,9 @@ impl SupervisedModel {
     }
 
     /// Train PCA on the data for preprocessing.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `x` - The input data
     /// * `n` - The number of components to use
     fn train_pca(&mut self, x: DenseMatrix<f32>, n: usize) {
@@ -744,9 +747,9 @@ impl SupervisedModel {
     }
 
     /// Get PCA features for the data using the trained PCA preprocessor.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `x` - The input data
     fn pca_features(&self, x: DenseMatrix<f32>, _: usize) -> DenseMatrix<f32> {
         self.preprocessing
@@ -758,9 +761,9 @@ impl SupervisedModel {
     }
 
     /// Train SVD on the data for preprocessing.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `x` - The input data
     /// * `n` - The number of components to use
     fn train_svd(&mut self, x: DenseMatrix<f32>, n: usize) {
@@ -779,13 +782,13 @@ impl SupervisedModel {
     }
 
     /// Preprocess the data.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `x` - The input data
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// * The preprocessed data
     fn preprocess(&self, x: DenseMatrix<f32>) -> DenseMatrix<f32> {
         match self.settings.preprocessing {
@@ -804,16 +807,16 @@ impl SupervisedModel {
     }
 
     /// Count the number of classes in the data.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `y` - The data to count the classes in
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// * The number of classes
-    fn count_classes(y: &Vec<f32>) -> usize {
-        let mut sorted_targets = y.clone();
+    fn count_classes(y: &[f32]) -> usize {
+        let mut sorted_targets = y.to_vec();
         sorted_targets.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Equal));
         sorted_targets.dedup();
         sorted_targets.len()
