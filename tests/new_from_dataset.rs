@@ -16,7 +16,7 @@ mod new_from_dataset {
         classifier.train();
 
         // Try to predict something from a vector
-        classifier.predict(vec![vec![5.0 as f32; 30]; 10]);
+        classifier.predict(vec![vec![5.0_f32; 30]; 10]);
 
         // Try to predict something from ndarray
         #[cfg(feature = "nd")]
@@ -37,7 +37,7 @@ mod new_from_dataset {
         regressor.train();
 
         // Try to predict something from a vector
-        regressor.predict(vec![vec![5.0 as f32; 10]; 10]);
+        regressor.predict(vec![vec![5.0_f32; 10]; 10]);
 
         // Try to predict something from ndarray
         #[cfg(feature = "nd")]

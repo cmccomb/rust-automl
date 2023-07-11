@@ -1,7 +1,16 @@
-#![warn(clippy::all)]
-#![warn(missing_docs)]
-#![warn(rustdoc::missing_doc_code_examples)]
-#![warn(clippy::missing_docs_in_private_items)]
+#![deny(clippy::correctness)]
+#![warn(
+    clippy::all,
+    clippy::suspicious,
+    clippy::complexity,
+    clippy::perf,
+    clippy::style,
+    clippy::pedantic,
+    clippy::nursery,
+    clippy::missing_docs_in_private_items
+)]
+#![allow(clippy::module_name_repetitions, clippy::too_many_lines)]
+#![warn(missing_docs, rustdoc::missing_doc_code_examples)]
 #![doc = include_str!("../README.md")]
 
 pub mod settings;
@@ -158,18 +167,26 @@ impl IntoLabels for Array1<f32> {
 /// Trains and compares supervised models
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct SupervisedModel {
+    /// Settings for the model.
     settings: Settings,
+    /// The training data.
     x_train: DenseMatrix<f32>,
+    /// The training labels.
     y_train: Vec<f32>,
+    /// The validation data.
     x_val: DenseMatrix<f32>,
+    /// The validation labels.
     y_val: Vec<f32>,
+    /// The number of classes in the data.
     number_of_classes: usize,
+    /// The results of the model comparison.
     comparison: Vec<Model>,
+    /// The final model.
     metamodel: Model,
-    preprocessing: (
-        Option<PCA<f32, DenseMatrix<f32>>>,
-        Option<SVD<f32, DenseMatrix<f32>>>,
-    ),
+    /// PCA model for preprocessing.
+    preprocessing_pca: Option<PCA<f32, DenseMatrix<f32>>>,
+    /// SVD model for preprocessing.
+    preprocessing_svd: Option<SVD<f32, DenseMatrix<f32>>>,
 }
 
 impl SupervisedModel {
@@ -227,7 +244,7 @@ impl SupervisedModel {
         D: IntoSupervisedData,
     {
         let (x, y) = data.to_supervised_data();
-        SupervisedModel::build(x, y, settings)
+        Self::build(x, y, settings)
     }
 
     /// Load the supervised model from a file saved previously
@@ -241,9 +258,10 @@ impl SupervisedModel {
     /// let model = SupervisedModel::new_from_file("tests/load_that_model.aml");
     /// # std::fs::remove_file("tests/load_that_model.aml");
     /// ```
+    #[must_use]
     pub fn new_from_file(file_name: &str) -> Self {
         let mut buf: Vec<u8> = Vec::new();
-        std::fs::File::open(&file_name)
+        std::fs::File::open(file_name)
             .and_then(|mut f| f.read_to_end(&mut buf))
             .expect("Cannot load model from file.");
         bincode::deserialize(&buf).expect("Can not deserialize the model")
@@ -293,11 +311,12 @@ impl SupervisedModel {
     /// #[cfg(any(feature = "csv"))]
     /// model.predict("data/diabetes_without_target.csv");
     /// ```
-    pub fn predict<X>(&self, x: X) -> Vec<f32>
-    where
-        X: IntoFeatures,
-    {
-        let x = &self.preprocess(x.to_dense_matrix().clone());
+    ///
+    /// # Panics
+    ///
+    /// If the model has not been trained, this function will panic.
+    pub fn predict<X: IntoFeatures>(&self, x: X) -> Vec<f32> {
+        let x = &self.preprocess(x.to_dense_matrix());
         match self.settings.final_model_approach {
             FinalModel::None => panic!(""),
             FinalModel::Best => self.predict_by_model(x, &self.comparison[0]),
@@ -321,13 +340,13 @@ impl SupervisedModel {
             number_of_components,
         } = self.settings.preprocessing
         {
-            self.train_pca(self.x_train.clone(), number_of_components);
+            self.train_pca(&self.x_train.clone(), number_of_components);
         }
         if let PreProcessing::ReplaceWithSVD {
             number_of_components,
         } = self.settings.preprocessing
         {
-            self.train_svd(self.x_train.clone(), number_of_components);
+            self.train_svd(&self.x_train.clone(), number_of_components);
         }
 
         // Preprocess the data
@@ -511,13 +530,13 @@ impl SupervisedModel {
             ));
         }
 
-        match self.settings.final_model_approach {
-            FinalModel::Blending {
-                algorithm,
-                meta_training_fraction,
-                meta_testing_fraction,
-            } => self.train_blended_model(algorithm, meta_training_fraction, meta_testing_fraction),
-            _ => {}
+        if let FinalModel::Blending {
+            algorithm,
+            meta_training_fraction,
+            meta_testing_fraction,
+        } = self.settings.final_model_approach
+        {
+            self.train_blended_model(algorithm, meta_training_fraction, meta_testing_fraction);
         }
     }
 
@@ -553,7 +572,7 @@ impl SupervisedModel {
     /// # std::fs::remove_file("tests/save_best.sc");
     /// ```
     pub fn save_best(&self, file_name: &str) {
-        if let FinalModel::Best = self.settings.final_model_approach {
+        if matches!(self.settings.final_model_approach, FinalModel::Best) {
             std::fs::File::create(file_name)
                 .and_then(|mut f| f.write_all(&self.comparison[0].model))
                 .expect("Cannot write model to file.");
@@ -563,20 +582,35 @@ impl SupervisedModel {
 
 /// Private functions go here
 impl SupervisedModel {
+    /// Build a new supervised model
+    ///
+    /// # Arguments
+    ///
+    /// * `x` - The input data
+    /// * `y` - The output data
+    /// * `settings` - The settings for the model
     fn build(x: DenseMatrix<f32>, y: Vec<f32>, settings: Settings) -> Self {
         Self {
             settings,
-            x_train: x.clone(),
-            y_train: y.clone(),
+            x_train: x,
+            number_of_classes: Self::count_classes(&y),
+            y_train: y,
             x_val: DenseMatrix::new(0, 0, vec![]),
             y_val: vec![],
-            number_of_classes: Self::count_classes(&y),
             comparison: vec![],
-            preprocessing: (None, None),
-            metamodel: Default::default(),
+            metamodel: Model::default(),
+            preprocessing_pca: None,
+            preprocessing_svd: None,
         }
     }
 
+    /// Train the supervised model.
+    ///
+    /// # Arguments
+    ///
+    /// * `algo` - The algorithm to use
+    /// * `training_fraction` - The fraction of the data to use for training
+    /// * `testing_fraction` - The fraction of the data to use for testing
     fn train_blended_model(
         &mut self,
         algo: Algorithm,
@@ -586,7 +620,7 @@ impl SupervisedModel {
         // Make the data
         let mut meta_x: Vec<Vec<f32>> = Vec::new();
         for model in &self.comparison {
-            meta_x.push(self.predict_by_model(&self.x_val, model))
+            meta_x.push(self.predict_by_model(&self.x_val, model));
         }
         let xdm = DenseMatrix::from_2d_vec(&meta_x).transpose();
 
@@ -600,17 +634,17 @@ impl SupervisedModel {
 
         // Train the model
         // let model = LassoRegressorWrapper::train(&x_train, &y_train, &self.settings);
-        let model = (*algo.get_trainer())(&x_train, &y_train, &self.settings);
+        let model = algo.get_trainer()(&x_train, &y_train, &self.settings);
 
         // Score the model
-        let train_score = (*self.settings.get_metric())(
+        let train_score = self.settings.get_metric()(
             &y_train,
-            &(*algo.get_predictor())(&x_train, &model, &self.settings),
+            &algo.get_predictor()(&x_train, &model, &self.settings),
             // &LassoRegressorWrapper::predict(&x_train, &model, &self.settings),
         );
-        let test_score = (*self.settings.get_metric())(
+        let test_score = self.settings.get_metric()(
             &y_test,
-            &(*algo.get_predictor())(&x_test, &model, &self.settings),
+            &algo.get_predictor()(&x_test, &model, &self.settings),
             // &LassoRegressorWrapper::predict(&x_test, &model, &self.settings),
         );
 
@@ -620,17 +654,27 @@ impl SupervisedModel {
                 train_score: vec![train_score; 1],
             },
             name: algo,
-            duration: Default::default(),
+            duration: Duration::default(),
             model,
         };
     }
 
+    /// Predict using all of the trained models.
+    ///
+    /// # Arguments
+    ///
+    /// * `x` - The input data
+    /// * `algo` - The algorithm to use
+    ///
+    /// # Returns
+    ///
+    /// * The predicted values
     fn predict_blended_model(&self, x: &DenseMatrix<f32>, algo: Algorithm) -> Vec<f32> {
         // Make the data
         let mut meta_x: Vec<Vec<f32>> = Vec::new();
         for i in 0..self.comparison.len() {
             let model = &self.comparison[i];
-            meta_x.push(self.predict_by_model(&x, model))
+            meta_x.push(self.predict_by_model(x, model));
         }
 
         //
@@ -638,52 +682,26 @@ impl SupervisedModel {
         let metamodel = &self.metamodel.model;
 
         // Train the model
-        (*algo.get_predictor())(&xdm, metamodel, &self.settings)
+        algo.get_predictor()(&xdm, metamodel, &self.settings)
     }
 
+    /// Predict using a single model.
+    ///
+    /// # Arguments
+    ///
+    /// * `x` - The input data
+    /// * `model` - The model to use
+    ///
+    /// # Returns
+    ///
+    /// * The predicted values
     fn predict_by_model(&self, x: &DenseMatrix<f32>, model: &Model) -> Vec<f32> {
-        let saved_model = &model.model;
-        match model.name {
-            Algorithm::Linear => LinearRegressorWrapper::predict(x, saved_model, &self.settings),
-            Algorithm::Lasso => LassoRegressorWrapper::predict(x, saved_model, &self.settings),
-            Algorithm::Ridge => RidgeRegressorWrapper::predict(x, saved_model, &self.settings),
-            Algorithm::ElasticNet => {
-                ElasticNetRegressorWrapper::predict(x, saved_model, &self.settings)
-            }
-            Algorithm::RandomForestRegressor => {
-                RandomForestRegressorWrapper::predict(x, saved_model, &self.settings)
-            }
-            Algorithm::KNNRegressor => KNNRegressorWrapper::predict(x, saved_model, &self.settings),
-            Algorithm::SVR => {
-                SupportVectorRegressorWrapper::predict(x, saved_model, &self.settings)
-            }
-            Algorithm::DecisionTreeRegressor => {
-                DecisionTreeRegressorWrapper::predict(x, saved_model, &self.settings)
-            }
-            Algorithm::LogisticRegression => {
-                LogisticRegressionWrapper::predict(x, saved_model, &self.settings)
-            }
-            Algorithm::RandomForestClassifier => {
-                RandomForestClassifierWrapper::predict(x, saved_model, &self.settings)
-            }
-            Algorithm::DecisionTreeClassifier => {
-                DecisionTreeClassifierWrapper::predict(x, saved_model, &self.settings)
-            }
-            Algorithm::KNNClassifier => {
-                KNNClassifierWrapper::predict(x, saved_model, &self.settings)
-            }
-            Algorithm::SVC => {
-                SupportVectorClassifierWrapper::predict(x, saved_model, &self.settings)
-            }
-            Algorithm::GaussianNaiveBayes => {
-                GaussianNaiveBayesClassifierWrapper::predict(x, saved_model, &self.settings)
-            }
-            Algorithm::CategoricalNaiveBayes => {
-                CategoricalNaiveBayesClassifierWrapper::predict(x, saved_model, &self.settings)
-            }
-        }
+        model.name.get_predictor()(x, &model.model, &self.settings)
     }
 
+    /// Get interaction features for the data.
+    ///
+    /// # Arguments
     fn interaction_features(mut x: DenseMatrix<f32>) -> DenseMatrix<f32> {
         let (_, width) = x.shape();
         for i in 0..width {
@@ -696,10 +714,20 @@ impl SupervisedModel {
         x
     }
 
+    /// Get polynomial features for the data.
+    ///
+    /// # Arguments
+    ///
+    /// * `x` - The input data
+    /// * `order` - The order of the polynomial
+    ///
+    /// # Returns
+    ///
+    /// * The data with polynomial features
     fn polynomial_features(mut x: DenseMatrix<f32>, order: usize) -> DenseMatrix<f32> {
         let (height, width) = x.shape();
         for n in 2..=order {
-            let combinations = (0..width).into_iter().combinations_with_replacement(n);
+            let combinations = (0..width).combinations_with_replacement(n);
             for combo in combinations {
                 let mut feature = vec![1.0; height];
                 for column in combo {
@@ -712,63 +740,96 @@ impl SupervisedModel {
         x
     }
 
-    fn train_pca(&mut self, x: DenseMatrix<f32>, n: usize) {
+    /// Train PCA on the data for preprocessing.
+    ///
+    /// # Arguments
+    ///
+    /// * `x` - The input data
+    /// * `n` - The number of components to use
+    fn train_pca(&mut self, x: &DenseMatrix<f32>, n: usize) {
         let pca = PCA::fit(
-            &x,
+            x,
             PCAParameters::default()
                 .with_n_components(n)
                 .with_use_correlation_matrix(true),
         )
         .unwrap();
-        self.preprocessing.0 = Some(pca);
+        self.preprocessing_pca = Some(pca);
     }
 
-    fn pca_features(&self, x: DenseMatrix<f32>, n: usize) -> DenseMatrix<f32> {
-        self.preprocessing
-            .0
+    /// Get PCA features for the data using the trained PCA preprocessor.
+    ///
+    /// # Arguments
+    ///
+    /// * `x` - The input data
+    fn pca_features(&self, x: &DenseMatrix<f32>, _: usize) -> DenseMatrix<f32> {
+        self.preprocessing_pca
             .as_ref()
             .unwrap()
-            .transform(&x)
+            .transform(x)
             .unwrap()
     }
 
-    fn train_svd(&mut self, x: DenseMatrix<f32>, n: usize) {
-        let svd = SVD::fit(&x, SVDParameters::default().with_n_components(n)).unwrap();
-        self.preprocessing.1 = Some(svd);
+    /// Train SVD on the data for preprocessing.
+    ///
+    /// # Arguments
+    ///
+    /// * `x` - The input data
+    /// * `n` - The number of components to use
+    fn train_svd(&mut self, x: &DenseMatrix<f32>, n: usize) {
+        let svd = SVD::fit(x, SVDParameters::default().with_n_components(n)).unwrap();
+        self.preprocessing_svd = Some(svd);
     }
 
-    fn svd_features(&self, x: DenseMatrix<f32>, n: usize) -> DenseMatrix<f32> {
-        self.preprocessing
-            .1
+    /// Get SVD features for the data.
+    fn svd_features(&self, x: &DenseMatrix<f32>, _: usize) -> DenseMatrix<f32> {
+        self.preprocessing_svd
             .as_ref()
             .unwrap()
-            .transform(&x)
+            .transform(x)
             .unwrap()
     }
 
+    /// Pre process the data.
+    ///
+    /// # Arguments
+    ///
+    /// * `x` - The input data
+    ///
+    /// # Returns
+    ///
+    /// * The preprocessed data
     fn preprocess(&self, x: DenseMatrix<f32>) -> DenseMatrix<f32> {
         match self.settings.preprocessing {
             PreProcessing::None => x,
-            PreProcessing::AddInteractions => SupervisedModel::interaction_features(x),
-            PreProcessing::AddPolynomial { order } => {
-                SupervisedModel::polynomial_features(x, order)
-            }
+            PreProcessing::AddInteractions => Self::interaction_features(x),
+            PreProcessing::AddPolynomial { order } => Self::polynomial_features(x, order),
             PreProcessing::ReplaceWithPCA {
                 number_of_components,
-            } => self.pca_features(x, number_of_components),
+            } => self.pca_features(&x, number_of_components),
             PreProcessing::ReplaceWithSVD {
                 number_of_components,
-            } => self.svd_features(x, number_of_components),
+            } => self.svd_features(&x, number_of_components),
         }
     }
 
-    fn count_classes(y: &Vec<f32>) -> usize {
-        let mut sorted_targets = y.clone();
-        sorted_targets.sort_by(|a, b| a.partial_cmp(&b).unwrap_or(Equal));
+    /// Count the number of classes in the data.
+    ///
+    /// # Arguments
+    ///
+    /// * `y` - The data to count the classes in
+    ///
+    /// # Returns
+    ///
+    /// * The number of classes
+    fn count_classes(y: &[f32]) -> usize {
+        let mut sorted_targets = y.to_vec();
+        sorted_targets.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Equal));
         sorted_targets.dedup();
         sorted_targets.len()
     }
 
+    /// Record a model in the comparison.
     fn record_model(&mut self, model: (CrossValidationResult<f32>, Algorithm, Duration, Vec<u8>)) {
         self.comparison.push(Model {
             score: model.0,
@@ -779,6 +840,7 @@ impl SupervisedModel {
         self.sort();
     }
 
+    /// Sort the models in the comparison by their mean test scores.
     fn sort(&mut self) {
         self.comparison.sort_by(|a, b| {
             a.score
@@ -848,23 +910,27 @@ impl Display for SupervisedModel {
         meta_table.add_row(row_vec);
 
         // Write
-        write!(f, "{}\n{}", table, meta_table)
+        write!(f, "{table}\n{meta_table}")
     }
 }
 
 /// This contains the results of a single model
 #[derive(serde::Serialize, serde::Deserialize)]
 struct Model {
+    /// The cross validation score of the model
     #[serde(with = "CrossValidationResultDef")]
     score: CrossValidationResult<f32>,
+    /// The algorithm used
     name: Algorithm,
+    /// The time it took to train the model
     duration: Duration,
+    /// What is this? TODO
     model: Vec<u8>,
 }
 
 impl Default for Model {
     fn default() -> Self {
-        Model {
+        Self {
             score: CrossValidationResult {
                 test_score: vec![],
                 train_score: vec![],
@@ -876,6 +942,7 @@ impl Default for Model {
     }
 }
 
+/// This is a wrapper for the `CrossValidationResult`
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(remote = "CrossValidationResult::<f32>")]
 struct CrossValidationResultDef {

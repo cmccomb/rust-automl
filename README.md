@@ -3,14 +3,16 @@
 [![docs.rs](https://img.shields.io/docsrs/automl/latest?logo=rust)](https://docs.rs/automl)
 
 # AutoML with SmartCore
+
 AutoML is _Automated Machine Learning_, referring to processes and methods to make machine learning more accessible for 
 a general audience. This crate builds on top of the [smartcore](https://docs.rs/smartcore/) machine learning framework, 
 and provides some utilities to quickly train and compare models. 
 
 # Install
+
 To use the latest released version of `AutoML`, add this to your `Cargo.toml`:
 ```toml
-automl = "0.2.7"
+automl = "0.3.0"
 ```
 To use the bleeding edge instead, add this:
 ```toml
@@ -18,14 +20,18 @@ automl = { git = "https://github.com/cmccomb/rust-automl" }
 ```
 
 # Usage
+
 Running the following:
+
 ```rust
 let dataset = smartcore::dataset::breast_cancer::load_dataset();
 let settings = automl::Settings::default_classification();
 let mut classifier = automl::SupervisedModel::new(dataset, settings);
 classifier.train();
 ```
+
 will perform a comparison of classifier models using cross-validation. Printing the classifier object will yield:
+
 ```text
 ┌────────────────────────────────┬─────────────────────┬───────────────────┬──────────────────┐
 │ Model                          │ Time                │ Training Accuracy │ Testing Accuracy │
@@ -45,17 +51,20 @@ will perform a comparison of classifier models using cross-validation. Printing 
 │ Support Vector Classifier      │ 4s 187ms 61us 708ns │ 0.57              │ 0.57             │
 └────────────────────────────────┴─────────────────────┴───────────────────┴──────────────────┘
 ```
+
 You can then perform inference using the best model with the `predict` method.
 
 ## Features
-This crate has several features that add some additional methods
 
-| Feature   | Description                                                                                               |
-|:----------|:----------------------------------------------------------------------------------------------------------|
-| `nd`      | Adds methods for predicting/reading data using [`ndarray`](https://crates.io/crates/ndarray).             |
-| `csv`     | Adds methods for predicting/reading data from a .csv using [`polars`](https://crates.io/crates/polars).   |
+This crate has several features that add some additional methods.
+
+| Feature | Description                                                                                             |
+| :------ | :------------------------------------------------------------------------------------------------------ |
+| `nd`    | Adds methods for predicting/reading data using [`ndarray`](https://crates.io/crates/ndarray).           |
+| `csv`   | Adds methods for predicting/reading data from a .csv using [`polars`](https://crates.io/crates/polars). |
 
 ## Capabilities
+
 - Feature Engineering
   - PCA 
   - SVD

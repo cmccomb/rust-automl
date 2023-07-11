@@ -1,3 +1,5 @@
+//! Ridge regression algorithm.
+
 use smartcore::{
     linalg::naive::dense_matrix::DenseMatrix, linear::ridge_regression::RidgeRegression,
     model_selection::cross_validate, model_selection::CrossValidationResult,
@@ -5,7 +7,11 @@ use smartcore::{
 
 use crate::{Algorithm, Settings};
 
-pub(crate) struct RidgeRegressorWrapper {}
+/// The Ridge regression algorithm.
+///
+/// See [scikit-learn's user guide](https://scikit-learn.org/stable/modules/linear_model.html#ridge-regression)
+/// for a more in-depth description of the algorithm.
+pub struct RidgeRegressorWrapper {}
 
 impl super::ModelWrapper for RidgeRegressorWrapper {
     fn cv(
@@ -36,7 +42,7 @@ impl super::ModelWrapper for RidgeRegressorWrapper {
 
     fn predict(x: &DenseMatrix<f32>, final_model: &Vec<u8>, _settings: &Settings) -> Vec<f32> {
         let model: RidgeRegression<f32, DenseMatrix<f32>> =
-            bincode::deserialize(&*final_model).unwrap();
+            bincode::deserialize(final_model).unwrap();
         model.predict(x).unwrap()
     }
 }

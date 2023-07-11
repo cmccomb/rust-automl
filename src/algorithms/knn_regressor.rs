@@ -1,3 +1,5 @@
+//! KNN Regressor
+
 use smartcore::{
     linalg::naive::dense_matrix::DenseMatrix,
     math::distance::{
@@ -13,7 +15,11 @@ use smartcore::{
 
 use crate::{Algorithm, Distance, Settings};
 
-pub(crate) struct KNNRegressorWrapper {}
+/// The KNN Regressor.
+///
+/// See [scikit-learn's user guide](https://scikit-learn.org/stable/modules/neighbors.html#regression)
+/// for a more in-depth description of the algorithm.
+pub struct KNNRegressorWrapper {}
 
 impl super::ModelWrapper for KNNRegressorWrapper {
     fn cv(
@@ -288,27 +294,26 @@ impl super::ModelWrapper for KNNRegressorWrapper {
         match settings.knn_regressor_settings.as_ref().unwrap().distance {
             Distance::Euclidean => {
                 let model: KNNRegressor<f32, Euclidian> =
-                    bincode::deserialize(&*final_model).unwrap();
+                    bincode::deserialize(final_model).unwrap();
                 model.predict(x).unwrap()
             }
             Distance::Manhattan => {
                 let model: KNNRegressor<f32, Manhattan> =
-                    bincode::deserialize(&*final_model).unwrap();
+                    bincode::deserialize(final_model).unwrap();
                 model.predict(x).unwrap()
             }
             Distance::Minkowski(_) => {
                 let model: KNNRegressor<f32, Minkowski> =
-                    bincode::deserialize(&*final_model).unwrap();
+                    bincode::deserialize(final_model).unwrap();
                 model.predict(x).unwrap()
             }
             Distance::Mahalanobis => {
                 let model: KNNRegressor<f32, Mahalanobis<f32, DenseMatrix<f32>>> =
-                    bincode::deserialize(&*final_model).unwrap();
+                    bincode::deserialize(final_model).unwrap();
                 model.predict(x).unwrap()
             }
             Distance::Hamming => {
-                let model: KNNRegressor<f32, Hamming> =
-                    bincode::deserialize(&*final_model).unwrap();
+                let model: KNNRegressor<f32, Hamming> = bincode::deserialize(final_model).unwrap();
                 model.predict(x).unwrap()
             }
         }

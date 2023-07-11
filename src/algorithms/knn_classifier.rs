@@ -1,19 +1,24 @@
+//! KNN Classifier
+
 use smartcore::{
     linalg::naive::dense_matrix::DenseMatrix,
     math::distance::{
         euclidian::Euclidian, hamming::Hamming, mahalanobis::Mahalanobis, manhattan::Manhattan,
         minkowski::Minkowski, Distances,
     },
-    model_selection::cross_validate,
+    model_selection::{cross_validate, CrossValidationResult},
     neighbors::knn_classifier::{
         KNNClassifier, KNNClassifierParameters as SmartcoreKNNClassifierParameters,
     },
 };
 
 use crate::{Algorithm, Distance, Settings};
-use smartcore::model_selection::CrossValidationResult;
 
-pub(crate) struct KNNClassifierWrapper {}
+/// The KNN Classifier.
+///
+/// See [scikit-learn's user guide](https://scikit-learn.org/stable/modules/neighbors.html#classification)
+/// for a more in-depth description of the algorithm.
+pub struct KNNClassifierWrapper {}
 
 impl super::ModelWrapper for KNNClassifierWrapper {
     fn cv(
@@ -281,27 +286,26 @@ impl super::ModelWrapper for KNNClassifierWrapper {
         match settings.knn_classifier_settings.as_ref().unwrap().distance {
             Distance::Euclidean => {
                 let model: KNNClassifier<f32, Euclidian> =
-                    bincode::deserialize(&*final_model).unwrap();
+                    bincode::deserialize(final_model).unwrap();
                 model.predict(x).unwrap()
             }
             Distance::Manhattan => {
                 let model: KNNClassifier<f32, Manhattan> =
-                    bincode::deserialize(&*final_model).unwrap();
+                    bincode::deserialize(final_model).unwrap();
                 model.predict(x).unwrap()
             }
             Distance::Minkowski(_) => {
                 let model: KNNClassifier<f32, Minkowski> =
-                    bincode::deserialize(&*final_model).unwrap();
+                    bincode::deserialize(final_model).unwrap();
                 model.predict(x).unwrap()
             }
             Distance::Mahalanobis => {
                 let model: KNNClassifier<f32, Mahalanobis<f32, DenseMatrix<f32>>> =
-                    bincode::deserialize(&*final_model).unwrap();
+                    bincode::deserialize(final_model).unwrap();
                 model.predict(x).unwrap()
             }
             Distance::Hamming => {
-                let model: KNNClassifier<f32, Hamming> =
-                    bincode::deserialize(&*final_model).unwrap();
+                let model: KNNClassifier<f32, Hamming> = bincode::deserialize(final_model).unwrap();
                 model.predict(x).unwrap()
             }
         }

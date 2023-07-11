@@ -1,11 +1,18 @@
-use smartcore::linalg::naive::dense_matrix::DenseMatrix;
-use smartcore::model_selection::cross_validate;
-use smartcore::naive_bayes::categorical::CategoricalNB;
+//! Categorical Naive Bayes Classifier.
+
+use smartcore::{
+    linalg::naive::dense_matrix::DenseMatrix,
+    model_selection::{cross_validate, CrossValidationResult},
+    naive_bayes::categorical::CategoricalNB,
+};
 
 use crate::{Algorithm, Settings};
-use smartcore::model_selection::CrossValidationResult;
 
-pub(crate) struct CategoricalNaiveBayesClassifierWrapper {}
+/// The Categorical Naive Bayes Classifier.
+///
+/// See [scikit-learn's user guide](https://scikit-learn.org/stable/modules/naive_bayes.html#categorical-naive-bayes)
+/// for a more in-depth description of the algorithm.
+pub struct CategoricalNaiveBayesClassifierWrapper {}
 
 impl super::ModelWrapper for CategoricalNaiveBayesClassifierWrapper {
     fn cv(
@@ -41,7 +48,7 @@ impl super::ModelWrapper for CategoricalNaiveBayesClassifierWrapper {
 
     fn predict(x: &DenseMatrix<f32>, final_model: &Vec<u8>, _settings: &Settings) -> Vec<f32> {
         let model: CategoricalNB<f32, DenseMatrix<f32>> =
-            bincode::deserialize(&*final_model).unwrap();
+            bincode::deserialize(final_model).unwrap();
         model.predict(x).unwrap()
     }
 }

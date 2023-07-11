@@ -1,3 +1,5 @@
+//! LASSO regression algorithm.
+
 use smartcore::{
     linalg::naive::dense_matrix::DenseMatrix, linear::lasso::Lasso,
     model_selection::cross_validate, model_selection::CrossValidationResult,
@@ -5,7 +7,11 @@ use smartcore::{
 
 use crate::{Algorithm, Settings};
 
-pub(crate) struct LassoRegressorWrapper {}
+/// The LASSO regression algorithm.
+///
+/// See [scikit-learn's user guide](https://scikit-learn.org/stable/modules/linear_model.html#lasso)
+/// for a more in-depth description of the algorithm.
+pub struct LassoRegressorWrapper {}
 
 impl super::ModelWrapper for LassoRegressorWrapper {
     fn cv(
@@ -49,7 +55,7 @@ impl super::ModelWrapper for LassoRegressorWrapper {
 
     fn predict(x: &DenseMatrix<f32>, final_model: &Vec<u8>, _settings: &Settings) -> Vec<f32> {
         let model: Lasso<f32, DenseMatrix<f32>> =
-            bincode::deserialize(&*final_model).expect("Cannot deserialize trained model.");
+            bincode::deserialize(final_model).expect("Cannot deserialize trained model.");
         model.predict(x).expect("Error during inference.")
     }
 }

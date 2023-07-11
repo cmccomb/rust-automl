@@ -17,7 +17,7 @@ mod regression_tests {
         regressor.train();
 
         // Try to predict something
-        regressor.predict(vec![vec![5.0 as f32; 10]; 10]);
+        regressor.predict(vec![vec![5.0_f32; 10]; 10]);
         regressor.predict("data/diabetes_without_target.csv");
         #[cfg(feature = "nd")]
         regressor.predict(ndarray::Array2::from_shape_vec((10, 10), vec![5.0; 100]).unwrap());
@@ -38,7 +38,7 @@ mod regression_tests {
         regressor.train();
 
         // Try to predict something
-        regressor.predict(vec![vec![5.0 as f32; 8]; 8]);
+        regressor.predict(vec![vec![5.0_f32; 8]; 8]);
     }
 
     #[test]
@@ -76,6 +76,6 @@ mod regression_tests {
         regressor.train();
 
         // Try to predict something
-        regressor.predict(vec![vec![5.0 as f32; 10]; 10]);
+        regressor.predict(vec![vec![5.0_f32; 10]; 10]);
     }
 }

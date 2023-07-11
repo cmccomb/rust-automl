@@ -1,27 +1,28 @@
+//! Utility functions for the crate.
+
 use smartcore::{algorithm::neighbour::KNNAlgorithmName, neighbors::KNNWeightFunction};
 use std::fmt::{Debug, Display, Formatter};
 
-pub(crate) fn print_option<T: Display>(x: Option<T>) -> String {
-    match x {
-        None => "None".to_string(),
-        Some(y) => format!("{}", y),
-    }
-}
-pub(crate) fn debug_option<T: Debug>(x: Option<T>) -> String {
-    match x {
-        None => "None".to_string(),
-        Some(y) => format!("{:#?}", y),
-    }
+/// Convert an Option<T> to a String for printing in display mode.
+pub fn print_option<T: Display>(x: Option<T>) -> String {
+    x.map_or_else(|| "None".to_string(), |y| format!("{y}"))
 }
 
-pub(crate) fn print_knn_weight_function(f: &KNNWeightFunction) -> String {
+/// Convert an Option<T> to a String for printing in debug mode.
+pub fn debug_option<T: Debug>(x: Option<T>) -> String {
+    x.map_or_else(|| "None".to_string(), |y| format!("{y:#?}"))
+}
+
+/// Get the name for a knn weight function.
+pub fn print_knn_weight_function(f: &KNNWeightFunction) -> String {
     match f {
         KNNWeightFunction::Uniform => "Uniform".to_string(),
         KNNWeightFunction::Distance => "Distance".to_string(),
     }
 }
 
-pub(crate) fn print_knn_search_algorithm(a: &KNNAlgorithmName) -> String {
+/// Get the name for a knn search algorithm.
+pub fn print_knn_search_algorithm(a: &KNNAlgorithmName) -> String {
     match a {
         KNNAlgorithmName::LinearSearch => "Linear Search".to_string(),
         KNNAlgorithmName::CoverTree => "Cover Tree".to_string(),
@@ -47,15 +48,14 @@ pub enum Kernel {
 impl Display for Kernel {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Kernel::Linear => write!(f, "Linear"),
-            Kernel::Polynomial(degree, gamma, coef) => write!(
+            Self::Linear => write!(f, "Linear"),
+            Self::Polynomial(degree, gamma, coef) => write!(
                 f,
-                "Polynomial\n    degree = {}\n    gamma = {}\n    coef = {}",
-                degree, gamma, coef
+                "Polynomial\n    degree = {degree}\n    gamma = {gamma}\n    coef = {coef}"
             ),
-            Kernel::RBF(gamma) => write!(f, "RBF\n    gamma = {}", gamma),
-            Kernel::Sigmoid(gamma, coef) => {
-                write!(f, "Sigmoid\n    gamma = {}\n    coef = {}", gamma, coef)
+            Self::RBF(gamma) => write!(f, "RBF\n    gamma = {gamma}"),
+            Self::Sigmoid(gamma, coef) => {
+                write!(f, "Sigmoid\n    gamma = {gamma}\n    coef = {coef}")
             }
         }
     }
@@ -83,74 +83,73 @@ pub enum Distance {
 impl Display for Distance {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Distance::Euclidean => write!(f, "Euclidean"),
-            Distance::Manhattan => write!(f, "Manhattan"),
-            Distance::Minkowski(n) => write!(f, "Minkowski\n    p = {}", n),
-            Distance::Mahalanobis => write!(f, "Mahalanobis"),
-            Distance::Hamming => write!(f, "Hamming"),
+            Self::Euclidean => write!(f, "Euclidean"),
+            Self::Manhattan => write!(f, "Manhattan"),
+            Self::Minkowski(n) => write!(f, "Minkowski\n    p = {n}"),
+            Self::Mahalanobis => write!(f, "Mahalanobis"),
+            Self::Hamming => write!(f, "Hamming"),
         }
     }
 }
 
 /// Function to do element-wise multiplication fo two vectors
-pub fn elementwise_multiply(v1: &Vec<f32>, v2: &Vec<f32>) -> Vec<f32> {
+pub fn elementwise_multiply(v1: &[f32], v2: &[f32]) -> Vec<f32> {
     v1.iter().zip(v2).map(|(&i1, &i2)| i1 * i2).collect()
 }
 
 #[cfg(any(feature = "csv"))]
-use polars::prelude::{
-    BooleanChunked, BooleanChunkedBuilder, CsvReader, DataFrame, DataType, NamedFrom, PolarsError,
-    SerReader, Series,
-};
+use polars::prelude::{CsvReader, DataFrame, PolarsError, SerReader};
 
 #[cfg(any(feature = "csv"))]
-pub(crate) fn validate_and_read<P>(file_path: P) -> DataFrame
+/// Read and validate a csv file or URL into a polars `DataFrame`.
+pub fn validate_and_read<P>(file_path: P) -> DataFrame
 where
     P: AsRef<std::path::Path>,
 {
     let file_path_as_str = file_path.as_ref().to_str().unwrap();
 
-    match CsvReader::from_path(file_path_as_str) {
-        Ok(csv) => csv
-            .infer_schema(Some(10))
-            .has_header(
-                csv_sniffer::Sniffer::new()
-                    .sniff_path(file_path_as_str.clone())
-                    .expect("Cannot sniff file")
-                    .dialect
-                    .header
-                    .has_header_row,
-            )
-            .finish()
-            .expect("Cannot read file as CSV")
-            .drop_nulls(None)
-            .expect("Cannot remove null values")
-            .convert_to_float()
-            .expect("Cannot convert types"),
-        Err(_) => {
-            if let Ok(_) = url::Url::parse(file_path_as_str) {
+    CsvReader::from_path(file_path_as_str).map_or_else(
+        |_| {
+            if url::Url::parse(file_path_as_str).is_ok() {
                 let file_contents = minreq::get(file_path_as_str)
                     .send()
                     .expect("Could not open URL");
                 let temp = temp_file::with_contents(file_contents.as_bytes());
-
                 validate_and_read(temp.path().to_str().unwrap())
             } else {
-                panic!(
-                    "The string {} is not a valid URL or file path.",
-                    file_path_as_str
-                )
+                panic!("The string {file_path_as_str} is not a valid URL or file path.")
             }
-        }
-    }
+        },
+        |csv| {
+            csv.infer_schema(Some(10))
+                .has_header(
+                    csv_sniffer::Sniffer::new()
+                        .sniff_path(file_path_as_str)
+                        .expect("Cannot sniff file")
+                        .dialect
+                        .header
+                        .has_header_row,
+                )
+                .finish()
+                .expect("Cannot read file as CSV")
+                .drop_nulls(None)
+                .expect("Cannot remove null values")
+                .convert_to_float()
+                .expect("Cannot convert types")
+        },
+    )
 }
+
+/// Trait to convert to a polars `DataFrame`.
 #[cfg(any(feature = "csv"))]
 trait Cleanup {
+    /// Convert to a polars `DataFrame` with all columns of type float.
     fn convert_to_float(self) -> Result<DataFrame, PolarsError>;
 }
 
 #[cfg(any(feature = "csv"))]
 impl Cleanup for DataFrame {
+    #[allow(unused_mut)]
     fn convert_to_float(mut self) -> Result<DataFrame, PolarsError> {
         // Work in progress
         // for field in self.schema().fields() {

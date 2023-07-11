@@ -1,11 +1,18 @@
+//! Gaussian Naive Bayes Classifier
+
 use smartcore::{
-    linalg::naive::dense_matrix::DenseMatrix, model_selection::cross_validate,
-    model_selection::CrossValidationResult, naive_bayes::gaussian::GaussianNB,
+    linalg::naive::dense_matrix::DenseMatrix,
+    model_selection::{cross_validate, CrossValidationResult},
+    naive_bayes::gaussian::GaussianNB,
 };
 
 use crate::{Algorithm, Settings};
 
-pub(crate) struct GaussianNaiveBayesClassifierWrapper {}
+/// The Gaussian Naive Bayes Classifier.
+///
+/// See [scikit-learn's user guide](https://scikit-learn.org/stable/modules/naive_bayes.html#gaussian-naive-bayes)
+/// for a more in-depth description of the algorithm.
+pub struct GaussianNaiveBayesClassifierWrapper {}
 
 impl super::ModelWrapper for GaussianNaiveBayesClassifierWrapper {
     fn cv(
@@ -40,7 +47,7 @@ impl super::ModelWrapper for GaussianNaiveBayesClassifierWrapper {
     }
 
     fn predict(x: &DenseMatrix<f32>, final_model: &Vec<u8>, _settings: &Settings) -> Vec<f32> {
-        let model: GaussianNB<f32, DenseMatrix<f32>> = bincode::deserialize(&*final_model).unwrap();
+        let model: GaussianNB<f32, DenseMatrix<f32>> = bincode::deserialize(final_model).unwrap();
         model.predict(x).unwrap()
     }
 }
