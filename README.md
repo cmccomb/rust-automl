@@ -14,7 +14,7 @@ Add AutoML to your `Cargo.toml` to get started:
 
 **Stable Version**
 ```toml
-automl = "0.3.1"
+automl = "0.2.9"
 ```
 **Latest Development Version**
 ```toml
