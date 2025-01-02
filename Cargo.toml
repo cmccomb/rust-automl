@@ -1,6 +1,6 @@
 [package]
 name = "automl"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Chris McComb <ccmcc2012@gmail.com>"]
 description = "Automated machine learning for classification and regression"
 edition = "2021"
@@ -20,7 +20,7 @@ itertools = "^0.14"
 comfy-table = "^7"
 humantime = "^2"
 ndarray = {version = "^0.16", optional = true}
-polars = {version = "^0.45", features = ["ndarray"], optional = true}
+polars = {version = "0.17.0", features = ["ndarray"], optional = true}
 url = {version = "^2", optional = true}
 temp-file = {version = "0.1.6", optional = true}
 csv-sniffer = { version = "^0.3", optional = true }
