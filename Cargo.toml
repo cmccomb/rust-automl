@@ -3,7 +3,7 @@ name = "automl"
 version = "0.2.9"
 authors = ["Chris McComb <ccmcc2012@gmail.com>"]
 description = "Automated machine learning for classification and regression"
-edition = "2021"
+edition = "2024"
 readme = "README.md"
 repository = "https://github.com/cmccomb/rust-automl"
 homepage = "https://github.com/cmccomb/rust-automl"
@@ -13,19 +13,19 @@ keywords = ["machine-learning", "ml", "ai", "smartcore", "automl"]
 categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
-smartcore = {version = "0.2.1", features=["serde"]}
-serde = {version = "^1", features=["derive"]}
-bincode = "^1"
+smartcore = { version = "^0.4", features = ["serde"] }
+serde = { version = "^1", features = ["derive"] }
+bincode = { version = "^2", features = ["serde"] }
 itertools = "^0.14"
 comfy-table = "^7"
 humantime = "^2"
-ndarray = {version = "^0.16", optional = true}
-polars = {version = "0.17.0", features = ["ndarray"], optional = true}
-url = {version = "^2", optional = true}
-temp-file = {version = "0.1.6", optional = true}
+ndarray = { version = "^0.16", optional = true }
+polars = { version = "^0.50", features = ["ndarray"], optional = true }
+url = { version = "^2", optional = true }
+temp-file = { version = "^0.1", optional = true }
 csv-sniffer = { version = "^0.3", optional = true }
-minreq = {version = "^2", optional = true, features = ["json-using-serde", "https"]}
-serde_yaml = "^0.9"
+minreq = { version = "^2", optional = true, features = ["json-using-serde", "https"] }
+serde_yaml = "0.9.33" # Last maintained version
 
 [features]
 default = []
