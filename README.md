@@ -37,7 +37,7 @@ let _model = RegressionModel::new(x, y, Settings::default_regression());
 ### Classification
 ```rust
 use automl::{ClassificationModel};
-use automl::settings::ClassificationSettings;
+use automl::settings::{ClassificationSettings, RandomForestClassifierParameters};
 use smartcore::linalg::basic::matrix::DenseMatrix;
 
 let x = DenseMatrix::from_2d_vec(&vec![
@@ -47,33 +47,31 @@ let x = DenseMatrix::from_2d_vec(&vec![
     vec![0.0, 1.0],
 ]).unwrap();
 let y = vec![0_i32, 1, 1, 0];
-let _model = ClassificationModel::new(x, y, ClassificationSettings::default());
+let settings = ClassificationSettings::default()
+    .with_random_forest_classifier_settings(
+        RandomForestClassifierParameters::default().with_n_trees(10),
+    );
+let _model = ClassificationModel::new(x, y, settings);
 ```
 
 Model comparison:
 
 ```text
-┌────────────────────────────────┬─────────────────────┬───────────────────┬──────────────────┐
-│ Model                          │ Time                │ Training Accuracy │ Testing Accuracy │
-╞════════════════════════════════╪═════════════════════╪═══════════════════╪══════════════════╡
-│ Random Forest Classifier       │ 835ms 393us 583ns   │ 1.00              │ 0.96             │
-├────────────────────────────────┼─────────────────────┼───────────────────┼──────────────────┤
-│ Logistic Regression Classifier │ 620ms 714us 583ns   │ 0.97              │ 0.95             │
-├────────────────────────────────┼─────────────────────┼───────────────────┼──────────────────┤
-│ Gaussian Naive Bayes           │ 6ms 529us           │ 0.94              │ 0.93             │
-├────────────────────────────────┼─────────────────────┼───────────────────┼──────────────────┤
-│ Categorical Naive Bayes        │ 2ms 922us 250ns     │ 0.96              │ 0.93             │
-├────────────────────────────────┼─────────────────────┼───────────────────┼──────────────────┤
-│ Decision Tree Classifier       │ 15ms 404us 750ns    │ 1.00              │ 0.93             │
-├────────────────────────────────┼─────────────────────┼───────────────────┼──────────────────┤
-│ KNN Classifier                 │ 28ms 874us 208ns    │ 0.96              │ 0.92             │
-└────────────────────────────────┴─────────────────────┴───────────────────┴──────────────────┘
+┌───────────────────────────────┬─────────────────────┬───────────────────┬──────────────────┐
+│ Model                         │ Time                │ Training Accuracy │ Testing Accuracy │
+╞═══════════════════════════════╪═════════════════════╪═══════════════════╪══════════════════╡
+│ Random Forest Classifier      │ 835ms 393us 583ns   │ 1.00              │ 0.96             │
+├───────────────────────────────┼─────────────────────┼───────────────────┼──────────────────┤
+│ Decision Tree Classifier      │ 15ms 404us 750ns    │ 1.00              │ 0.93             │
+├───────────────────────────────┼─────────────────────┼───────────────────┼──────────────────┤
+│ KNN Classifier                │ 28ms 874us 208ns    │ 0.96              │ 0.92             │
+└───────────────────────────────┴─────────────────────┴───────────────────┴──────────────────┘
 ```
 
 ## Capabilities
 - Feature Engineering: PCA, SVD, interaction terms, polynomial terms
 - Regression: Decision Tree, KNN, Random Forest, Linear, Ridge, LASSO, Elastic Net, Support Vector Regression
-- Classification: Random Forest, Decision Tree, Support Vector, Logistic Regression, KNN, Gaussian & Categorical Naive Bayes
+- Classification: Random Forest, Decision Tree, KNN
 - Meta-learning: Blending (experimental)
 - Persistence: Save/load settings and models
 

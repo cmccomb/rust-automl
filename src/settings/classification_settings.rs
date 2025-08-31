@@ -1,6 +1,6 @@
 use super::{
     DecisionTreeClassifierParameters, FinalAlgorithm, KNNClassifierParameters, Metric,
-    PreProcessing,
+    PreProcessing, RandomForestClassifierParameters,
 };
 use smartcore::linalg::basic::arrays::Array1;
 use smartcore::numbers::basenum::Number;
@@ -24,6 +24,8 @@ pub struct ClassificationSettings {
     pub(crate) knn_classifier_settings: Option<KNNClassifierParameters>,
     /// Optional settings for decision tree classifier
     pub(crate) decision_tree_classifier_settings: Option<DecisionTreeClassifierParameters>,
+    /// Optional settings for random forest classifier
+    pub(crate) random_forest_classifier_settings: Option<RandomForestClassifierParameters>,
 }
 
 impl Default for ClassificationSettings {
@@ -37,6 +39,7 @@ impl Default for ClassificationSettings {
             preprocessing: PreProcessing::None,
             knn_classifier_settings: Some(KNNClassifierParameters::default()),
             decision_tree_classifier_settings: Some(DecisionTreeClassifierParameters::default()),
+            random_forest_classifier_settings: Some(RandomForestClassifierParameters::default()),
         }
     }
 }
@@ -110,6 +113,16 @@ impl ClassificationSettings {
         settings: DecisionTreeClassifierParameters,
     ) -> Self {
         self.decision_tree_classifier_settings = Some(settings);
+        self
+    }
+
+    /// Specify settings for random forest classifier
+    #[must_use]
+    pub const fn with_random_forest_classifier_settings(
+        mut self,
+        settings: RandomForestClassifierParameters,
+    ) -> Self {
+        self.random_forest_classifier_settings = Some(settings);
         self
     }
 }

@@ -49,6 +49,15 @@ where
             Euclidian<INPUT>,
         >,
     ),
+    /// Random forest classifier
+    RandomForestClassifier(
+        smartcore::ensemble::random_forest_classifier::RandomForestClassifier<
+            INPUT,
+            OUTPUT,
+            InputArray,
+            OutputArray,
+        >,
+    ),
 }
 
 impl<INPUT, OUTPUT, InputArray, OutputArray>
@@ -110,6 +119,20 @@ where
                                 .clone(),
                         )
                         .with_distance(Euclidian::new()),
+                )
+                .expect(
+                    "Error during training. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
+                ),
+            ),
+            Self::RandomForestClassifier(_) => Self::RandomForestClassifier(
+                smartcore::ensemble::random_forest_classifier::RandomForestClassifier::fit(
+                    x,
+                    y,
+                    settings
+                        .random_forest_classifier_settings
+                        .as_ref()
+                        .unwrap()
+                        .clone(),
                 )
                 .expect(
                     "Error during training. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
@@ -178,6 +201,24 @@ where
                 ),
                 Self::default_knn_classifier().fit(x, y, settings),
             ),
+            Self::RandomForestClassifier(_) => (
+                smartcore::model_selection::cross_validate(
+                    smartcore::ensemble::random_forest_classifier::RandomForestClassifier::new(),
+                    x,
+                    y,
+                    settings
+                        .random_forest_classifier_settings
+                        .as_ref()
+                        .unwrap()
+                        .clone(),
+                    &settings.get_kfolds(),
+                    &settings.get_metric::<OUTPUT, OutputArray>(),
+                )
+                .expect(
+                    "Error during cross-validation. This is likely a bug in the AutoML library",
+                ),
+                Self::default_random_forest_classifier().fit(x, y, settings),
+            ),
         }
     }
 
@@ -204,6 +245,9 @@ where
         if settings.knn_classifier_settings.is_some() {
             algorithms.push(Self::default_knn_classifier());
         }
+        if settings.random_forest_classifier_settings.is_some() {
+            algorithms.push(Self::default_random_forest_classifier());
+        }
         algorithms
     }
 
@@ -219,6 +263,14 @@ where
     #[must_use]
     pub fn default_knn_classifier() -> Self {
         Self::KNNClassifier(smartcore::neighbors::knn_classifier::KNNClassifier::new())
+    }
+
+    /// Default random forest classifier algorithm
+    #[must_use]
+    pub fn default_random_forest_classifier() -> Self {
+        Self::RandomForestClassifier(
+            smartcore::ensemble::random_forest_classifier::RandomForestClassifier::new(),
+        )
     }
 }
 
@@ -240,6 +292,8 @@ where
         matches!(self, Self::DecisionTreeClassifier(_))
             && matches!(other, Self::DecisionTreeClassifier(_))
             || matches!(self, Self::KNNClassifier(_)) && matches!(other, Self::KNNClassifier(_))
+            || matches!(self, Self::RandomForestClassifier(_))
+                && matches!(other, Self::RandomForestClassifier(_))
     }
 }
 
@@ -280,6 +334,7 @@ where
         match self {
             Self::DecisionTreeClassifier(_) => write!(f, "Decision Tree Classifier"),
             Self::KNNClassifier(_) => write!(f, "KNN Classifier"),
+            Self::RandomForestClassifier(_) => write!(f, "Random Forest Classifier"),
         }
     }
 }
