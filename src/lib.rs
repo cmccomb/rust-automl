@@ -130,6 +130,7 @@ where
                 Algorithm::ElasticNet(model) => model.predict(&x),
                 Algorithm::RandomForestRegressor(model) => model.predict(&x),
                 Algorithm::DecisionTreeRegressor(model) => model.predict(&x),
+                Algorithm::KNNRegressor(model) => model.predict(&x),
             }.expect(
                 "Error during inference. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
             ) // FinalAlgorithm::Blending { .. } => self.predict_by_model(x, top_model), //self.predict_blended_model(x, algorithm),

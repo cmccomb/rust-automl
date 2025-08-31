@@ -222,6 +222,16 @@ where
     Lasso(smartcore::linear::lasso::Lasso<INPUT, OUTPUT, InputArray, OutputArray>),
     /// Elastic net regressor
     ElasticNet(smartcore::linear::elastic_net::ElasticNet<INPUT, OUTPUT, InputArray, OutputArray>),
+    /// K-nearest neighbors regressor
+    KNNRegressor(
+        smartcore::neighbors::knn_regressor::KNNRegressor<
+            INPUT,
+            OUTPUT,
+            InputArray,
+            OutputArray,
+            smartcore::metrics::distance::euclidian::Euclidian<INPUT>,
+        >,
+    ),
 }
 
 impl<INPUT, OUTPUT, InputArray, OutputArray> Algorithm<INPUT, OUTPUT, InputArray, OutputArray>
@@ -253,6 +263,16 @@ where
             Self::ElasticNet(_) => Self::ElasticNet(smartcore::linear::elastic_net::ElasticNet::fit(&x, &y, Default::default()).expect("Error during training. This is likely a bug in the AutoML library. Please open an issue on GitHub.")),
             Self::RandomForestRegressor(_) => Self::RandomForestRegressor(smartcore::ensemble::random_forest_regressor::RandomForestRegressor::fit(&x, &y, Default::default()).expect("Error during training. This is likely a bug in the AutoML library. Please open an issue on GitHub.")),
             Self::DecisionTreeRegressor(_) => Self::DecisionTreeRegressor(smartcore::tree::decision_tree_regressor::DecisionTreeRegressor::fit(&x, &y, Default::default()).expect("Error during training. This is likely a bug in the AutoML library. Please open an issue on GitHub.")),
+            Self::KNNRegressor(_) => Self::KNNRegressor(
+                smartcore::neighbors::knn_regressor::KNNRegressor::fit(
+                    &x,
+                    &y,
+                    Default::default(),
+                )
+                .expect(
+                    "Error during training. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
+                ),
+            ),
         }
     }
 
@@ -341,6 +361,30 @@ where
                 ).expect("Error during cross-validation. This is likely a bug in the AutoML library"),
                 Algorithm::default_decision_tree().fit(x.clone(), y.clone())
             ),
+            Algorithm::KNNRegressor(_) => {
+                let params = settings.knn_regressor_settings.as_ref().unwrap();
+                if !matches!(params.distance, Distance::Euclidean) {
+                    panic!("Only Euclidean distance is supported for KNN regression");
+                }
+                let sc_params = smartcore::neighbors::knn_regressor::KNNRegressorParameters::default()
+                    .with_k(params.k)
+                    .with_algorithm(params.algorithm.clone())
+                    .with_weight(params.weight.clone());
+                (
+                    smartcore::model_selection::cross_validate(
+                        smartcore::neighbors::knn_regressor::KNNRegressor::new(),
+                        x,
+                        y,
+                        sc_params,
+                        &settings.get_kfolds(),
+                        &settings.get_metric(),
+                    )
+                    .expect(
+                        "Error during cross-validation. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
+                    ),
+                    Algorithm::default_knn_regressor().fit(x.clone(), y.clone()),
+                )
+            }
         }
     }
 
@@ -369,6 +413,7 @@ where
             Self::default_elastic_net(),
             Self::default_random_forest(),
             Self::default_decision_tree(),
+            Self::default_knn_regressor(),
         ]
     }
 
@@ -405,6 +450,11 @@ where
             smartcore::tree::decision_tree_regressor::DecisionTreeRegressor::new(),
         )
     }
+
+    /// Default KNN regression algorithm
+    pub fn default_knn_regressor() -> Self {
+        Self::KNNRegressor(smartcore::neighbors::knn_regressor::KNNRegressor::new())
+    }
 }
 
 // Implement partialeq for Algorithm
@@ -435,6 +485,7 @@ where
                 | (Self::Ridge(_), Self::Ridge(_))
                 | (Self::Lasso(_), Self::Lasso(_))
                 | (Self::ElasticNet(_), Self::ElasticNet(_))
+                | (Self::KNNRegressor(_), Self::KNNRegressor(_))
         )
     }
 }
@@ -480,6 +531,7 @@ where
             Self::Ridge(_) => write!(f, "Ridge Regressor"),
             Self::Lasso(_) => write!(f, "LASSO Regressor"),
             Self::ElasticNet(_) => write!(f, "Elastic Net Regressor"),
+            Self::KNNRegressor(_) => write!(f, "KNN Regressor"),
         }
     }
 }
