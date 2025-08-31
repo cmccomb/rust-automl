@@ -57,8 +57,6 @@ where
     pub(crate) preprocessing: PreProcessing,
     /// Optional settings for linear regression
     pub(crate) linear_settings: Option<LinearRegressionParameters>,
-    // /// Optional settings for support vector regressor
-    // pub(crate) svr_settings: Option<SVRParameters>,
     /// Optional settings for lasso regression
     pub(crate) lasso_settings: Option<LassoParameters>,
     /// Optional settings for ridge regression
@@ -105,13 +103,13 @@ where
                 Algorithm::default_elastic_net(),
                 Algorithm::default_decision_tree(),
                 Algorithm::default_random_forest(),
+                Algorithm::default_knn_regressor(),
             ],
             preprocessing: PreProcessing::None,
             number_of_folds: 10,
             shuffle: false,
             verbose: false,
             linear_settings: None,
-            // svr_settings: None,
             lasso_settings: None,
             ridge_settings: None,
             elastic_net_settings: None,
@@ -169,7 +167,6 @@ where
             shuffle: false,
             verbose: false,
             linear_settings: Some(LinearRegressionParameters::default()),
-            // svr_settings: Some(SVRParameters::default()),
             lasso_settings: Some(LassoParameters::default()),
             ridge_settings: Some(RidgeRegressionParameters::default()),
             elastic_net_settings: Some(ElasticNetParameters::default()),

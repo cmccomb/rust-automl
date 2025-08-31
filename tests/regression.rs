@@ -1,12 +1,19 @@
 #[path = "fixtures/regression_data.rs"]
 mod regression_data;
 
+use automl::settings::Algorithm;
 use automl::{DenseMatrix, Settings, SupervisedModel};
 use regression_data::regression_testing_data;
 
 #[test]
 fn test_default_regression() {
     let settings = Settings::default_regression();
+    test_from_settings(settings);
+}
+
+#[test]
+fn test_knn_only_regression() {
+    let settings = Settings::default_regression().only(Algorithm::default_knn_regressor());
     test_from_settings(settings);
 }
 
