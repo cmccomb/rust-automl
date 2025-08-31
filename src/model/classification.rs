@@ -82,6 +82,7 @@ where
             {
                 ClassificationAlgorithm::DecisionTreeClassifier(model) => model.predict(&x),
                 ClassificationAlgorithm::KNNClassifier(model) => model.predict(&x),
+                ClassificationAlgorithm::RandomForestClassifier(model) => model.predict(&x),
             }
             .expect(
                 "Error during inference. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
