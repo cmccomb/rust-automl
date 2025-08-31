@@ -21,7 +21,6 @@ pub mod cookbook;
 
 mod utils;
 use utils::elementwise_multiply;
-pub use utils::regression_testing_data;
 
 use itertools::Itertools;
 use smartcore::linalg::basic::arrays::{Array1, MutArrayView1};
@@ -109,12 +108,14 @@ where
     /// Predict values using the final model based on a vec.
     /// ```
     /// # use smartcore::linalg::basic::matrix::DenseMatrix;
-    /// # use automl::{SupervisedModel, Settings, regression_testing_data};
-    /// # let (x, y) = regression_testing_data();
+    /// # use automl::{settings, SupervisedModel, Settings};
+    /// # let x = DenseMatrix::from_2d_vec(&vec![vec![1.0_f64; 6]; 16]).unwrap();
+    /// # let y = vec![0.0_f64; 16];
     /// # let mut model = SupervisedModel::new(
-    /// #    x, y,
+    /// #    x,
+    /// #    y,
     /// #    Settings::default_regression()
-    /// # .only(automl::settings::Algorithm::default_linear())
+    /// #        .only(settings::Algorithm::default_linear()),
     /// # );
     /// # model.train();
     /// let X = DenseMatrix::from_2d_vec(&vec![vec![5.0; 6]; 5]).unwrap();
@@ -142,13 +143,15 @@ where
 
     /// Runs a model comparison and trains a final model.
     /// ```
-    /// # use automl::{SupervisedModel, Settings, regression_testing_data};
+    /// # use automl::{settings, SupervisedModel, Settings};
     /// # use smartcore::linalg::basic::matrix::DenseMatrix;
-    /// # let (x, y) = regression_testing_data();
+    /// # let x = DenseMatrix::from_2d_vec(&vec![vec![1.0_f64; 6]; 16]).unwrap();
+    /// # let y = vec![0.0_f64; 16];
     /// let mut model = SupervisedModel::new(
-    ///     x, y,
+    ///     x,
+    ///     y,
     ///     Settings::default_regression()
-    /// # .only(automl::settings::Algorithm::default_linear())
+    /// #        .only(settings::Algorithm::default_linear())
     /// );
     /// model.train();
     /// ```

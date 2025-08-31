@@ -1,5 +1,16 @@
-use automl::settings::*;
-use automl::*;
+#[path = "../tests/fixtures/regression_data.rs"]
+mod regression_data;
+
+use automl::{
+    DenseMatrix, Settings, SupervisedModel,
+    settings::{
+        Algorithm, DecisionTreeRegressorParameters, Distance, ElasticNetParameters, FinalAlgorithm,
+        KNNAlgorithmName, KNNRegressorParameters, KNNWeightFunction, LassoParameters,
+        LinearRegressionParameters, LinearRegressionSolverName, Metric,
+        RandomForestRegressorParameters, RidgeRegressionParameters, RidgeRegressionSolverName,
+    },
+};
+use regression_data::regression_testing_data;
 
 fn main() {
     // Load some regression data
