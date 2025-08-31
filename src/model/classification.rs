@@ -1,6 +1,6 @@
 //! Implementation of classification model training and evaluation.
 
-use super::preprocessing::Preprocessor;
+use super::{comparison::ComparisonEntry, preprocessing::Preprocessor};
 use crate::settings::{ClassificationAlgorithm, ClassificationSettings, FinalAlgorithm, Metric};
 use smartcore::{
     linalg::{
@@ -10,13 +10,11 @@ use smartcore::{
             svd::SVDDecomposable,
         },
     },
-    model_selection::CrossValidationResult,
     numbers::{basenum::Number, floatnum::FloatNumber, realnum::RealNumber},
 };
 use std::{
     cmp::Ordering::Equal,
     fmt::{Display, Formatter},
-    time::Duration,
 };
 use {
     comfy_table::{
@@ -24,13 +22,6 @@ use {
     },
     humantime::format_duration,
 };
-
-/// Alias for entries in the model comparison table.
-type ComparisonEntry<INPUT, OUTPUT, InputArray, OutputArray> = (
-    CrossValidationResult,
-    ClassificationAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>,
-    Duration,
-);
 
 /// Trains and compares classification models
 pub struct ClassificationModel<INPUT, OUTPUT, InputArray, OutputArray>
@@ -53,7 +44,8 @@ where
     /// The training labels.
     y_train: OutputArray,
     /// The results of the model comparison.
-    comparison: Vec<ComparisonEntry<INPUT, OUTPUT, InputArray, OutputArray>>,
+    comparison:
+        Vec<ComparisonEntry<ClassificationAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>>>,
     /// Preprocessor responsible for feature engineering.
     preprocessor: Preprocessor<INPUT, InputArray>,
 }
@@ -81,7 +73,12 @@ where
             .preprocess(x, &self.settings.preprocessing);
         match self.settings.final_model_approach {
             FinalAlgorithm::None => panic!(""),
-            FinalAlgorithm::Best => match &self.comparison.first().expect("").1 {
+            FinalAlgorithm::Best => match &self
+                .comparison
+                .first()
+                .expect("")
+                .algorithm
+            {
                 ClassificationAlgorithm::DecisionTreeClassifier(model) => model.predict(&x),
                 ClassificationAlgorithm::KNNClassifier(model) => model.predict(&x),
             }
@@ -135,11 +132,9 @@ where
     /// Record a model in the comparison.
     fn record_trained_model(
         &mut self,
-        trained_model: (
-            CrossValidationResult,
+        trained_model: ComparisonEntry<
             ClassificationAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>,
-            Duration,
-        ),
+        >,
     ) {
         self.comparison.push(trained_model);
         self.sort();
@@ -148,8 +143,9 @@ where
     /// Sort the models in the comparison by their mean test scores.
     fn sort(&mut self) {
         self.comparison.sort_by(|a, b| {
-            a.0.mean_test_score()
-                .partial_cmp(&b.0.mean_test_score())
+            a.result
+                .mean_test_score()
+                .partial_cmp(&b.result.mean_test_score())
                 .unwrap_or(Equal)
         });
         if matches!(self.settings.sort_by, Metric::RSquared | Metric::Accuracy) {
@@ -182,16 +178,19 @@ where
         ]);
         for model in &self.comparison {
             let mut row_vec = vec![];
-            row_vec.push(model.1.to_string());
-            row_vec.push(format_duration(model.2).to_string());
-            let decider =
-                f64::midpoint(model.0.mean_train_score(), model.0.mean_test_score()).abs();
+            row_vec.push(model.algorithm.to_string());
+            row_vec.push(format_duration(model.duration).to_string());
+            let decider = f64::midpoint(
+                model.result.mean_train_score(),
+                model.result.mean_test_score(),
+            )
+            .abs();
             if decider > 0.01 && decider < 1000.0 {
-                row_vec.push(format!("{:.2}", &model.0.mean_train_score()));
-                row_vec.push(format!("{:.2}", &model.0.mean_test_score()));
+                row_vec.push(format!("{:.2}", &model.result.mean_train_score()));
+                row_vec.push(format!("{:.2}", &model.result.mean_test_score()));
             } else {
-                row_vec.push(format!("{:.3e}", &model.0.mean_train_score()));
-                row_vec.push(format!("{:.3e}", &model.0.mean_test_score()));
+                row_vec.push(format!("{:.3e}", &model.result.mean_train_score()));
+                row_vec.push(format!("{:.3e}", &model.result.mean_test_score()));
             }
 
             table.add_row(row_vec);

@@ -1,7 +1,9 @@
 //! Classification algorithm definitions and helpers.
 
 use std::fmt::{Display, Formatter};
-use std::time::{Duration, Instant};
+use std::time::Instant;
+
+use crate::model::ComparisonEntry;
 
 use super::ClassificationSettings;
 use smartcore::api::SupervisedEstimator;
@@ -185,15 +187,15 @@ where
         x: &InputArray,
         y: &OutputArray,
         settings: &ClassificationSettings,
-    ) -> (
-        CrossValidationResult,
-        ClassificationAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>,
-        Duration,
-    ) {
+    ) -> ComparisonEntry<ClassificationAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>> {
         let start = Instant::now();
         let results = self.cv(x, y, settings);
         let end = Instant::now();
-        (results.0, results.1, end.duration_since(start))
+        ComparisonEntry {
+            result: results.0,
+            algorithm: results.1,
+            duration: end.duration_since(start),
+        }
     }
 
     /// Get a vector of all possible algorithms
