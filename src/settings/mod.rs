@@ -132,6 +132,8 @@ mod settings_struct;
 #[doc(no_inline)]
 pub use settings_struct::Settings;
 
+mod display;
+
 use std::fmt::{Display, Formatter};
 
 /// Metrics for evaluating algorithms
