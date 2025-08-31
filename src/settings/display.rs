@@ -23,7 +23,7 @@ use smartcore::numbers::realnum::RealNumber;
 
 use crate::utils::display::print_option;
 
-use super::{Algorithm, LinearRegressionSolverName, RidgeRegressionSolverName, Settings};
+use super::{LinearRegressionSolverName, RegressionAlgorithm, RidgeRegressionSolverName, Settings};
 
 impl<INPUT, OUTPUT, InputArray, OutputArray> Settings<INPUT, OUTPUT, InputArray, OutputArray>
 where
@@ -82,8 +82,10 @@ where
     fn add_linear_rows(&self, table: &mut Table) {
         table
             .add_row(vec![
-                Cell::new(Algorithm::<INPUT, OUTPUT, InputArray, OutputArray>::default_linear())
-                    .add_attribute(Attribute::Italic),
+                Cell::new(
+                    RegressionAlgorithm::<INPUT, OUTPUT, InputArray, OutputArray>::default_linear(),
+                )
+                .add_attribute(Attribute::Italic),
             ])
             .add_row(vec![
                 "    Solver",
@@ -98,8 +100,10 @@ where
     fn add_ridge_rows(&self, table: &mut Table) {
         table
             .add_row(vec![
-                Cell::new(Algorithm::<INPUT, OUTPUT, InputArray, OutputArray>::default_ridge())
-                    .add_attribute(Attribute::Italic),
+                Cell::new(
+                    RegressionAlgorithm::<INPUT, OUTPUT, InputArray, OutputArray>::default_ridge(),
+                )
+                .add_attribute(Attribute::Italic),
             ])
             .add_row(vec![
                 "    Solver",
@@ -122,8 +126,10 @@ where
     fn add_lasso_rows(&self, table: &mut Table) {
         table
             .add_row(vec![
-                Cell::new(Algorithm::<INPUT, OUTPUT, InputArray, OutputArray>::default_lasso())
-                    .add_attribute(Attribute::Italic),
+                Cell::new(
+                    RegressionAlgorithm::<INPUT, OUTPUT, InputArray, OutputArray>::default_lasso(),
+                )
+                .add_attribute(Attribute::Italic),
             ])
             .add_row(vec![
                 "    Alpha",
@@ -148,7 +154,7 @@ where
         table
             .add_row(vec![
                 Cell::new(
-                    Algorithm::<INPUT, OUTPUT, InputArray, OutputArray>::default_elastic_net(),
+                    RegressionAlgorithm::<INPUT, OUTPUT, InputArray, OutputArray>::default_elastic_net(),
                 )
                 .add_attribute(Attribute::Italic),
             ])
@@ -179,7 +185,7 @@ where
         table
             .add_row(vec![
                 Cell::new(
-                    Algorithm::<INPUT, OUTPUT, InputArray, OutputArray>::default_decision_tree(),
+                    RegressionAlgorithm::<INPUT, OUTPUT, InputArray, OutputArray>::default_decision_tree(),
                 )
                 .add_attribute(Attribute::Italic),
             ])
@@ -219,7 +225,7 @@ where
         table
             .add_row(vec![
                 Cell::new(
-                    Algorithm::<INPUT, OUTPUT, InputArray, OutputArray>::default_random_forest(),
+                    RegressionAlgorithm::<INPUT, OUTPUT, InputArray, OutputArray>::default_random_forest(),
                 )
                 .add_attribute(Attribute::Italic),
             ])
@@ -280,22 +286,40 @@ where
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut table = Self::init_table();
         self.add_general_rows(&mut table);
-        if !self.skiplist.contains(&Algorithm::default_linear()) {
+        if !self
+            .skiplist
+            .contains(&RegressionAlgorithm::default_linear())
+        {
             self.add_linear_rows(&mut table);
         }
-        if !self.skiplist.contains(&Algorithm::default_ridge()) {
+        if !self
+            .skiplist
+            .contains(&RegressionAlgorithm::default_ridge())
+        {
             self.add_ridge_rows(&mut table);
         }
-        if !self.skiplist.contains(&Algorithm::default_lasso()) {
+        if !self
+            .skiplist
+            .contains(&RegressionAlgorithm::default_lasso())
+        {
             self.add_lasso_rows(&mut table);
         }
-        if !self.skiplist.contains(&Algorithm::default_elastic_net()) {
+        if !self
+            .skiplist
+            .contains(&RegressionAlgorithm::default_elastic_net())
+        {
             self.add_elastic_net_rows(&mut table);
         }
-        if !self.skiplist.contains(&Algorithm::default_decision_tree()) {
+        if !self
+            .skiplist
+            .contains(&RegressionAlgorithm::default_decision_tree())
+        {
             self.add_decision_tree_rows(&mut table);
         }
-        if !self.skiplist.contains(&Algorithm::default_random_forest()) {
+        if !self
+            .skiplist
+            .contains(&RegressionAlgorithm::default_random_forest())
+        {
             self.add_random_forest_rows(&mut table);
         }
         writeln!(f, "{table}")

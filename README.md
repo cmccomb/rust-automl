@@ -21,7 +21,7 @@ automl = { git = "https://github.com/cmccomb/rust-automl" }
 ```
 
 ```rust
-use automl::{Settings, SupervisedModel};
+use automl::{RegressionModel, Settings};
 use smartcore::linalg::basic::matrix::DenseMatrix;
 
 let x = DenseMatrix::from_2d_vec(&vec![
@@ -30,13 +30,14 @@ let x = DenseMatrix::from_2d_vec(&vec![
     vec![3.0, 4.0, 5.0],
 ]).unwrap();
 let y = vec![1.0_f64, 2.0, 3.0];
-let _model = SupervisedModel::new(x, y, Settings::default_regression());
+let _model = RegressionModel::new(x, y, Settings::default_regression());
 ```
 
 ## Examples
 ### Classification
 ```rust
-use automl::{Settings, SupervisedModel};
+use automl::{ClassificationModel};
+use automl::settings::ClassificationSettings;
 use smartcore::linalg::basic::matrix::DenseMatrix;
 
 let x = DenseMatrix::from_2d_vec(&vec![
@@ -45,8 +46,8 @@ let x = DenseMatrix::from_2d_vec(&vec![
     vec![1.0, 0.0],
     vec![0.0, 1.0],
 ]).unwrap();
-let y = vec![0.0_f64, 1.0, 1.0, 0.0];
-let _model = SupervisedModel::new(x, y, Settings::default_regression());
+let y = vec![0_i32, 1, 1, 0];
+let _model = ClassificationModel::new(x, y, ClassificationSettings::default());
 ```
 
 Model comparison:

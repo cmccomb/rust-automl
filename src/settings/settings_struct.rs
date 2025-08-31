@@ -3,11 +3,11 @@
 #![allow(clippy::struct_field_names)]
 
 use super::{
-    Algorithm, CategoricalNBParameters, DecisionTreeClassifierParameters,
-    DecisionTreeRegressorParameters, ElasticNetParameters, FinalAlgorithm, GaussianNBParameters,
-    KNNClassifierParameters, KNNRegressorParameters, LassoParameters, LinearRegressionParameters,
+    CategoricalNBParameters, DecisionTreeClassifierParameters, DecisionTreeRegressorParameters,
+    ElasticNetParameters, FinalAlgorithm, GaussianNBParameters, KNNClassifierParameters,
+    KNNRegressorParameters, LassoParameters, LinearRegressionParameters,
     LogisticRegressionParameters, Metric, PreProcessing, RandomForestClassifierParameters,
-    RandomForestRegressorParameters, RidgeRegressionParameters,
+    RandomForestRegressorParameters, RegressionAlgorithm, RidgeRegressionParameters,
 };
 
 use smartcore::{
@@ -39,7 +39,7 @@ where
     /// The type of model to train
     pub(crate) model_type: ModelType,
     /// The algorithms to skip
-    pub(crate) skiplist: Vec<Algorithm<INPUT, OUTPUT, InputArray, OutputArray>>,
+    pub(crate) skiplist: Vec<RegressionAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>>,
     /// The number of folds for cross-validation
     pub(crate) number_of_folds: usize,
     /// Whether to shuffle the data
@@ -92,13 +92,13 @@ where
             model_type: ModelType::None,
             final_model_approach: FinalAlgorithm::Best,
             skiplist: vec![
-                Algorithm::default_linear(),
-                Algorithm::default_lasso(),
-                Algorithm::default_ridge(),
-                Algorithm::default_elastic_net(),
-                Algorithm::default_decision_tree(),
-                Algorithm::default_random_forest(),
-                Algorithm::default_knn_regressor(),
+                RegressionAlgorithm::default_linear(),
+                RegressionAlgorithm::default_lasso(),
+                RegressionAlgorithm::default_ridge(),
+                RegressionAlgorithm::default_elastic_net(),
+                RegressionAlgorithm::default_decision_tree(),
+                RegressionAlgorithm::default_random_forest(),
+                RegressionAlgorithm::default_knn_regressor(),
             ],
             preprocessing: PreProcessing::None,
             number_of_folds: 10,
@@ -140,6 +140,7 @@ where
             Metric::RSquared => r2,
             Metric::MeanAbsoluteError => mean_absolute_error,
             Metric::MeanSquaredError => mean_squared_error,
+            Metric::Accuracy => panic!("Accuracy metric not supported for regression"),
             Metric::None => panic!("A metric must be set."),
         }
     }
@@ -243,11 +244,15 @@ where
     /// ```
     /// # use automl::Settings;
     /// # use smartcore::linalg::basic::matrix::DenseMatrix;
-    /// use automl::settings::Algorithm;
-    /// let settings = Settings::<f64, f64, DenseMatrix<f64>, Vec<f64>>::default().skip(Algorithm::default_random_forest());
+    /// use automl::settings::RegressionAlgorithm;
+    /// let settings = Settings::<f64, f64, DenseMatrix<f64>, Vec<f64>>::default()
+    ///     .skip(RegressionAlgorithm::default_random_forest());
     /// ```
     #[must_use]
-    pub fn skip(mut self, skip: Algorithm<INPUT, OUTPUT, InputArray, OutputArray>) -> Self {
+    pub fn skip(
+        mut self,
+        skip: RegressionAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>,
+    ) -> Self {
         self.skiplist.push(skip);
         self
     }
@@ -256,11 +261,15 @@ where
     /// ```
     /// # use automl::Settings;
     /// # use smartcore::linalg::basic::matrix::DenseMatrix;
-    /// use automl::settings::Algorithm;
-    /// let settings = Settings::<f64, f64, DenseMatrix<f64>, Vec<f64>>::default().only(&Algorithm::default_random_forest());
+    /// use automl::settings::RegressionAlgorithm;
+    /// let settings = Settings::<f64, f64, DenseMatrix<f64>, Vec<f64>>::default()
+    ///     .only(&RegressionAlgorithm::default_random_forest());
     /// ```
     #[must_use]
-    pub fn only(mut self, only: &Algorithm<INPUT, OUTPUT, InputArray, OutputArray>) -> Self {
+    pub fn only(
+        mut self,
+        only: &RegressionAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>,
+    ) -> Self {
         self.skiplist = Self::default().skiplist;
         self.skiplist.retain(|algo| algo != only);
         self

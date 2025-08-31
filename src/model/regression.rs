@@ -1,7 +1,7 @@
-//! Implementation of supervised model training and evaluation.
+//! Implementation of regression model training and evaluation.
 
 use super::preprocessing::Preprocessor;
-use crate::settings::{Algorithm, FinalAlgorithm, Metric, Settings};
+use crate::settings::{FinalAlgorithm, Metric, RegressionAlgorithm, Settings};
 use smartcore::{
     linalg::{
         basic::arrays::{Array, Array1, Array2, MutArrayView1},
@@ -28,12 +28,12 @@ use {
 /// Alias for entries in the model comparison table.
 type ComparisonEntry<INPUT, OUTPUT, InputArray, OutputArray> = (
     CrossValidationResult,
-    Algorithm<INPUT, OUTPUT, InputArray, OutputArray>,
+    RegressionAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>,
     Duration,
 );
 
-/// Trains and compares supervised models
-pub struct SupervisedModel<INPUT, OUTPUT, InputArray, OutputArray>
+/// Trains and compares regression models
+pub struct RegressionModel<INPUT, OUTPUT, InputArray, OutputArray>
 where
     INPUT: RealNumber + FloatNumber,
     OUTPUT: FloatNumber,
@@ -60,7 +60,7 @@ where
     preprocessor: Preprocessor<INPUT, InputArray>,
 }
 
-impl<INPUT, OUTPUT, InputArray, OutputArray> SupervisedModel<INPUT, OUTPUT, InputArray, OutputArray>
+impl<INPUT, OUTPUT, InputArray, OutputArray> RegressionModel<INPUT, OUTPUT, InputArray, OutputArray>
 where
     INPUT: RealNumber + FloatNumber,
     OUTPUT: FloatNumber, // + Eq + Hash,
@@ -76,14 +76,14 @@ where
     /// Predict values using the final model based on a vec.
     /// ```
     /// # use smartcore::linalg::basic::matrix::DenseMatrix;
-    /// # use automl::{settings, SupervisedModel, Settings};
+    /// # use automl::{settings, RegressionModel, Settings};
     /// # let x = DenseMatrix::from_2d_vec(&vec![vec![1.0_f64; 6]; 16]).unwrap();
     /// # let y = vec![0.0_f64; 16];
-    /// # let mut model = SupervisedModel::new(
+    /// # let mut model = RegressionModel::new(
     /// #    x,
     /// #    y,
     /// #    Settings::default_regression()
-    /// #        .only(&settings::Algorithm::default_linear()),
+    /// #        .only(&settings::RegressionAlgorithm::default_linear()),
     /// # );
     /// # model.train();
     /// let X = DenseMatrix::from_2d_vec(&vec![vec![5.0; 6]; 5]).unwrap();
@@ -99,16 +99,16 @@ where
         match self.settings.final_model_approach {
             FinalAlgorithm::None => panic!(""),
             FinalAlgorithm::Best => match &self.comparison.first().expect("").1 {
-                Algorithm::Linear(model) => model.predict(&x),
-                Algorithm::Lasso(model) => model.predict(&x),
-                Algorithm::Ridge(model) => model.predict(&x),
-                Algorithm::ElasticNet(model) => model.predict(&x),
-                Algorithm::RandomForestRegressor(model) => model.predict(&x),
-                Algorithm::DecisionTreeRegressor(model) => model.predict(&x),
-                Algorithm::KNNRegressorHamming(model) => model.predict(&x),
-                Algorithm::KNNRegressorEuclidian(model) => model.predict(&x),
-                Algorithm::KNNRegressorManhattan(model) => model.predict(&x),
-                Algorithm::KNNRegressorMinkowski(model) => model.predict(&x),
+                RegressionAlgorithm::Linear(model) => model.predict(&x),
+                RegressionAlgorithm::Lasso(model) => model.predict(&x),
+                RegressionAlgorithm::Ridge(model) => model.predict(&x),
+                RegressionAlgorithm::ElasticNet(model) => model.predict(&x),
+                RegressionAlgorithm::RandomForestRegressor(model) => model.predict(&x),
+                RegressionAlgorithm::DecisionTreeRegressor(model) => model.predict(&x),
+                RegressionAlgorithm::KNNRegressorHamming(model) => model.predict(&x),
+                RegressionAlgorithm::KNNRegressorEuclidian(model) => model.predict(&x),
+                RegressionAlgorithm::KNNRegressorManhattan(model) => model.predict(&x),
+                RegressionAlgorithm::KNNRegressorMinkowski(model) => model.predict(&x),
             }
             .expect(
                 "Error during inference. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
@@ -120,15 +120,15 @@ where
 
     /// Runs a model comparison and trains a final model.
     /// ```
-    /// # use automl::{settings, SupervisedModel, Settings};
+    /// # use automl::{settings, RegressionModel, Settings};
     /// # use smartcore::linalg::basic::matrix::DenseMatrix;
     /// # let x = DenseMatrix::from_2d_vec(&vec![vec![1.0_f64; 6]; 16]).unwrap();
     /// # let y = vec![0.0_f64; 16];
-    /// let mut model = SupervisedModel::new(
+    /// let mut model = RegressionModel::new(
     ///     x,
     ///     y,
     ///     Settings::default_regression()
-    /// #        .only(&settings::Algorithm::default_linear())
+    /// #        .only(&settings::RegressionAlgorithm::default_linear())
     /// );
     /// model.train();
     /// ```
@@ -137,8 +137,8 @@ where
         self.preprocessor
             .train(&self.x_train.clone(), &self.settings.preprocessing);
 
-        // Iterate over variants in Algorithm
-        for alg in Algorithm::all_algorithms(&self.settings) {
+        // Iterate over variants in RegressionAlgorithm
+        for alg in RegressionAlgorithm::all_algorithms(&self.settings) {
             if !self.settings.skiplist.contains(&alg) {
                 self.record_trained_model(alg.cross_validate_model(
                     &self.x_train,
@@ -159,7 +159,7 @@ where
     }
 }
 
-impl<INPUT, OUTPUT, InputArray, OutputArray> SupervisedModel<INPUT, OUTPUT, InputArray, OutputArray>
+impl<INPUT, OUTPUT, InputArray, OutputArray> RegressionModel<INPUT, OUTPUT, InputArray, OutputArray>
 where
     INPUT: RealNumber + FloatNumber,
     OUTPUT: FloatNumber, // + Eq + Hash,
@@ -206,7 +206,7 @@ where
         &mut self,
         trained_model: (
             CrossValidationResult,
-            Algorithm<INPUT, OUTPUT, InputArray, OutputArray>,
+            RegressionAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>,
             Duration,
         ),
     ) {
@@ -228,7 +228,7 @@ where
 }
 
 impl<INPUT, OUTPUT, InputArray, OutputArray> Display
-    for SupervisedModel<INPUT, OUTPUT, InputArray, OutputArray>
+    for RegressionModel<INPUT, OUTPUT, InputArray, OutputArray>
 where
     INPUT: RealNumber + FloatNumber,
     OUTPUT: FloatNumber,

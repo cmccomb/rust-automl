@@ -1,7 +1,7 @@
-use automl::settings::{Algorithm, Distance, KNNRegressorParameters};
+use automl::settings::{Distance, KNNRegressorParameters, RegressionAlgorithm};
 use automl::{DenseMatrix, Settings};
 
-type Alg = Algorithm<f64, f64, DenseMatrix<f64>, Vec<f64>>;
+type Alg = RegressionAlgorithm<f64, f64, DenseMatrix<f64>, Vec<f64>>;
 
 #[test]
 fn default_equals_linear() {

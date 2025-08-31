@@ -4,7 +4,7 @@
 //! ```
 //! use smartcore::linalg::basic::matrix::DenseMatrix;
 //! use automl::settings::{
-//!     Algorithm, DecisionTreeRegressorParameters, Distance, ElasticNetParameters,
+//!     RegressionAlgorithm, DecisionTreeRegressorParameters, Distance, ElasticNetParameters,
 //!     KNNAlgorithmName, KNNRegressorParameters, KNNWeightFunction, Kernel, LassoParameters,
 //!     LinearRegressionParameters, LinearRegressionSolverName, Metric,
 //!     RandomForestRegressorParameters, RidgeRegressionParameters, RidgeRegressionSolverName,
@@ -15,7 +15,7 @@
 //!     .with_number_of_folds(3)
 //!     .shuffle_data(true)
 //!     .verbose(true)
-//!     .skip(Algorithm::default_random_forest())
+//!     .skip(RegressionAlgorithm::default_random_forest())
 //!     .sorted_by(Metric::RSquared)
 //!     .with_linear_settings(
 //!         LinearRegressionParameters::default().with_solver(LinearRegressionSolverName::QR),
@@ -125,8 +125,14 @@ pub use knn_classifier_parameters::KNNClassifierParameters;
 mod svc_parameters;
 pub use svc_parameters::SVCParameters;
 
-mod algorithms;
-pub use algorithms::Algorithm;
+mod regression_algorithms;
+pub use regression_algorithms::RegressionAlgorithm;
+
+mod classification_algorithms;
+pub use classification_algorithms::ClassificationAlgorithm;
+
+mod classification_settings;
+pub use classification_settings::ClassificationSettings;
 
 mod settings_struct;
 #[doc(no_inline)]
@@ -146,6 +152,8 @@ pub enum Metric {
     MeanAbsoluteError,
     /// Sort by MSE
     MeanSquaredError,
+    /// Sort by classification accuracy
+    Accuracy,
     /// Sort by none
     None,
 }
@@ -156,6 +164,7 @@ impl Display for Metric {
             Self::RSquared => write!(f, "R^2"),
             Self::MeanAbsoluteError => write!(f, "MAE"),
             Self::MeanSquaredError => write!(f, "MSE"),
+            Self::Accuracy => write!(f, "Accuracy"),
             Self::None => panic!("A metric must be set."),
         }
     }

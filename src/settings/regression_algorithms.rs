@@ -1,5 +1,5 @@
 //!
-//! Algorithm definitions and helpers
+//! RegressionAlgorithm definitions and helpers
 
 use std::fmt::{Display, Formatter};
 use std::time::{Duration, Instant};
@@ -18,8 +18,8 @@ use smartcore::model_selection::CrossValidationResult;
 use smartcore::numbers::floatnum::FloatNumber;
 use smartcore::numbers::realnum::RealNumber;
 
-/// Algorithm options
-pub enum Algorithm<INPUT, OUTPUT, InputArray, OutputArray>
+/// RegressionAlgorithm options
+pub enum RegressionAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
 where
     INPUT: RealNumber + FloatNumber,
     OUTPUT: FloatNumber,
@@ -114,7 +114,8 @@ where
     ),
 }
 
-impl<INPUT, OUTPUT, InputArray, OutputArray> Algorithm<INPUT, OUTPUT, InputArray, OutputArray>
+impl<INPUT, OUTPUT, InputArray, OutputArray>
+    RegressionAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
 where
     INPUT: RealNumber + FloatNumber,
     OUTPUT: FloatNumber,
@@ -265,10 +266,10 @@ where
         settings: &Settings<INPUT, OUTPUT, InputArray, OutputArray>,
     ) -> (
         CrossValidationResult,
-        Algorithm<INPUT, OUTPUT, InputArray, OutputArray>,
+        RegressionAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>,
     ) {
         match self {
-            Algorithm::Linear(_) => (
+            RegressionAlgorithm::Linear(_) => (
                 smartcore::model_selection::cross_validate(
                     smartcore::linear::linear_regression::LinearRegression::<INPUT, OUTPUT, InputArray, OutputArray>::new(),
                     x,
@@ -280,9 +281,9 @@ where
                 .expect(
                     "Error during cross-validation. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
                 ),
-                Algorithm::default_linear().fit(x, y, settings),
+                RegressionAlgorithm::default_linear().fit(x, y, settings),
             ),
-            Algorithm::Ridge(_) => (
+            RegressionAlgorithm::Ridge(_) => (
                 smartcore::model_selection::cross_validate(
                     smartcore::linear::ridge_regression::RidgeRegression::<INPUT, OUTPUT, InputArray, OutputArray>::new(),
                     x,
@@ -294,9 +295,9 @@ where
                 .expect(
                     "Error during cross-validation. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
                 ),
-                Algorithm::default_ridge().fit(x, y, settings),
+                RegressionAlgorithm::default_ridge().fit(x, y, settings),
             ),
-            Algorithm::Lasso(_) => (
+            RegressionAlgorithm::Lasso(_) => (
                 smartcore::model_selection::cross_validate(
                     smartcore::linear::lasso::Lasso::<INPUT, OUTPUT, InputArray, OutputArray>::new(),
                     x,
@@ -308,9 +309,9 @@ where
                 .expect(
                     "Error during cross-validation. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
                 ),
-                Algorithm::default_lasso().fit(x, y, settings),
+                RegressionAlgorithm::default_lasso().fit(x, y, settings),
             ),
-            Algorithm::ElasticNet(_) => (
+            RegressionAlgorithm::ElasticNet(_) => (
                 smartcore::model_selection::cross_validate(
                     smartcore::linear::elastic_net::ElasticNet::<INPUT, OUTPUT, InputArray, OutputArray>::new(),
                     x,
@@ -322,9 +323,9 @@ where
                 .expect(
                     "Error during cross-validation. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
                 ),
-                Algorithm::default_elastic_net().fit(x, y, settings),
+                RegressionAlgorithm::default_elastic_net().fit(x, y, settings),
             ),
-            Algorithm::RandomForestRegressor(_) => (
+            RegressionAlgorithm::RandomForestRegressor(_) => (
                 smartcore::model_selection::cross_validate(
                     smartcore::ensemble::random_forest_regressor::RandomForestRegressor::<INPUT, OUTPUT, InputArray, OutputArray>::new(),
                     x,
@@ -340,9 +341,9 @@ where
                 .expect(
                     "Error during cross-validation. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
                 ),
-                Algorithm::default_random_forest().fit(x, y, settings),
+                RegressionAlgorithm::default_random_forest().fit(x, y, settings),
             ),
-            Algorithm::DecisionTreeRegressor(_) => (
+            RegressionAlgorithm::DecisionTreeRegressor(_) => (
                 smartcore::model_selection::cross_validate(
                     smartcore::tree::decision_tree_regressor::DecisionTreeRegressor::new(),
                     x,
@@ -358,9 +359,9 @@ where
                 .expect(
                     "Error during cross-validation. This is likely a bug in the AutoML library",
                 ),
-                Algorithm::default_decision_tree().fit(x, y, settings),
+                RegressionAlgorithm::default_decision_tree().fit(x, y, settings),
             ),
-            Algorithm::KNNRegressorEuclidian(_) => (
+            RegressionAlgorithm::KNNRegressorEuclidian(_) => (
                 smartcore::model_selection::cross_validate(
                     smartcore::neighbors::knn_regressor::KNNRegressor::<
                         INPUT,
@@ -396,9 +397,9 @@ where
                 .expect(
                     "Error during cross-validation. This is likely a bug in the AutoML library",
                 ),
-                Algorithm::default_knn_regressor().fit(x, y, settings),
+                RegressionAlgorithm::default_knn_regressor().fit(x, y, settings),
             ),
-            Algorithm::KNNRegressorManhattan(_) => (
+            RegressionAlgorithm::KNNRegressorManhattan(_) => (
                 smartcore::model_selection::cross_validate(
                     smartcore::neighbors::knn_regressor::KNNRegressor::<
                         INPUT,
@@ -434,9 +435,9 @@ where
                 .expect(
                     "Error during cross-validation. This is likely a bug in the AutoML library",
                 ),
-                Algorithm::default_knn_regressor_manhattan().fit(x, y, settings),
+                RegressionAlgorithm::default_knn_regressor_manhattan().fit(x, y, settings),
             ),
-            Algorithm::KNNRegressorMinkowski(_) => {
+            RegressionAlgorithm::KNNRegressorMinkowski(_) => {
                 let Distance::Minkowski(p) = settings
                     .knn_regressor_settings
                     .as_ref()
@@ -481,10 +482,10 @@ where
                     .expect(
                         "Error during cross-validation. This is likely a bug in the AutoML library",
                     ),
-                    Algorithm::default_knn_regressor_minkowski().fit(x, y, settings),
+                    RegressionAlgorithm::default_knn_regressor_minkowski().fit(x, y, settings),
                 )
             }
-            Algorithm::KNNRegressorHamming(_) => (
+            RegressionAlgorithm::KNNRegressorHamming(_) => (
                 smartcore::model_selection::cross_validate(
                     smartcore::neighbors::knn_regressor::KNNRegressor::<
                         INPUT,
@@ -520,7 +521,7 @@ where
                 .expect(
                     "Error during cross-validation. This is likely a bug in the AutoML library",
                 ),
-                Algorithm::default_knn_regressor_hamming().fit(x, y, settings),
+                RegressionAlgorithm::default_knn_regressor_hamming().fit(x, y, settings),
             ),
         }
     }
@@ -532,7 +533,7 @@ where
         settings: &Settings<INPUT, OUTPUT, InputArray, OutputArray>,
     ) -> (
         CrossValidationResult,
-        Algorithm<INPUT, OUTPUT, InputArray, OutputArray>,
+        RegressionAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>,
         Duration,
     ) {
         let start = Instant::now();
@@ -633,7 +634,7 @@ where
 }
 
 impl<INPUT, OUTPUT, InputArray, OutputArray> PartialEq
-    for Algorithm<INPUT, OUTPUT, InputArray, OutputArray>
+    for RegressionAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
 where
     INPUT: RealNumber + FloatNumber,
     OUTPUT: FloatNumber,
@@ -678,7 +679,7 @@ where
 }
 
 impl<INPUT, OUTPUT, InputArray, OutputArray> Default
-    for Algorithm<INPUT, OUTPUT, InputArray, OutputArray>
+    for RegressionAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
 where
     INPUT: RealNumber + FloatNumber,
     OUTPUT: FloatNumber,
@@ -692,12 +693,12 @@ where
     OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
 {
     fn default() -> Self {
-        Algorithm::Linear(smartcore::linear::linear_regression::LinearRegression::new())
+        RegressionAlgorithm::Linear(smartcore::linear::linear_regression::LinearRegression::new())
     }
 }
 
 impl<INPUT, OUTPUT, InputArray, OutputArray> Display
-    for Algorithm<INPUT, OUTPUT, InputArray, OutputArray>
+    for RegressionAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
 where
     INPUT: RealNumber + FloatNumber,
     OUTPUT: FloatNumber,

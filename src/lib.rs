@@ -19,6 +19,6 @@ pub mod utils;
 
 /// Model definitions and implementations.
 pub mod model;
-pub use model::SupervisedModel;
+pub use model::{ClassificationModel, RegressionModel};
 
 pub use smartcore::linalg::basic::matrix::DenseMatrix;
