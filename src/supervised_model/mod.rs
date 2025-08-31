@@ -95,21 +95,26 @@ where
     /// # Panics
     ///
     /// If the model has not been trained, this function will panic.
-    pub fn predict(self, x: InputArray) -> OutputArray {
+    pub fn predict(&self, x: InputArray) -> OutputArray {
         let x = self.preprocess(x);
         match self.settings.final_model_approach {
-            FinalAlgorithm::None => panic!(""),
-            FinalAlgorithm::Best => match &self.comparison.get(0).expect("").1 {
-                Algorithm::Linear(model) => model.predict(&x),
-                Algorithm::Lasso(model) => model.predict(&x),
-                Algorithm::Ridge(model) => model.predict(&x),
-                Algorithm::ElasticNet(model) => model.predict(&x),
-                Algorithm::RandomForestRegressor(model) => model.predict(&x),
-                Algorithm::DecisionTreeRegressor(model) => model.predict(&x),
+            FinalAlgorithm::None => {
+                panic!("No final model available. Did you forget to call `train`?")
             }
-            .expect(
-                "Error during inference. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
-            ),
+            FinalAlgorithm::Best => match self.comparison.get(0) {
+                Some((_, algorithm, _)) => match algorithm {
+                    Algorithm::Linear(model) => model.predict(&x),
+                    Algorithm::Lasso(model) => model.predict(&x),
+                    Algorithm::Ridge(model) => model.predict(&x),
+                    Algorithm::ElasticNet(model) => model.predict(&x),
+                    Algorithm::RandomForestRegressor(model) => model.predict(&x),
+                    Algorithm::DecisionTreeRegressor(model) => model.predict(&x),
+                }
+                .expect(
+                    "Error during inference. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
+                ),
+                None => panic!("Model comparison is empty. Did you forget to call `train`?"),
+            },
         }
     }
 }
