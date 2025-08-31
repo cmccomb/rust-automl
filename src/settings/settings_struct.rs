@@ -582,6 +582,7 @@ where
     InputArray: CholeskyDecomposable<INPUT> + SVDDecomposable<INPUT> + QRDecomposable<INPUT>,
     OutputArray: Array1<OUTPUT>,
 {
+    #[allow(clippy::too_many_lines)]
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         // Prep new table
         let mut table = Table::new();

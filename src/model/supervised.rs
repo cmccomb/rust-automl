@@ -1,12 +1,8 @@
 //! Implementation of supervised model training and evaluation.
 
-use crate::settings::{Algorithm, FinalAlgorithm, Metric, PreProcessing, Settings};
-use crate::utils::features::{interaction_features, polynomial_features};
+use super::preprocessing::Preprocessor;
+use crate::settings::{Algorithm, FinalAlgorithm, Metric, Settings};
 use smartcore::{
-    decomposition::{
-        pca::{PCA, PCAParameters},
-        svd::{SVD, SVDParameters},
-    },
     linalg::{
         basic::arrays::{Array, Array1, Array2, MutArrayView1},
         traits::{
@@ -60,10 +56,8 @@ where
     comparison: Vec<ComparisonEntry<INPUT, OUTPUT, InputArray, OutputArray>>,
     /// The final model.
     metamodel: (CrossValidationResult, FinalAlgorithm, Duration),
-    /// PCA model for preprocessing.
-    preprocessing_pca: Option<PCA<INPUT, InputArray>>,
-    /// SVD model for preprocessing.
-    preprocessing_svd: Option<SVD<INPUT, InputArray>>,
+    /// Preprocessor responsible for feature engineering.
+    preprocessor: Preprocessor<INPUT, InputArray>,
 }
 
 impl<INPUT, OUTPUT, InputArray, OutputArray> SupervisedModel<INPUT, OUTPUT, InputArray, OutputArray>
@@ -99,7 +93,9 @@ where
     ///
     /// If the model has not been trained, this function will panic.
     pub fn predict(self, x: InputArray) -> OutputArray {
-        let x = self.preprocess(x);
+        let x = self
+            .preprocessor
+            .preprocess(x, &self.settings.preprocessing);
         match self.settings.final_model_approach {
             FinalAlgorithm::None => panic!(""),
             FinalAlgorithm::Best => match &self.comparison.first().expect("").1 {
@@ -138,18 +134,8 @@ where
     /// ```
     pub fn train(&mut self) {
         // Train any necessary preprocessing
-        if let PreProcessing::ReplaceWithPCA {
-            number_of_components,
-        } = self.settings.preprocessing
-        {
-            self.train_pca(&self.x_train.clone(), number_of_components);
-        }
-        if let PreProcessing::ReplaceWithSVD {
-            number_of_components,
-        } = self.settings.preprocessing
-        {
-            self.train_svd(&self.x_train.clone(), number_of_components);
-        }
+        self.preprocessor
+            .train(&self.x_train.clone(), &self.settings.preprocessing);
 
         // Iterate over variants in Algorithm
         for alg in Algorithm::all_algorithms(&self.settings) {
@@ -211,81 +197,7 @@ where
                 FinalAlgorithm::Best,
                 Duration::default(),
             ),
-            preprocessing_pca: None,
-            preprocessing_svd: None,
-        }
-    }
-
-    /// Train PCA on the data for preprocessing.
-    ///
-    /// # Arguments
-    ///
-    /// * `x` - The input data
-    /// * `n` - The number of components to use
-    fn train_pca(&mut self, x: &InputArray, n: usize) {
-        let pca = PCA::fit(
-            x,
-            PCAParameters::default()
-                .with_n_components(n)
-                .with_use_correlation_matrix(true),
-        )
-        .unwrap();
-        self.preprocessing_pca = Some(pca);
-    }
-
-    /// Get PCA features for the data using the trained PCA preprocessor.
-    ///
-    /// # Arguments
-    ///
-    /// * `x` - The input data
-    fn pca_features(&self, x: &InputArray, _: usize) -> InputArray {
-        self.preprocessing_pca
-            .as_ref()
-            .unwrap()
-            .transform(x)
-            .expect("Could not transform data using PCA")
-    }
-
-    /// Train SVD on the data for preprocessing.
-    ///
-    /// # Arguments
-    ///
-    /// * `x` - The input data
-    /// * `n` - The number of components to use
-    fn train_svd(&mut self, x: &InputArray, n: usize) {
-        let svd = SVD::fit(x, SVDParameters::default().with_n_components(n)).unwrap();
-        self.preprocessing_svd = Some(svd);
-    }
-
-    /// Get SVD features for the data.
-    fn svd_features(&self, x: &InputArray, _: usize) -> InputArray {
-        self.preprocessing_svd
-            .as_ref()
-            .unwrap()
-            .transform(x)
-            .expect("Could not transform data using SVD")
-    }
-
-    /// Pre process the data.
-    ///
-    /// # Arguments
-    ///
-    /// * `x` - The input data
-    ///
-    /// # Returns
-    ///
-    /// * The preprocessed data
-    fn preprocess(&self, x: InputArray) -> InputArray {
-        match self.settings.preprocessing {
-            PreProcessing::None => x,
-            PreProcessing::AddInteractions => interaction_features(x),
-            PreProcessing::AddPolynomial { order } => polynomial_features(x, order),
-            PreProcessing::ReplaceWithPCA {
-                number_of_components,
-            } => self.pca_features(&x, number_of_components),
-            PreProcessing::ReplaceWithSVD {
-                number_of_components,
-            } => self.svd_features(&x, number_of_components),
+            preprocessor: Preprocessor::new(),
         }
     }
 
