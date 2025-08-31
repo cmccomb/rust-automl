@@ -71,7 +71,6 @@ pub use smartcore::neighbors::KNNWeightFunction;
 
 /// Search algorithms for k-nearest neighbor (KNN) regression (re-export from [Smartcore](https://docs.rs/smartcore/))
 pub use smartcore::algorithm::neighbour::KNNAlgorithmName;
-
 /// Parameters for random forest regression (re-export from [Smartcore](https://docs.rs/smartcore/))
 pub use smartcore::ensemble::random_forest_regressor::RandomForestRegressorParameters;
 
