@@ -64,7 +64,7 @@
 //!     );
 //! ```
 
-pub use crate::utils::{Distance, Kernel};
+pub use crate::utils::{distance::Distance, kernels::Kernel};
 /// Weighting functions for k-nearest neighbor (KNN) regression (re-export from [Smartcore](https://docs.rs/smartcore/))
 pub use smartcore::neighbors::KNNWeightFunction;
 
