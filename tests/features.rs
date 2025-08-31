@@ -1,3 +1,5 @@
+#![allow(clippy::float_cmp)]
+
 use automl::DenseMatrix;
 use automl::utils::{interaction_features, polynomial_features};
 use smartcore::linalg::basic::arrays::Array;

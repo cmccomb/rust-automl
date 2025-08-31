@@ -1,5 +1,7 @@
 //! Settings for the automl crate
 
+#![allow(clippy::struct_field_names)]
+
 use comfy_table::{
     Attribute, Cell, Table, modifiers::UTF8_SOLID_INNER_BORDERS, presets::UTF8_FULL,
 };
@@ -27,7 +29,7 @@ use smartcore::linalg::traits::svd::SVDDecomposable;
 use smartcore::numbers::basenum::Number;
 use smartcore::numbers::floatnum::FloatNumber;
 use smartcore::numbers::realnum::RealNumber;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Display, Formatter, Write};
 
 /// Settings for supervised models
 ///
@@ -262,12 +264,12 @@ where
     /// # use automl::Settings;
     /// # use smartcore::linalg::basic::matrix::DenseMatrix;
     /// use automl::settings::Algorithm;
-    /// let settings = Settings::<f64, f64, DenseMatrix<f64>, Vec<f64>>::default().only(Algorithm::default_random_forest());
+    /// let settings = Settings::<f64, f64, DenseMatrix<f64>, Vec<f64>>::default().only(&Algorithm::default_random_forest());
     /// ```
     #[must_use]
-    pub fn only(mut self, only: Algorithm<INPUT, OUTPUT, InputArray, OutputArray>) -> Self {
+    pub fn only(mut self, only: &Algorithm<INPUT, OUTPUT, InputArray, OutputArray>) -> Self {
         self.skiplist = Self::default().skiplist;
-        self.skiplist.retain(|algo| algo != &only);
+        self.skiplist.retain(|algo| algo != only);
         self
     }
 
@@ -590,7 +592,7 @@ where
             skiplist.push_str("None ");
         } else {
             for algorithm_to_skip in &self.skiplist {
-                skiplist.push_str(&format!("{algorithm_to_skip}\n"));
+                writeln!(&mut skiplist, "{algorithm_to_skip}")?;
             }
         }
 
