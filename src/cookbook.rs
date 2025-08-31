@@ -1,9 +1,15 @@
-//! # A cookbook of common autoML tasks
-//! ## Basic Regression
+//! # A cookbook of common AutoML tasks
+//!
+//! This module collects short examples demonstrating common usage patterns.
+//! The examples are embedded from the examples directory and shown in the
+//! generated documentation.
+//!
+//! ## Basic Regression (minimal example)
 //! ```rust
 #![doc = include_str!("../examples/minimal_regression.rs")]
 //! ```
-//! ## Basic Classification
+//!
+//! ## Advanced Regression (maximal example)
 //! ```rust
-#![doc = include_str!("../examples/minimal_regression.rs")]
+#![doc = include_str!("../examples/maximal_regression.rs")]
 //! ```
