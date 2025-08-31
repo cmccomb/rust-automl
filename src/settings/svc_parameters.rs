@@ -1,6 +1,6 @@
 //! Support Vector Classification parameters
 
-pub use crate::utils::Kernel;
+pub use crate::utils::kernels::Kernel;
 
 /// Parameters for support vector classification
 #[derive(serde::Serialize, serde::Deserialize)]
