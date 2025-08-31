@@ -1,4 +1,5 @@
-use automl::{DenseMatrix, Settings, settings::RegressionAlgorithm};
+use automl::algorithms::RegressionAlgorithm;
+use automl::{DenseMatrix, Settings};
 
 #[test]
 fn display_reflects_skiplist() {

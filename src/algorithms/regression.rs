@@ -1,12 +1,11 @@
 //!
-//! RegressionAlgorithm definitions and helpers
+//! `RegressionAlgorithm` definitions and helpers
 
 use std::fmt::{Display, Formatter};
 use std::time::Instant;
 
 use crate::model::ComparisonEntry;
-
-use super::Settings;
+use crate::settings::Settings;
 use crate::utils::distance::Distance;
 use smartcore::api::SupervisedEstimator;
 use smartcore::linalg::basic::arrays::{Array1, Array2, MutArrayView1, MutArrayView2};
@@ -20,7 +19,7 @@ use smartcore::model_selection::CrossValidationResult;
 use smartcore::numbers::floatnum::FloatNumber;
 use smartcore::numbers::realnum::RealNumber;
 
-/// RegressionAlgorithm options
+/// `RegressionAlgorithm` options
 pub enum RegressionAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
 where
     INPUT: RealNumber + FloatNumber,

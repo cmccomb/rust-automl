@@ -1,7 +1,8 @@
 //! Implementation of regression model training and evaluation.
 
 use super::{comparison::ComparisonEntry, preprocessing::Preprocessor};
-use crate::settings::{FinalAlgorithm, Metric, RegressionAlgorithm, Settings};
+use crate::algorithms::RegressionAlgorithm;
+use crate::settings::{FinalAlgorithm, Metric, Settings};
 use smartcore::{
     linalg::{
         basic::arrays::{Array, Array1, Array2, MutArrayView1},
@@ -69,14 +70,14 @@ where
     /// Predict values using the final model based on a vec.
     /// ```
     /// # use smartcore::linalg::basic::matrix::DenseMatrix;
-    /// # use automl::{settings, RegressionModel, Settings};
+    /// # use automl::{algorithms, RegressionModel, Settings};
     /// # let x = DenseMatrix::from_2d_vec(&vec![vec![1.0_f64; 6]; 16]).unwrap();
     /// # let y = vec![0.0_f64; 16];
     /// # let mut model = RegressionModel::new(
     /// #    x,
     /// #    y,
     /// #    Settings::default_regression()
-    /// #        .only(&settings::RegressionAlgorithm::default_linear()),
+    /// #        .only(&algorithms::RegressionAlgorithm::default_linear()),
     /// # );
     /// # model.train();
     /// let X = DenseMatrix::from_2d_vec(&vec![vec![5.0; 6]; 5]).unwrap();
@@ -118,7 +119,7 @@ where
 
     /// Runs a model comparison and trains a final model.
     /// ```
-    /// # use automl::{settings, RegressionModel, Settings};
+    /// # use automl::{algorithms, RegressionModel, Settings};
     /// # use smartcore::linalg::basic::matrix::DenseMatrix;
     /// # let x = DenseMatrix::from_2d_vec(&vec![vec![1.0_f64; 6]; 16]).unwrap();
     /// # let y = vec![0.0_f64; 16];
@@ -126,7 +127,7 @@ where
     ///     x,
     ///     y,
     ///     Settings::default_regression()
-    /// #        .only(&settings::RegressionAlgorithm::default_linear())
+    /// #        .only(&algorithms::RegressionAlgorithm::default_linear())
     /// );
     /// model.train();
     /// ```

@@ -1,7 +1,8 @@
 //! Implementation of classification model training and evaluation.
 
 use super::{comparison::ComparisonEntry, preprocessing::Preprocessor};
-use crate::settings::{ClassificationAlgorithm, ClassificationSettings, FinalAlgorithm, Metric};
+use crate::algorithms::ClassificationAlgorithm;
+use crate::settings::{ClassificationSettings, FinalAlgorithm, Metric};
 use smartcore::{
     linalg::{
         basic::arrays::{Array, Array1, Array2, MutArrayView1},

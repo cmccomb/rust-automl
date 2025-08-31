@@ -1,7 +1,7 @@
 #[path = "fixtures/regression_data.rs"]
 mod regression_data;
 
-use automl::settings::RegressionAlgorithm;
+use automl::algorithms::RegressionAlgorithm;
 use automl::{DenseMatrix, RegressionModel, Settings};
 use regression_data::regression_testing_data;
 

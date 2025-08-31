@@ -1,4 +1,5 @@
-use automl::settings::{Distance, KNNRegressorParameters, RegressionAlgorithm};
+use automl::algorithms::RegressionAlgorithm;
+use automl::settings::{Distance, KNNRegressorParameters};
 use automl::{DenseMatrix, Settings};
 
 type Alg = RegressionAlgorithm<f64, f64, DenseMatrix<f64>, Vec<f64>>;

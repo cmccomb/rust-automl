@@ -21,9 +21,10 @@ use smartcore::linalg::traits::svd::SVDDecomposable;
 use smartcore::numbers::floatnum::FloatNumber;
 use smartcore::numbers::realnum::RealNumber;
 
+use crate::algorithms::RegressionAlgorithm;
 use crate::utils::display::print_option;
 
-use super::{LinearRegressionSolverName, RegressionAlgorithm, RidgeRegressionSolverName, Settings};
+use super::{LinearRegressionSolverName, RidgeRegressionSolverName, Settings};
 
 impl<INPUT, OUTPUT, InputArray, OutputArray> Settings<INPUT, OUTPUT, InputArray, OutputArray>
 where

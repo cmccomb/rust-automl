@@ -17,6 +17,10 @@ pub mod cookbook;
 
 pub mod utils;
 
+/// Algorithm enumerations and helpers.
+pub mod algorithms;
+pub use algorithms::{ClassificationAlgorithm, RegressionAlgorithm};
+
 /// Model definitions and implementations.
 pub mod model;
 pub use model::{ClassificationModel, RegressionModel};

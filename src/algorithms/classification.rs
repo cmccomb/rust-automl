@@ -4,8 +4,7 @@ use std::fmt::{Display, Formatter};
 use std::time::Instant;
 
 use crate::model::ComparisonEntry;
-
-use super::ClassificationSettings;
+use crate::settings::ClassificationSettings;
 use smartcore::api::SupervisedEstimator;
 use smartcore::linalg::basic::arrays::{Array1, Array2, MutArrayView1, MutArrayView2};
 use smartcore::linalg::traits::cholesky::CholeskyDecomposable;
@@ -199,6 +198,7 @@ where
     }
 
     /// Get a vector of all possible algorithms
+    #[must_use]
     pub fn all_algorithms(settings: &ClassificationSettings) -> Vec<Self> {
         let mut algorithms = vec![Self::default_decision_tree_classifier()];
         if settings.knn_classifier_settings.is_some() {

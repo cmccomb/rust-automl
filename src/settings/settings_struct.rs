@@ -7,8 +7,9 @@ use super::{
     ElasticNetParameters, FinalAlgorithm, GaussianNBParameters, KNNClassifierParameters,
     KNNRegressorParameters, LassoParameters, LinearRegressionParameters,
     LogisticRegressionParameters, Metric, PreProcessing, RandomForestClassifierParameters,
-    RandomForestRegressorParameters, RegressionAlgorithm, RidgeRegressionParameters,
+    RandomForestRegressorParameters, RidgeRegressionParameters,
 };
+use crate::algorithms::RegressionAlgorithm;
 
 use smartcore::{
     metrics::{mean_absolute_error, mean_squared_error, r2},
@@ -244,7 +245,7 @@ where
     /// ```
     /// # use automl::Settings;
     /// # use smartcore::linalg::basic::matrix::DenseMatrix;
-    /// use automl::settings::RegressionAlgorithm;
+    /// use automl::algorithms::RegressionAlgorithm;
     /// let settings = Settings::<f64, f64, DenseMatrix<f64>, Vec<f64>>::default()
     ///     .skip(RegressionAlgorithm::default_random_forest());
     /// ```
@@ -261,7 +262,7 @@ where
     /// ```
     /// # use automl::Settings;
     /// # use smartcore::linalg::basic::matrix::DenseMatrix;
-    /// use automl::settings::RegressionAlgorithm;
+    /// use automl::algorithms::RegressionAlgorithm;
     /// let settings = Settings::<f64, f64, DenseMatrix<f64>, Vec<f64>>::default()
     ///     .only(&RegressionAlgorithm::default_random_forest());
     /// ```

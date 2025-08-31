@@ -17,12 +17,12 @@ mod regression_data;
 
 use automl::{
     DenseMatrix, RegressionModel, Settings,
+    algorithms::RegressionAlgorithm,
     settings::{
         DecisionTreeRegressorParameters, Distance, ElasticNetParameters, FinalAlgorithm,
         KNNAlgorithmName, KNNRegressorParameters, KNNWeightFunction, LassoParameters,
         LinearRegressionParameters, LinearRegressionSolverName, Metric,
-        RandomForestRegressorParameters, RegressionAlgorithm, RidgeRegressionParameters,
-        RidgeRegressionSolverName,
+        RandomForestRegressorParameters, RidgeRegressionParameters, RidgeRegressionSolverName,
     },
 };
 use regression_data::regression_testing_data;

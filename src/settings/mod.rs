@@ -3,13 +3,16 @@
 //! ## Complete regression customization
 //! ```
 //! use smartcore::linalg::basic::matrix::DenseMatrix;
-//! use automl::settings::{
-//!     RegressionAlgorithm, DecisionTreeRegressorParameters, Distance, ElasticNetParameters,
-//!     KNNAlgorithmName, KNNRegressorParameters, KNNWeightFunction, Kernel, LassoParameters,
-//!     LinearRegressionParameters, LinearRegressionSolverName, Metric,
-//!     RandomForestRegressorParameters, RidgeRegressionParameters, RidgeRegressionSolverName,
-//!     SVRParameters,
-//!  };
+//! use automl::{
+//!     algorithms::RegressionAlgorithm,
+//!     settings::{
+//!         DecisionTreeRegressorParameters, Distance, ElasticNetParameters, KNNAlgorithmName,
+//!         KNNRegressorParameters, KNNWeightFunction, Kernel, LassoParameters,
+//!         LinearRegressionParameters, LinearRegressionSolverName, Metric,
+//!         RandomForestRegressorParameters, RidgeRegressionParameters, RidgeRegressionSolverName,
+//!         SVRParameters,
+//!     },
+//! };
 //!
 //!  let settings = automl::Settings::<f64, f64, DenseMatrix<f64>, Vec<f64>>::default_regression()
 //!     .with_number_of_folds(3)
@@ -124,12 +127,6 @@ pub use knn_classifier_parameters::KNNClassifierParameters;
 
 mod svc_parameters;
 pub use svc_parameters::SVCParameters;
-
-mod regression_algorithms;
-pub use regression_algorithms::RegressionAlgorithm;
-
-mod classification_algorithms;
-pub use classification_algorithms::ClassificationAlgorithm;
 
 mod classification_settings;
 pub use classification_settings::ClassificationSettings;
