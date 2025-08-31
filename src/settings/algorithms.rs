@@ -128,6 +128,7 @@ where
     OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
 {
     /// Fit the model
+    #[allow(clippy::too_many_lines)]
     pub(crate) fn fit(
         self,
         x: &InputArray,
@@ -256,6 +257,7 @@ where
         }
     }
 
+    #[allow(clippy::too_many_lines)]
     fn cv(
         self,
         x: &InputArray,
