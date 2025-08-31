@@ -26,6 +26,11 @@ fn test_all_algorithms_included() {
             .iter()
             .any(|a| matches!(a, ClassificationAlgorithm::RandomForestClassifier(_)))
     );
+    assert!(
+        algorithms
+            .iter()
+            .any(|a| matches!(a, ClassificationAlgorithm::LogisticRegression(_)))
+    );
 }
 
 fn test_from_settings(settings: ClassificationSettings) {

@@ -1,6 +1,6 @@
 use super::{
-    DecisionTreeClassifierParameters, FinalAlgorithm, KNNClassifierParameters, Metric,
-    PreProcessing, RandomForestClassifierParameters,
+    DecisionTreeClassifierParameters, FinalAlgorithm, KNNClassifierParameters,
+    LogisticRegressionParameters, Metric, PreProcessing, RandomForestClassifierParameters,
 };
 use smartcore::linalg::basic::arrays::Array1;
 use smartcore::numbers::basenum::Number;
@@ -26,6 +26,8 @@ pub struct ClassificationSettings {
     pub(crate) decision_tree_classifier_settings: Option<DecisionTreeClassifierParameters>,
     /// Optional settings for random forest classifier
     pub(crate) random_forest_classifier_settings: Option<RandomForestClassifierParameters>,
+    /// Optional settings for logistic regression classifier
+    pub(crate) logistic_regression_settings: Option<LogisticRegressionParameters<f64>>,
 }
 
 impl Default for ClassificationSettings {
@@ -40,6 +42,7 @@ impl Default for ClassificationSettings {
             knn_classifier_settings: Some(KNNClassifierParameters::default()),
             decision_tree_classifier_settings: Some(DecisionTreeClassifierParameters::default()),
             random_forest_classifier_settings: Some(RandomForestClassifierParameters::default()),
+            logistic_regression_settings: Some(LogisticRegressionParameters::default()),
         }
     }
 }
@@ -123,6 +126,16 @@ impl ClassificationSettings {
         settings: RandomForestClassifierParameters,
     ) -> Self {
         self.random_forest_classifier_settings = Some(settings);
+        self
+    }
+
+    /// Specify settings for logistic regression classifier
+    #[must_use]
+    pub const fn with_logistic_regression_settings(
+        mut self,
+        settings: LogisticRegressionParameters<f64>,
+    ) -> Self {
+        self.logistic_regression_settings = Some(settings);
         self
     }
 }
