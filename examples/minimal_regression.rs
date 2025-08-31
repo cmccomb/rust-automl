@@ -1,4 +1,8 @@
-use automl::{Settings, SupervisedModel, regression_testing_data};
+#[path = "../tests/fixtures/regression_data.rs"]
+mod regression_data;
+
+use automl::{Settings, SupervisedModel};
+use regression_data::regression_testing_data;
 
 fn main() {
     // Load some regression data
