@@ -1,4 +1,9 @@
-use automl::settings::*;
+use automl::settings::{
+    DecisionTreeRegressorParameters, Distance, ElasticNetParameters, KNNAlgorithmName,
+    KNNRegressorParameters, KNNWeightFunction, LassoParameters, LinearRegressionParameters,
+    LinearRegressionSolverName, Metric, PreProcessing, RandomForestRegressorParameters,
+    RidgeRegressionParameters, RidgeRegressionSolverName, Settings,
+};
 use smartcore::linalg::basic::matrix::DenseMatrix;
 
 fn main() {
