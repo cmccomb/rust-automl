@@ -17,9 +17,8 @@ use settings::{Algorithm, FinalAlgorithm, PreProcessing};
 pub mod cookbook;
 
 pub mod utils;
-use crate::utils::math::elementwise_multiply;
+use crate::utils::features::{interaction_features, polynomial_features};
 
-use itertools::Itertools;
 use smartcore::linalg::basic::arrays::{Array1, MutArrayView1};
 use smartcore::linalg::traits::cholesky::CholeskyDecomposable;
 use smartcore::linalg::traits::evd::EVDDecomposable;
@@ -232,70 +231,6 @@ where
         }
     }
 
-    /// Get interaction features for the data.
-    ///
-    /// # Arguments
-    fn interaction_features(mut x: InputArray) -> InputArray {
-        let (height, width) = x.shape();
-        for column_1 in 0..width {
-            for column_2 in (column_1 + 1)..width {
-                let col1: Vec<INPUT> = (0..height)
-                    .map(|idx| *x.get_col(column_1).get(idx))
-                    .collect();
-                let col2: Vec<INPUT> = (0..height)
-                    .map(|idx| *x.get_col(column_2).get(idx))
-                    .collect();
-                let feature = elementwise_multiply(&col1, &col2);
-                let new_column = DenseMatrix::from_2d_vec(&vec![feature; 1])
-                    .expect("Cannot create matrix")
-                    .transpose();
-                x = x.h_stack(&new_column);
-            }
-        }
-        x
-    }
-
-    /// Get polynomial features for the data.
-    ///
-    /// # Arguments
-    ///
-    /// * `x` - The input data
-    /// * `order` - The order of the polynomial
-    ///
-    /// # Returns
-    ///
-    /// * The data with polynomial features
-    fn polynomial_features(mut x: InputArray, order: usize) -> InputArray {
-        // Get the shape of the matrix
-        let (height, width) = x.shape();
-
-        // For each order, get the combinations of columns with replacement
-        for n in 2..=order {
-            // Get combinations of columns with replacement
-            let combinations = (0..width).combinations_with_replacement(n);
-
-            // For each combination, multiply the columns together and add to the matrix
-            for combo in combinations {
-                // Start with a vector of ones
-                let mut feature: Vec<INPUT> = vec![INPUT::one(); height];
-
-                // Multiply the columns together
-                for column in combo {
-                    let col: Vec<INPUT> =
-                        (0..height).map(|idx| *x.get_col(column).get(idx)).collect();
-                    feature = elementwise_multiply(&col, &feature);
-                }
-
-                // Add the new column to the matrix
-                let new_column = DenseMatrix::from_2d_vec(&vec![feature; 1])
-                    .expect("Cannot create matrix")
-                    .transpose();
-                x = x.h_stack(&new_column);
-            }
-        }
-        x
-    }
-
     /// Train PCA on the data for preprocessing.
     ///
     /// # Arguments
@@ -358,8 +293,8 @@ where
     fn preprocess(&self, x: InputArray) -> InputArray {
         match self.settings.preprocessing {
             PreProcessing::None => x,
-            PreProcessing::AddInteractions => Self::interaction_features(x),
-            PreProcessing::AddPolynomial { order } => Self::polynomial_features(x, order),
+            PreProcessing::AddInteractions => interaction_features(x),
+            PreProcessing::AddPolynomial { order } => polynomial_features(x, order),
             PreProcessing::ReplaceWithPCA {
                 number_of_components,
             } => self.pca_features(&x, number_of_components),
