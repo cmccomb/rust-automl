@@ -2,24 +2,23 @@
 [![Crates.io](https://img.shields.io/crates/v/automl.svg)](https://crates.io/crates/automl)
 [![docs.rs](https://img.shields.io/docsrs/automl/latest?logo=rust)](https://docs.rs/automl)
 
-# `AutoML` with `SmartCore`
-
-`AutoML` (_Automated Machine Learning_) streamlines machine learning workflows, making them more accessible and efficient
-for users of all experience levels. This crate extends the [`smartcore`](https://docs.rs/smartcore/) machine learning
-framework, providing utilities to
-quickly train, compare, and deploy models.
-Add `AutoML` to your `Cargo.toml` to get started:
-# Install
+## What & Why
+`automl` automates model selection and training on top of the `smartcore` machine learning library, helping Rust developers quickly build regression and classification models.
 
 ## Quickstart
-
-Add the crate to your `Cargo.toml` or use the repository directly to pick up the latest changes:
+Install from [crates.io](https://crates.io/crates/automl) or use the GitHub repository for the latest changes:
 
 ```toml
-automl = { git = "https://github.com/cmccomb/rust-automl" }
+# Cargo.toml
+[dependencies]
+automl = "0.2.9"
 ```
 
-**Basic usage (regression example using `smartcore`'s DenseMatrix):**
+```toml
+# Cargo.toml
+[dependencies]
+automl = { git = "https://github.com/cmccomb/rust-automl" }
+```
 
 ```rust
 use automl::{Settings, SupervisedModel};
@@ -29,13 +28,30 @@ let x = DenseMatrix::from_2d_vec(&vec![
     vec![1.0_f64, 2.0, 3.0],
     vec![2.0, 3.0, 4.0],
     vec![3.0, 4.0, 5.0],
-])
-.unwrap();
+]).unwrap();
 let y = vec![1.0_f64, 2.0, 3.0];
 let _model = SupervisedModel::new(x, y, Settings::default_regression());
 ```
 
-```sh
+## Examples
+### Classification
+```rust
+use automl::{Settings, SupervisedModel};
+use smartcore::linalg::basic::matrix::DenseMatrix;
+
+let x = DenseMatrix::from_2d_vec(&vec![
+    vec![0.0_f64, 0.0],
+    vec![1.0, 1.0],
+    vec![1.0, 0.0],
+    vec![0.0, 1.0],
+]).unwrap();
+let y = vec![0.0_f64, 1.0, 1.0, 0.0];
+let _model = SupervisedModel::new(x, y, Settings::default_regression());
+```
+
+Model comparison:
+
+```text
 ┌────────────────────────────────┬─────────────────────┬───────────────────┬──────────────────┐
 │ Model                          │ Time                │ Training Accuracy │ Testing Accuracy │
 ╞════════════════════════════════╪═════════════════════╪═══════════════════╪══════════════════╡
@@ -50,51 +66,28 @@ let _model = SupervisedModel::new(x, y, Settings::default_regression());
 │ Decision Tree Classifier       │ 15ms 404us 750ns    │ 1.00              │ 0.93             │
 ├────────────────────────────────┼─────────────────────┼───────────────────┼──────────────────┤
 │ KNN Classifier                 │ 28ms 874us 208ns    │ 0.96              │ 0.92             │
-├────────────────────────────────┼─────────────────────┼───────────────────┼──────────────────┤
+└────────────────────────────────┴─────────────────────┴───────────────────┴──────────────────┘
 ```
+
 ## Capabilities
-- Feature Engineering
-    - PCA
-    - SVD
-    - Interaction terms
-    - Polynomial terms
-- Regression
-    - Decision Tree Regression
-    - KNN Regression
-    - Random Forest Regression
-    - Linear Regression
-    - Ridge Regression
-    - LASSO
-    - Elastic Net
-    - Support Vector Regression
-- Classification
-    - Random Forest Classification
-    - Decision Tree Classification
-    - Support Vector Classification
-    - Logistic Regression
-    - KNN Classification
-    - Gaussian Naive Bayes
-- Classification algorithms
-    - Blending
-- Save and load settings
-- Save and load models
-  - Support Vector Classification
-  - Logistic Regression
-  - KNN Classification
-  - Gaussian and Categorical Naive Bayes
-- Meta-learning
-  - Blending (experimental)
-- Model/settings persistence (save & load)
+- Feature Engineering: PCA, SVD, interaction terms, polynomial terms
+- Regression: Decision Tree, KNN, Random Forest, Linear, Ridge, LASSO, Elastic Net, Support Vector Regression
+- Classification: Random Forest, Decision Tree, Support Vector, Logistic Regression, KNN, Gaussian & Categorical Naive Bayes
+- Meta-learning: Blending (experimental)
+- Persistence: Save/load settings and models
+
 ## Development
-Before submitting changes, ensure the codebase is clean and secure:
+Before submitting changes, run:
 
-Before submitting changes, run the following locally to ensure quality and consistency:
-
-```bash
+```sh
 cargo fmt --all -- --check
 cargo clippy --all-targets -- -D warnings
 cargo test
 cargo audit
+cargo test --doc
 ```
 
-If you find any gaps in the documentation or examples you'd like added, please open an issue with a suggestion.
+Pull requests are welcome!
+
+## License
+Licensed under the MIT OR Apache-2.0 license.
