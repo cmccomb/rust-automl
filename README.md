@@ -1,4 +1,4 @@
-[![Github CI](https://github.com/cmccomb/rust-automl/actions/workflows/tests.yml/badge.svg)](https://github.com/cmccomb/automl/actions)
+[![Github CI](https://github.com/cmccomb/rust-automl/actions/workflows/ci.yml/badge.svg)](https://github.com/cmccomb/automl/actions)
 [![Crates.io](https://img.shields.io/crates/v/automl.svg)](https://crates.io/crates/automl)
 [![docs.rs](https://img.shields.io/docsrs/automl/latest?logo=rust)](https://docs.rs/automl)
 
@@ -110,3 +110,14 @@ This crate has several features that add some additional methods.
     - Blending
 - Save and load settings
 - Save and load models
+
+## Development
+
+Before submitting changes, ensure the codebase is clean and secure:
+
+```bash
+cargo fmt --all -- --check
+cargo clippy --all-targets -- -D warnings
+cargo test
+cargo audit
+```
