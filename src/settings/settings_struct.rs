@@ -13,7 +13,7 @@ use super::{
     RidgeRegressionSolverName, SVCParameters,
 };
 
-use crate::utils::print_option;
+use crate::utils::display::print_option;
 
 use smartcore::{
     metrics::{mean_absolute_error, mean_squared_error, r2},

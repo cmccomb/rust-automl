@@ -19,8 +19,8 @@ use settings::{Algorithm, FinalAlgorithm, PreProcessing};
 
 pub mod cookbook;
 
-mod utils;
-use utils::elementwise_multiply;
+pub mod utils;
+use crate::utils::math::elementwise_multiply;
 
 use itertools::Itertools;
 use smartcore::linalg::basic::arrays::{Array1, MutArrayView1};

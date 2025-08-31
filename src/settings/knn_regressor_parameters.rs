@@ -1,6 +1,6 @@
 //! KNN regressor parameters
 
-use crate::utils::Distance;
+use crate::utils::distance::Distance;
 pub use smartcore::{algorithm::neighbour::KNNAlgorithmName, neighbors::KNNWeightFunction};
 
 /// Parameters for k-nearest neighbor (KNN) regression
