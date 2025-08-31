@@ -15,7 +15,7 @@
 //!     .with_number_of_folds(3)
 //!     .shuffle_data(true)
 //!     .verbose(true)
-//!     .skip(Algorithm::RandomForestRegressor)
+//!     .skip(Algorithm::default_random_forest())
 //!     .sorted_by(Metric::RSquared)
 //!     .with_linear_settings(
 //!         LinearRegressionParameters::default().with_solver(LinearRegressionSolverName::QR),
@@ -48,13 +48,6 @@
 //!             .with_distance(Distance::Euclidean)
 //!             .with_weight(KNNWeightFunction::Uniform),
 //!     )
-//!     .with_svr_settings(
-//!         SVRParameters::default()
-//!             .with_eps(1e-10)
-//!             .with_tol(1e-10)
-//!             .with_c(1.0)
-//!             .with_kernel(Kernel::Linear),
-//!     )
 //!     .with_random_forest_regressor_settings(
 //!         RandomForestRegressorParameters::default()
 //!             .with_m(100)
@@ -70,61 +63,8 @@
 //!             .with_min_samples_leaf(20),
 //!     );
 //! ```
-// ## Complete classification customization
-// ```
-// use automl::settings::{
-//     Algorithm, CategoricalNBParameters, DecisionTreeClassifierParameters, Distance,
-//     GaussianNBParameters, KNNAlgorithmName, KNNClassifierParameters, KNNWeightFunction, Kernel,
-//     LogisticRegressionParameters, LogisticRegressionSolverName, Metric,
-//     RandomForestClassifierParameters, SVCParameters,
-// };
-//
-// let settings = automl::Settings::default_classification()
-//     .with_number_of_folds(3)
-//     .shuffle_data(true)
-//     .verbose(true)
-//     .skip(Algorithm::RandomForestClassifier)
-//     .sorted_by(Metric::Accuracy)
-//     .with_random_forest_classifier_settings(
-//         RandomForestClassifierParameters::default()
-//             .with_m(100)
-//             .with_max_depth(5)
-//             .with_min_samples_leaf(20)
-//             .with_n_trees(100)
-//             .with_min_samples_split(20),
-//     )
-//     .with_logistic_settings(
-//         LogisticRegressionParameters::default()
-//             .with_alpha(1.0)
-//             .with_solver(LogisticRegressionSolverName::LBFGS),
-//     )
-//     .with_svc_settings(
-//         SVCParameters::default()
-//             .with_epoch(10)
-//             .with_tol(1e-10)
-//             .with_c(1.0)
-//             .with_kernel(Kernel::Linear),
-//     )
-//     .with_decision_tree_classifier_settings(
-//         DecisionTreeClassifierParameters::default()
-//             .with_min_samples_split(20)
-//             .with_max_depth(5)
-//             .with_min_samples_leaf(20),
-//     )
-//     .with_knn_classifier_settings(
-//         KNNClassifierParameters::default()
-//             .with_algorithm(KNNAlgorithmName::CoverTree)
-//             .with_k(3)
-//             .with_distance(Distance::Euclidean)
-//             .with_weight(KNNWeightFunction::Uniform),
-//     )
-//     .with_gaussian_nb_settings(GaussianNBParameters::default().with_priors(vec![1.0, 1.0]))
-//     .with_categorical_nb_settings(CategoricalNBParameters::default().with_alpha(1.0));
-// ```
 
 pub use crate::utils::{Distance, Kernel};
-use std::any::Any;
-
 /// Weighting functions for k-nearest neighbor (KNN) regression (re-export from [Smartcore](https://docs.rs/smartcore/))
 pub use smartcore::neighbors::KNNWeightFunction;
 
@@ -212,8 +152,6 @@ pub enum Metric {
     MeanAbsoluteError,
     /// Sort by MSE
     MeanSquaredError,
-    // /// Sort by Accuracy
-    // Accuracy,
     /// Sort by none
     None,
 }
@@ -224,7 +162,6 @@ impl Display for Metric {
             Self::RSquared => write!(f, "R^2"),
             Self::MeanAbsoluteError => write!(f, "MAE"),
             Self::MeanSquaredError => write!(f, "MSE"),
-            // Self::Accuracy => write!(f, "Accuracy"),
             Self::None => panic!("A metric must be set."),
         }
     }
@@ -253,10 +190,6 @@ where
             OutputArray,
         >,
     ),
-    // /// KNN Regressor
-    // KNNRegressor(
-    //     smartcore::neighbors::knn_regressor::KNNRegressor<INPUT, OUTPUT, InputArray, OutputArray>,
-    // ),
     /// Random forest regressor
     RandomForestRegressor(
         smartcore::ensemble::random_forest_regressor::RandomForestRegressor<
@@ -288,68 +221,6 @@ where
     Lasso(smartcore::linear::lasso::Lasso<INPUT, OUTPUT, InputArray, OutputArray>),
     /// Elastic net regressor
     ElasticNet(smartcore::linear::elastic_net::ElasticNet<INPUT, OUTPUT, InputArray, OutputArray>),
-    // /// Support vector regressor
-    // SVR(smartcore::svm::svr::SVR<INPUT, OUTPUT, InputArray, OutputArray>),
-    // /// Decision tree classifier
-    // DecisionTreeClassifier(
-    //     smartcore::tree::decision_tree_classifier::DecisionTreeClassifier<
-    //         INPUT,
-    //         u8,
-    //         InputArray,
-    //         OutputArray,
-    //     >,
-    // ),
-    // /// KNN classifier
-    // KNNClassifier(
-    //     smartcore::neighbors::knn_classifier::KNNClassifier<INPUT, u8, InputArray, OutputArray>,
-    // ),
-    // /// Random forest classifier
-    // RandomForestClassifier,
-    // /// Support vector classifier
-    // SVC,
-    // /// Logistic regression classifier
-    // LogisticRegression,
-    // /// Gaussian Naive Bayes classifier
-    // GaussianNaiveBayes,
-    // /// Categorical Naive Bayes classifier
-    // CategoricalNaiveBayes,
-}
-
-// use smartcore;
-impl<INPUT, OUTPUT, InputArray, OutputArray> Clone
-    for Algorithm<INPUT, OUTPUT, InputArray, OutputArray>
-where
-    INPUT: RealNumber + FloatNumber,
-    OUTPUT: FloatNumber,
-    InputArray: MutArrayView2<INPUT>
-        + Sized
-        + Clone
-        + Array2<INPUT>
-        + QRDecomposable<INPUT>
-        + SVDDecomposable<INPUT>
-        + CholeskyDecomposable<INPUT>,
-    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
-{
-    fn clone(&self) -> Self {
-        match self {
-            Self::DecisionTreeRegressor(_) => Self::DecisionTreeRegressor(
-                smartcore::tree::decision_tree_regressor::DecisionTreeRegressor::new(),
-            ),
-            Self::RandomForestRegressor(_) => Self::RandomForestRegressor(
-                smartcore::ensemble::random_forest_regressor::RandomForestRegressor::new(),
-            ),
-            Self::Linear(_) => {
-                Self::Linear(smartcore::linear::linear_regression::LinearRegression::new())
-            }
-            Self::Ridge(_) => {
-                Self::Ridge(smartcore::linear::ridge_regression::RidgeRegression::new())
-            }
-            Self::Lasso(_) => Self::Lasso(smartcore::linear::lasso::Lasso::new()),
-            Self::ElasticNet(_) => {
-                Self::ElasticNet(smartcore::linear::elastic_net::ElasticNet::new())
-            }
-        }
-    }
 }
 
 impl<INPUT, OUTPUT, InputArray, OutputArray> Algorithm<INPUT, OUTPUT, InputArray, OutputArray>
@@ -365,36 +236,23 @@ where
         + CholeskyDecomposable<INPUT>,
     OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
 {
-    /// Get the `predict` method for the underlying algorithm.
-    pub(crate) fn predict(self, x: &InputArray) -> OutputArray {
-        match self {
-            Self::Linear(model) => model.predict(&x),
-            Self::Lasso(model) => model.predict(&x),
-            Self::Ridge(model) => model.predict(&x),
-            Self::ElasticNet(model) => model.predict(&x),
-            Self::RandomForestRegressor(model) => model.predict(&x),
-            Self::DecisionTreeRegressor(model) => model.predict(&x),
-        }.expect(
-            "Error during inference. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
-        )
-    }
-
     /// Fit the model
-    pub(crate) fn fit<PARAMETERS>(mut self, x: InputArray, y: OutputArray, p: PARAMETERS)
-    where
-        PARAMETERS: Any + Clone,
-    {
-        self = match self {
+    pub(crate) fn fit(self, x: InputArray, y: OutputArray) -> Self {
+        match self {
             Self::Linear(_) => Self::Linear(
                 smartcore::linear::linear_regression::LinearRegression::fit(
-                    &x, &y, Default::default()).expect("Error during training. This is likely a bug in the AutoML library. Please open an issue on GitHub.")
+                    &x,
+                    &y,
+                    Default::default(),
+                )
+                    .expect("Error during training. This is likely a bug in the AutoML library. Please open an issue on GitHub.")
             ),
             Self::Lasso(_) => Self::Lasso(smartcore::linear::lasso::Lasso::fit(&x, &y, Default::default()).expect("Error during training. This is likely a bug in the AutoML library. Please open an issue on GitHub.")),
             Self::Ridge(_) => Self::Ridge(smartcore::linear::ridge_regression::RidgeRegression::fit(&x, &y, Default::default()).expect("Error during training. This is likely a bug in the AutoML library. Please open an issue on GitHub.")),
             Self::ElasticNet(_) => Self::ElasticNet(smartcore::linear::elastic_net::ElasticNet::fit(&x, &y, Default::default()).expect("Error during training. This is likely a bug in the AutoML library. Please open an issue on GitHub.")),
             Self::RandomForestRegressor(_) => Self::RandomForestRegressor(smartcore::ensemble::random_forest_regressor::RandomForestRegressor::fit(&x, &y, Default::default()).expect("Error during training. This is likely a bug in the AutoML library. Please open an issue on GitHub.")),
             Self::DecisionTreeRegressor(_) => Self::DecisionTreeRegressor(smartcore::tree::decision_tree_regressor::DecisionTreeRegressor::fit(&x, &y, Default::default()).expect("Error during training. This is likely a bug in the AutoML library. Please open an issue on GitHub.")),
-        };
+        }
     }
 
     fn cv(
@@ -406,7 +264,6 @@ where
         CrossValidationResult,
         Algorithm<INPUT, OUTPUT, InputArray, OutputArray>,
     ) {
-        // println!("{x:?}");
         match self {
             Algorithm::Linear(_) =>
                 (
@@ -418,7 +275,7 @@ where
                         &settings.get_kfolds(),
                         &settings.get_metric(),
                     ).expect("Error during cross-validation. This is likely a bug in the AutoML library. Please open an issue on GitHub."),
-                    Algorithm::default_linear()
+                    Algorithm::default_linear().fit(x.clone(), y.clone())
                 ),
             Algorithm::Ridge(_) => (
                 smartcore::model_selection::cross_validate(
@@ -429,7 +286,7 @@ where
                     &settings.get_kfolds(),
                     &settings.get_metric(),
                 ).expect("Error during cross-validation. This is likely a bug in the AutoML library. Please open an issue on GitHub."),
-                Algorithm::default_ridge()
+                Algorithm::default_ridge().fit(x.clone(), y.clone())
             ),
             Algorithm::Lasso(_) => (
                 smartcore::model_selection::cross_validate(
@@ -440,7 +297,7 @@ where
                     &settings.get_kfolds(),
                     &settings.get_metric(),
                 ).expect("Error during cross-validation. This is likely a bug in the AutoML library. Please open an issue on GitHub."),
-                Algorithm::default_lasso()
+                Algorithm::default_lasso().fit(x.clone(), y.clone())
             ),
             Algorithm::ElasticNet(_) => (
                 smartcore::model_selection::cross_validate(
@@ -451,7 +308,7 @@ where
                     &settings.get_kfolds(),
                     &settings.get_metric(),
                 ).expect("Error during cross-validation. This is likely a bug in the AutoML library. Please open an issue on GitHub."),
-                Algorithm::default_elastic_net()
+                Algorithm::default_elastic_net().fit(x.clone(), y.clone())
             ),
             Algorithm::RandomForestRegressor(_) => (
                 smartcore::model_selection::cross_validate(
@@ -466,7 +323,7 @@ where
                     &settings.get_kfolds(),
                     &settings.get_metric(),
                 ).expect("Error during cross-validation. This is likely a bug in the AutoML library. Please open an issue on GitHub."),
-                Algorithm::default_random_forest()
+                Algorithm::default_random_forest().fit(x.clone(), y.clone())
             ),
             Algorithm::DecisionTreeRegressor(_) => (
                 smartcore::model_selection::cross_validate(
@@ -481,21 +338,9 @@ where
                     &settings.get_kfolds(),
                     &settings.get_metric(),
                 ).expect("Error during cross-validation. This is likely a bug in the AutoML library"),
-                Algorithm::default_decision_tree()
+                Algorithm::default_decision_tree().fit(x.clone(), y.clone())
             ),
         }
-        // (
-        //     smartcore::model_selection::cross_validate(
-        //         Algorithm::default_linear(),
-        //         x,
-        //         y,
-        //         settings.linear_settings.as_ref().unwrap().clone(),
-        //         &settings.get_kfolds(),
-        //         &settings.get_metric(),
-        //     )
-        //     .unwrap(),
-        //     Self,
-        // )
     }
 
     pub(crate) fn cross_validate_model(
@@ -678,59 +523,9 @@ impl Display for PreProcessing {
 }
 
 /// Final model approach
-pub enum FinalAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
-where
-    INPUT: RealNumber + FloatNumber,
-    OUTPUT: FloatNumber,
-    InputArray: MutArrayView2<INPUT>
-        + Sized
-        + Clone
-        + Array2<INPUT>
-        + QRDecomposable<INPUT>
-        + SVDDecomposable<INPUT>
-        + CholeskyDecomposable<INPUT>,
-    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
-{
+pub enum FinalAlgorithm {
     /// Do not train a final model
     None,
     /// Select the best model from the comparison set as the final model
     Best,
-    /// Use a blending approach to produce a final model
-    Blending {
-        /// Which algorithm to use as a meta-learner
-        algorithm: Algorithm<INPUT, OUTPUT, InputArray, OutputArray>,
-        /// How much data to retain to train the blending model
-        meta_training_fraction: f32,
-        /// How much data to retain to test the blending model
-        meta_testing_fraction: f32,
-    },
-    // /// Use a stacking approach to produce a final model (not implemented)
-    // Stacking {
-    //     /// How much data to retain to train the blending model
-    //     meta_testing_fraction: f32,
-    // },
-}
-
-impl<INPUT, OUTPUT, InputArray, OutputArray> FinalAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
-where
-    INPUT: RealNumber + FloatNumber,
-    OUTPUT: FloatNumber,
-    InputArray: MutArrayView2<INPUT>
-        + Sized
-        + Clone
-        + Array2<INPUT>
-        + QRDecomposable<INPUT>
-        + SVDDecomposable<INPUT>
-        + CholeskyDecomposable<INPUT>,
-    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
-{
-    /// Default values for a blending model (linear regression, 30% of all data reserved for training the blending model)
-    #[must_use]
-    pub fn default_blending() -> Self {
-        Self::Blending {
-            algorithm: Algorithm::default(),
-            meta_training_fraction: 0.15,
-            meta_testing_fraction: 0.15,
-        }
-    }
 }

@@ -28,7 +28,6 @@ use smartcore::numbers::basenum::Number;
 use smartcore::numbers::floatnum::FloatNumber;
 use smartcore::numbers::realnum::RealNumber;
 use std::fmt::{Display, Formatter};
-use std::io::Write;
 
 /// Settings for supervised models
 ///
@@ -53,7 +52,7 @@ where
     /// Whether to be verbose
     verbose: bool,
     /// The approach to use for the final model
-    pub(crate) final_model_approach: FinalAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>,
+    pub(crate) final_model_approach: FinalAlgorithm,
     /// The kind of preprocessing to perform
     pub(crate) preprocessing: PreProcessing,
     /// Optional settings for linear regression
@@ -102,15 +101,6 @@ where
             model_type: ModelType::None,
             final_model_approach: FinalAlgorithm::Best,
             skiplist: vec![
-                // Algorithm::LogisticRegression,
-                // Algorithm::RandomForestClassifier,
-                // Algorithm::KNNClassifier,
-                // Algorithm::SVC,
-                // Algorithm::DecisionTreeClassifier,
-                // Algorithm::CategoricalNaiveBayes,
-                // Algorithm::GaussianNaiveBayes,
-                // Algorithm::SVR,
-                // Algorithm::KNNRegressor,
                 Algorithm::default_linear(),
                 Algorithm::default_lasso(),
                 Algorithm::default_ridge(),
@@ -199,84 +189,11 @@ where
         }
     }
 
-    // /// Creates default settings for classification
-    // /// ```
-    // /// # use automl::Settings;
-    // /// let settings = Settings::default_classification();
-    // /// ```
-    // #[must_use]
-    // pub fn default_classification() -> Self {
-    //     Self {
-    //         sort_by: Metric::None,
-    //         model_type: ModelType::Classification,
-    //         final_model_approach: FinalModel::Best,
-    //         skiplist: vec![
-    //             Algorithm::Linear,
-    //             Algorithm::Lasso,
-    //             Algorithm::Ridge,
-    //             Algorithm::ElasticNet,
-    //             Algorithm::SVR,
-    //             Algorithm::DecisionTreeRegressor,
-    //             Algorithm::RandomForestRegressor,
-    //             Algorithm::KNNRegressor,
-    //         ],
-    //         preprocessing: PreProcessing::None,
-    //         number_of_folds: 10,
-    //         shuffle: false,
-    //         verbose: false,
-    //         linear_settings: None,
-    //         svr_settings: None,
-    //         lasso_settings: None,
-    //         ridge_settings: None,
-    //         elastic_net_settings: None,
-    //         decision_tree_regressor_settings: None,
-    //         random_forest_regressor_settings: None,
-    //         knn_regressor_settings: None,
-    //         logistic_settings: Some(LogisticRegressionParameters::default()),
-    //         random_forest_classifier_settings: Some(RandomForestClassifierParameters::default()),
-    //         knn_classifier_settings: Some(KNNClassifierParameters::default()),
-    //         svc_settings: Some(SVCParameters::default()),
-    //         decision_tree_classifier_settings: Some(DecisionTreeClassifierParameters::default()),
-    //         gaussian_nb_settings: Some(GaussianNBParameters::default()),
-    //         categorical_nb_settings: Some(CategoricalNBParameters::default()),
-    //     }
-    // }
-    //
-    // /// Load settings from a settings file
-    // /// ```
-    // /// # use automl::Settings;
-    // /// # let settings = Settings::default();
-    // /// # settings.save("tests/load_those_settings.yaml");
-    // /// let settings = Settings::new_from_file("tests/load_those_settings.yaml");
-    // /// # std::fs::remove_file("tests/load_those_settings.yaml");
-    // /// ```
-    // #[must_use]
-    // pub fn new_from_file(file_name: &str) -> Self {
-    //     let mut buf: Vec<u8> = Vec::new();
-    //     std::fs::File::open(file_name)
-    //         .and_then(|mut f| f.read_to_end(&mut buf))
-    //         .expect("Cannot read settings file.");
-    //     serde_yaml::from_slice(&buf).expect("Cannot deserialize settings file.")
-    // }
-    //
-    // /// Save the current settings to a file for later use
-    // /// ```
-    // /// # use automl::Settings;
-    // /// let settings = Settings::default_regression();
-    // /// settings.save("tests/save_those_settings.yaml");
-    // /// # std::fs::remove_file("tests/save_those_settings.yaml");
-    // /// ```
-    // pub fn save(&self, file_name: &str) {
-    //     let serial = serde_yaml::to_string(&self).expect("Cannot serialize settings.");
-    //     std::fs::File::create(file_name)
-    //         .and_then(|mut f| f.write_all(serial.as_ref()))
-    //         .expect("Cannot write settings to file.");
-    // }
-
     /// Specify number of folds for cross-validation
     /// ```
     /// # use automl::Settings;
-    /// let settings = Settings::default().with_number_of_folds(3);
+    /// # use smartcore::linalg::basic::matrix::DenseMatrix;
+    /// let settings = Settings::<f64, f64, DenseMatrix<f64>, Vec<f64>>::default().with_number_of_folds(3);
     /// ```
     #[must_use]
     pub const fn with_number_of_folds(mut self, n: usize) -> Self {
@@ -329,10 +246,7 @@ where
     /// let settings = Settings::<f64, f64, DenseMatrix<f64>, Vec<f64>>::default().with_final_model(FinalAlgorithm::Best);
     /// ```
     #[must_use]
-    pub fn with_final_model(
-        mut self,
-        approach: FinalAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>,
-    ) -> Self {
+    pub fn with_final_model(mut self, approach: FinalAlgorithm) -> Self {
         self.final_model_approach = approach;
         self
     }
@@ -380,8 +294,9 @@ where
     /// Specify settings for Random Forest Classifier
     /// ```
     /// # use automl::Settings;
+    /// # use smartcore::linalg::basic::matrix::DenseMatrix;
     /// use automl::settings::RandomForestClassifierParameters;
-    /// let settings = Settings::default()
+    /// let settings = Settings::<f64, f64, DenseMatrix<f64>, Vec<f64>>::default()
     ///     .with_random_forest_classifier_settings(RandomForestClassifierParameters::default()
     ///         .with_m(100)
     ///         .with_max_depth(5)
@@ -402,8 +317,9 @@ where
     /// Specify settings for logistic regression
     /// ```
     /// # use automl::Settings;
+    /// # use smartcore::linalg::basic::matrix::DenseMatrix;
     /// use automl::settings::LogisticRegressionParameters;
-    /// let settings = Settings::default()
+    /// let settings = Settings::<f64, f64, DenseMatrix<f64>, Vec<f64>>::default()
     ///     .with_logistic_settings(LogisticRegressionParameters::default());
     /// ```
     #[must_use]
@@ -457,9 +373,10 @@ where
     /// Specify settings for logistic regression
     /// ```
     /// # use automl::Settings;
+    /// # use smartcore::linalg::basic::matrix::DenseMatrix;
     /// use automl::settings::{KNNClassifierParameters,
     ///     KNNAlgorithmName, KNNWeightFunction, Distance};
-    /// let settings = Settings::default()
+    /// let settings = Settings::<f64, f64, DenseMatrix<f64>, Vec<f64>>::default()
     ///     .with_knn_classifier_settings(KNNClassifierParameters::default()
     ///         .with_algorithm(KNNAlgorithmName::CoverTree)
     ///         .with_k(3)
@@ -476,7 +393,7 @@ where
     /// Specify settings for Gaussian Naive Bayes
     /// ```
     /// # use automl::Settings;
-    /// #
+    /// # use smartcore::linalg::basic::matrix::DenseMatrix;
     /// use automl::settings::GaussianNBParameters;
     /// let settings = Settings::<f64, f64, DenseMatrix<f64>, Vec<f64>>::default()
     ///     .with_gaussian_nb_settings(GaussianNBParameters::default()
@@ -509,8 +426,9 @@ where
     /// Specify settings for linear regression
     /// ```
     /// # use automl::Settings;
+    /// # use smartcore::linalg::basic::matrix::DenseMatrix;
     /// use automl::settings::{LinearRegressionParameters, LinearRegressionSolverName};
-    /// let settings = Settings::default()
+    /// let settings = Settings::<f64, f64, DenseMatrix<f64>, Vec<f64>>::default()
     ///     .with_linear_settings(LinearRegressionParameters::default()
     ///         .with_solver(LinearRegressionSolverName::QR)
     ///     );
@@ -581,9 +499,10 @@ where
     /// Specify settings for KNN regressor
     /// ```
     /// # use automl::Settings;
+    /// # use smartcore::linalg::basic::matrix::DenseMatrix;
     /// use automl::settings::{KNNRegressorParameters,
     ///     KNNAlgorithmName, KNNWeightFunction, Distance};
-    /// let settings = Settings::default()
+    /// let settings = Settings::<f64, f64, DenseMatrix<f64>, Vec<f64>>::default()
     ///     .with_knn_regressor_settings(KNNRegressorParameters::default()
     ///         .with_algorithm(KNNAlgorithmName::CoverTree)
     ///         .with_k(3)

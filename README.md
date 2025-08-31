@@ -29,11 +29,11 @@ automl = { git = "https://github.com/cmccomb/rust-automl" }
 
 Here’s a quick example to illustrate how AutoML can simplify model training and comparison:
 
-```rust, no_run, ignore
-let dataset = smartcore::dataset::breast_cancer::load_dataset();
-let settings = automl::Settings::default_classification();
-let mut classifier = automl::SupervisedModel::new(dataset, settings);
-classifier.train();
+```rust
+let (x, y) = automl::regression_testing_data();
+let settings = automl::Settings::default_regression();
+let mut regressor = automl::SupervisedModel::new(x, y, settings);
+regressor.train();
 ```
 
 will perform a comparison of classifier models using cross-validation. Printing the classifier object will yield:

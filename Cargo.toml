@@ -15,19 +15,6 @@ categories = ["algorithms", "mathematics", "science"]
 [dependencies]
 smartcore = { version = "^0.4", features = ["serde"] }
 serde = { version = "^1", features = ["derive"] }
-bincode = { version = "^2", features = ["serde"] }
 itertools = "^0.14"
 comfy-table = "^7"
 humantime = "^2"
-ndarray = { version = "^0.16", optional = true }
-polars = { version = "^0.50", features = ["ndarray"], optional = true }
-url = { version = "^2", optional = true }
-temp-file = { version = "^0.1", optional = true }
-csv-sniffer = { version = "^0.3", optional = true }
-minreq = { version = "^2", optional = true, features = ["json-using-serde", "https"] }
-serde_yaml = "0.9.33" # Last maintained version
-
-[features]
-default = []
-nd = ["ndarray"]
-csv = ["polars", "nd", "url", "temp-file", "minreq", "csv-sniffer"]
