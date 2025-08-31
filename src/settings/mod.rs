@@ -355,7 +355,7 @@ where
         Duration,
     ) {
         let start = Instant::now();
-        let results = self.cv(&x, &y, settings);
+        let results = self.cv(x, y, settings);
         let end = Instant::now();
         (results.0, results.1, end.duration_since(start))
     }
@@ -423,15 +423,19 @@ where
     OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
 {
     fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::DecisionTreeRegressor(_), Self::DecisionTreeRegressor(_)) => true,
-            (Self::RandomForestRegressor(_), Self::RandomForestRegressor(_)) => true,
-            (Self::Linear(_), Self::Linear(_)) => true,
-            (Self::Ridge(_), Self::Ridge(_)) => true,
-            (Self::Lasso(_), Self::Lasso(_)) => true,
-            (Self::ElasticNet(_), Self::ElasticNet(_)) => true,
-            _ => false,
-        }
+        matches!(
+            (self, other),
+            (
+                Self::DecisionTreeRegressor(_),
+                Self::DecisionTreeRegressor(_)
+            ) | (
+                Self::RandomForestRegressor(_),
+                Self::RandomForestRegressor(_)
+            ) | (Self::Linear(_), Self::Linear(_))
+                | (Self::Ridge(_), Self::Ridge(_))
+                | (Self::Lasso(_), Self::Lasso(_))
+                | (Self::ElasticNet(_), Self::ElasticNet(_))
+        )
     }
 }
 

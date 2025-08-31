@@ -1,3 +1,5 @@
+//! Display utilities for formatting optional and KNN values.
+
 use smartcore::{algorithm::neighbour::KNNAlgorithmName, neighbors::KNNWeightFunction};
 use std::fmt::{Debug, Display};
 

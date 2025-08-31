@@ -1,3 +1,5 @@
+//! Distance metrics supported by the crate.
+
 use std::fmt::{Display, Formatter};
 
 /// Distance metrics

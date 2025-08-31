@@ -10,7 +10,7 @@ use super::{
     KNNClassifierParameters, KNNRegressorParameters, LassoParameters, LinearRegressionParameters,
     LinearRegressionSolverName, LogisticRegressionParameters, Metric, PreProcessing,
     RandomForestClassifierParameters, RandomForestRegressorParameters, RidgeRegressionParameters,
-    RidgeRegressionSolverName, SVCParameters,
+    RidgeRegressionSolverName,
 };
 
 use crate::utils::display::print_option;
@@ -77,8 +77,6 @@ where
     pub(crate) random_forest_classifier_settings: Option<RandomForestClassifierParameters>,
     /// Optional settings for KNN classifier
     pub(crate) knn_classifier_settings: Option<KNNClassifierParameters>,
-    /// Optional settings for support vector classifier
-    pub(crate) svc_settings: Option<SVCParameters>,
     /// Optional settings for decision tree classifier
     pub(crate) decision_tree_classifier_settings: Option<DecisionTreeClassifierParameters>,
     /// Optional settings for Gaussian Naive Bayes
@@ -123,7 +121,6 @@ where
             logistic_settings: None,
             random_forest_classifier_settings: None,
             knn_classifier_settings: None,
-            svc_settings: None,
             decision_tree_classifier_settings: None,
             gaussian_nb_settings: None,
             categorical_nb_settings: None,
@@ -182,7 +179,6 @@ where
             logistic_settings: None,
             random_forest_classifier_settings: None,
             knn_classifier_settings: None,
-            svc_settings: None,
             decision_tree_classifier_settings: None,
             gaussian_nb_settings: None,
             categorical_nb_settings: None,

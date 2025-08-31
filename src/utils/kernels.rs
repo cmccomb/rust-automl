@@ -1,3 +1,5 @@
+//! Kernel options for support vector machines.
+
 use std::fmt::{Display, Formatter};
 
 /// Kernel options for use with support vector machines
