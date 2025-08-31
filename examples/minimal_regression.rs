@@ -1,3 +1,4 @@
+#![allow(clippy::needless_doctest_main)]
 //! Minimal regression example
 //!
 //! This example demonstrates the minimal steps required to run a model

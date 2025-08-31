@@ -1,3 +1,4 @@
+#![allow(clippy::needless_doctest_main)]
 //! Maximal regression example
 //!
 //! This example demonstrates the maximal steps required to run a model
