@@ -36,13 +36,13 @@ pub enum Kernel {
     Linear,
 
     /// Polynomial kernel
-    Polynomial(f32, f32, f32),
+    Polynomial(f64, f64, f64),
 
     /// Radial basis function kernel
-    RBF(f32),
+    RBF(f64),
 
     /// Sigmoid kernel
-    Sigmoid(f32, f32),
+    Sigmoid(f64, f64),
 }
 
 impl Display for Kernel {
@@ -93,7 +93,10 @@ impl Display for Distance {
 }
 
 /// Function to do element-wise multiplication fo two vectors
-pub fn elementwise_multiply(v1: &[f32], v2: &[f32]) -> Vec<f32> {
+pub fn elementwise_multiply<T>(v1: &[T], v2: &[T]) -> Vec<T>
+where
+    T: std::ops::Mul<Output = T> + Copy,
+{
     v1.iter().zip(v2).map(|(&i1, &i2)| i1 * i2).collect()
 }
 

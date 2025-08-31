@@ -4,8 +4,9 @@
 
 # AutoML with SmartCore
 
-AutoML (_Automated Machine Learning_) streamlines machine learning workflows, making them more accessible and efficient 
-for users of all experience levels. This crate extends the [`smartcore`](https://docs.rs/smartcore/) machine learning framework, providing utilities to 
+AutoML (_Automated Machine Learning_) streamlines machine learning workflows, making them more accessible and efficient
+for users of all experience levels. This crate extends the [`smartcore`](https://docs.rs/smartcore/) machine learning
+framework, providing utilities to
 quickly train, compare, and deploy models.
 
 # Install
@@ -13,10 +14,13 @@ quickly train, compare, and deploy models.
 Add AutoML to your `Cargo.toml` to get started:
 
 **Stable Version**
+
 ```toml
 automl = "0.2.9"
 ```
+
 **Latest Development Version**
+
 ```toml
 automl = { git = "https://github.com/cmccomb/rust-automl" }
 ```
@@ -25,8 +29,7 @@ automl = { git = "https://github.com/cmccomb/rust-automl" }
 
 Here’s a quick example to illustrate how AutoML can simplify model training and comparison:
 
-
-```rust
+```rust, no_run, ignore
 let dataset = smartcore::dataset::breast_cancer::load_dataset();
 let settings = automl::Settings::default_classification();
 let mut classifier = automl::SupervisedModel::new(dataset, settings);
@@ -62,34 +65,34 @@ You can then perform inference using the best model with the `predict` method.
 This crate has several features that add some additional methods.
 
 | Feature | Description                                                                                             |
-| :------ | :------------------------------------------------------------------------------------------------------ |
+|:--------|:--------------------------------------------------------------------------------------------------------|
 | `nd`    | Adds methods for predicting/reading data using [`ndarray`](https://crates.io/crates/ndarray).           |
 | `csv`   | Adds methods for predicting/reading data from a .csv using [`polars`](https://crates.io/crates/polars). |
 
 ## Capabilities
 
 - Feature Engineering
-  - PCA 
-  - SVD
-  - Interaction terms
-  - Polynomial terms
+    - PCA
+    - SVD
+    - Interaction terms
+    - Polynomial terms
 - Regression
-  - Decision Tree Regression
-  - KNN Regression
-  - Random Forest Regression
-  - Linear Regression
-  - Ridge Regression
-  - LASSO
-  - Elastic Net
-  - Support Vector Regression
+    - Decision Tree Regression
+    - KNN Regression
+    - Random Forest Regression
+    - Linear Regression
+    - Ridge Regression
+    - LASSO
+    - Elastic Net
+    - Support Vector Regression
 - Classification
-  - Random Forest Classification
-  - Decision Tree Classification
-  - Support Vector Classification
-  - Logistic Regression
-  - KNN Classification
-  - Gaussian Naive Bayes
+    - Random Forest Classification
+    - Decision Tree Classification
+    - Support Vector Classification
+    - Logistic Regression
+    - KNN Classification
+    - Gaussian Naive Bayes
 - Meta-learning
-  - Blending
+    - Blending
 - Save and load settings
 - Save and load models
