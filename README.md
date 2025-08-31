@@ -25,26 +25,14 @@ automl = { git = "https://github.com/cmccomb/rust-automl" }
 use automl::{Settings, SupervisedModel};
 use smartcore::linalg::basic::matrix::DenseMatrix;
 
-# Example Usage
-
-Here’s a quick example to illustrate how `AutoML` can simplify model training and comparison:
+let x = DenseMatrix::from_2d_vec(&vec![
     vec![1.0_f64, 2.0, 3.0],
     vec![2.0, 3.0, 4.0],
     vec![3.0, 4.0, 5.0],
-]).unwrap();
-let y = vec![1.0_f64, 2.0, 3.0];
-let mut model = SupervisedModel::new(x, y, Settings::default_regression());
-    vec![1.0_f64, 2.0, 3.0, 4.0, 5.0, 6.0],
-    vec![2.0, 3.0, 4.0, 5.0, 6.0, 7.0],
-    vec![3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
-    vec![4.0, 5.0, 6.0, 7.0, 8.0, 9.0],
-    vec![5.0, 6.0, 7.0, 8.0, 9.0, 10.0],
-    vec![6.0, 7.0, 8.0, 9.0, 10.0, 11.0],
-    vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0],
-    vec![8.0, 9.0, 10.0, 11.0, 12.0, 13.0],
 ])
 .unwrap();
-let y = vec![1.0_f64, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
+let y = vec![1.0_f64, 2.0, 3.0];
+let _model = SupervisedModel::new(x, y, Settings::default_regression());
 ```
 
 ```sh

@@ -5,6 +5,7 @@ use std::fmt::{Display, Formatter};
 use std::time::{Duration, Instant};
 
 use super::Settings;
+use crate::utils::distance::Distance;
 use smartcore::api::SupervisedEstimator;
 use smartcore::linalg::basic::arrays::{Array1, Array2, MutArrayView1, MutArrayView2};
 use smartcore::linalg::traits::cholesky::CholeskyDecomposable;
@@ -204,16 +205,45 @@ where
                     "Error during training. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
                 ),
             ),
-            Self::KNNRegressorMinkowski(_) => Self::KNNRegressorMinkowski(
-                smartcore::neighbors::knn_regressor::KNNRegressor::fit(
-                    &x,
-                    &y,
-                    smartcore::neighbors::knn_regressor::KNNRegressorParameters::default().with_k(settings.knn_regressor_settings.as_ref().unwrap().k).with_algorithm(settings.knn_regressor_settings.as_ref().unwrap().algorithm.clone()).with_weight(settings.knn_regressor_settings.as_ref().unwrap().weight.clone()).with_distance(Minkowski::new(3_u16)),
+            Self::KNNRegressorMinkowski(_) => {
+                let p = match settings
+                    .knn_regressor_settings
+                    .as_ref()
+                    .unwrap()
+                    .distance
+                {
+                    Distance::Minkowski(p) => p,
+                    _ => unreachable!("Minkowski variant without Minkowski distance"),
+                };
+                Self::KNNRegressorMinkowski(
+                    smartcore::neighbors::knn_regressor::KNNRegressor::fit(
+                        &x,
+                        &y,
+                        smartcore::neighbors::knn_regressor::KNNRegressorParameters::default()
+                            .with_k(settings.knn_regressor_settings.as_ref().unwrap().k)
+                            .with_algorithm(
+                                settings
+                                    .knn_regressor_settings
+                                    .as_ref()
+                                    .unwrap()
+                                    .algorithm
+                                    .clone(),
+                            )
+                            .with_weight(
+                                settings
+                                    .knn_regressor_settings
+                                    .as_ref()
+                                    .unwrap()
+                                    .weight
+                                    .clone(),
+                            )
+                            .with_distance(Minkowski::new(p)),
+                    )
+                    .expect(
+                        "Error during training. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
+                    ),
                 )
-                .expect(
-                    "Error during training. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
-                ),
-            ),
+            }
             Self::KNNRegressorHamming(_) => Self::KNNRegressorHamming(
                 smartcore::neighbors::knn_regressor::KNNRegressor::fit(
                     &x,
@@ -342,17 +372,30 @@ where
                     y,
                     smartcore::neighbors::knn_regressor::KNNRegressorParameters::default()
                         .with_k(settings.knn_regressor_settings.as_ref().unwrap().k)
-                        .with_algorithm(settings.knn_regressor_settings.as_ref().unwrap().algorithm.clone())
-                        .with_weight(settings.knn_regressor_settings.as_ref().unwrap().weight.clone())
+                        .with_algorithm(
+                            settings
+                                .knn_regressor_settings
+                                .as_ref()
+                                .unwrap()
+                                .algorithm
+                                .clone(),
+                        )
+                        .with_weight(
+                            settings
+                                .knn_regressor_settings
+                                .as_ref()
+                                .unwrap()
+                                .weight
+                                .clone(),
+                        )
                         .with_distance(Euclidian::new()),
                     &settings.get_kfolds(),
                     &settings.get_metric(),
                 )
-                    .expect(
-                        "Error during cross-validation. This is likely a bug in the AutoML library",
-                    ),
-                Algorithm::default_knn_regressor()
-                    .fit(x.clone(), y.clone(), settings),
+                .expect(
+                    "Error during cross-validation. This is likely a bug in the AutoML library",
+                ),
+                Algorithm::default_knn_regressor().fit(x.clone(), y.clone(), settings),
             ),
             Algorithm::KNNRegressorManhattan(_) => (
                 smartcore::model_selection::cross_validate(
@@ -367,43 +410,80 @@ where
                     y,
                     smartcore::neighbors::knn_regressor::KNNRegressorParameters::default()
                         .with_k(settings.knn_regressor_settings.as_ref().unwrap().k)
-                        .with_algorithm(settings.knn_regressor_settings.as_ref().unwrap().algorithm.clone())
-                        .with_weight(settings.knn_regressor_settings.as_ref().unwrap().weight.clone())
+                        .with_algorithm(
+                            settings
+                                .knn_regressor_settings
+                                .as_ref()
+                                .unwrap()
+                                .algorithm
+                                .clone(),
+                        )
+                        .with_weight(
+                            settings
+                                .knn_regressor_settings
+                                .as_ref()
+                                .unwrap()
+                                .weight
+                                .clone(),
+                        )
                         .with_distance(Manhattan::new()),
                     &settings.get_kfolds(),
                     &settings.get_metric(),
                 )
+                .expect(
+                    "Error during cross-validation. This is likely a bug in the AutoML library",
+                ),
+                Algorithm::default_knn_regressor_manhattan().fit(x.clone(), y.clone(), settings),
+            ),
+            Algorithm::KNNRegressorMinkowski(_) => {
+                let p = match settings
+                    .knn_regressor_settings
+                    .as_ref()
+                    .unwrap()
+                    .distance
+                {
+                    Distance::Minkowski(p) => p,
+                    _ => unreachable!("Minkowski variant without Minkowski distance"),
+                };
+                (
+                    smartcore::model_selection::cross_validate(
+                        smartcore::neighbors::knn_regressor::KNNRegressor::<
+                            INPUT,
+                            OUTPUT,
+                            InputArray,
+                            OutputArray,
+                            Minkowski<INPUT>,
+                        >::new(),
+                        x,
+                        y,
+                        smartcore::neighbors::knn_regressor::KNNRegressorParameters::default()
+                            .with_k(settings.knn_regressor_settings.as_ref().unwrap().k)
+                            .with_algorithm(
+                                settings
+                                    .knn_regressor_settings
+                                    .as_ref()
+                                    .unwrap()
+                                    .algorithm
+                                    .clone(),
+                            )
+                            .with_weight(
+                                settings
+                                    .knn_regressor_settings
+                                    .as_ref()
+                                    .unwrap()
+                                    .weight
+                                    .clone(),
+                            )
+                            .with_distance(Minkowski::new(p)),
+                        &settings.get_kfolds(),
+                        &settings.get_metric(),
+                    )
                     .expect(
                         "Error during cross-validation. This is likely a bug in the AutoML library",
                     ),
-                Algorithm::default_knn_regressor()
-                    .fit(x.clone(), y.clone(), settings),
-            ),
-            Algorithm::KNNRegressorMinkowski(_) => (
-                smartcore::model_selection::cross_validate(
-                    smartcore::neighbors::knn_regressor::KNNRegressor::<
-                        INPUT,
-                        OUTPUT,
-                        InputArray,
-                        OutputArray,
-                        Minkowski<INPUT>,
-                    >::new(),
-                    x,
-                    y,
-                    smartcore::neighbors::knn_regressor::KNNRegressorParameters::default()
-                        .with_k(settings.knn_regressor_settings.as_ref().unwrap().k)
-                        .with_algorithm(settings.knn_regressor_settings.as_ref().unwrap().algorithm.clone())
-                        .with_weight(settings.knn_regressor_settings.as_ref().unwrap().weight.clone())
-                        .with_distance(Minkowski::new(3_u16)),
-                    &settings.get_kfolds(),
-                    &settings.get_metric(),
+                    Algorithm::default_knn_regressor_minkowski().fit(x.clone(), y.clone(), settings),
                 )
-                    .expect(
-                        "Error during cross-validation. This is likely a bug in the AutoML library",
-                    ),
-                Algorithm::default_knn_regressor()
-                    .fit(x.clone(), y.clone(), settings),
-            ),
+            }
             Algorithm::KNNRegressorHamming(_) => (
                 smartcore::model_selection::cross_validate(
                     smartcore::neighbors::knn_regressor::KNNRegressor::<
@@ -417,17 +497,30 @@ where
                     y,
                     smartcore::neighbors::knn_regressor::KNNRegressorParameters::default()
                         .with_k(settings.knn_regressor_settings.as_ref().unwrap().k)
-                        .with_algorithm(settings.knn_regressor_settings.as_ref().unwrap().algorithm.clone())
-                        .with_weight(settings.knn_regressor_settings.as_ref().unwrap().weight.clone())
+                        .with_algorithm(
+                            settings
+                                .knn_regressor_settings
+                                .as_ref()
+                                .unwrap()
+                                .algorithm
+                                .clone(),
+                        )
+                        .with_weight(
+                            settings
+                                .knn_regressor_settings
+                                .as_ref()
+                                .unwrap()
+                                .weight
+                                .clone(),
+                        )
                         .with_distance(Hamming::new()),
                     &settings.get_kfolds(),
                     &settings.get_metric(),
                 )
-                    .expect(
-                        "Error during cross-validation. This is likely a bug in the AutoML library",
-                    ),
-                Algorithm::default_knn_regressor()
-                    .fit(x.clone(), y.clone(), settings),
+                .expect(
+                    "Error during cross-validation. This is likely a bug in the AutoML library",
+                ),
+                Algorithm::default_knn_regressor_hamming().fit(x.clone(), y.clone(), settings),
             ),
         }
     }
@@ -449,16 +542,29 @@ where
     }
 
     /// Get a vector of all possible algorithms
-    pub fn all_algorithms() -> Vec<Self> {
-        vec![
+    pub fn all_algorithms(
+        settings: &Settings<INPUT, OUTPUT, InputArray, OutputArray>,
+    ) -> Vec<Self> {
+        let mut algorithms = vec![
             Self::default_linear(),
             Self::default_ridge(),
             Self::default_lasso(),
             Self::default_elastic_net(),
             Self::default_random_forest(),
             Self::default_decision_tree(),
-            Self::default_knn_regressor(),
-        ]
+        ];
+
+        if let Some(knn) = &settings.knn_regressor_settings {
+            match knn.distance {
+                Distance::Euclidean => algorithms.push(Self::default_knn_regressor()),
+                Distance::Manhattan => algorithms.push(Self::default_knn_regressor_manhattan()),
+                Distance::Minkowski(_) => algorithms.push(Self::default_knn_regressor_minkowski()),
+                Distance::Hamming => algorithms.push(Self::default_knn_regressor_hamming()),
+                Distance::Mahalanobis => {}
+            }
+        }
+
+        algorithms
     }
 
     /// Default linear regression algorithm
@@ -498,6 +604,21 @@ where
     /// Default KNN regression algorithm
     pub fn default_knn_regressor() -> Self {
         Self::KNNRegressorEuclidian(smartcore::neighbors::knn_regressor::KNNRegressor::new())
+    }
+
+    /// Default KNN regression algorithm using Manhattan distance
+    pub fn default_knn_regressor_manhattan() -> Self {
+        Self::KNNRegressorManhattan(smartcore::neighbors::knn_regressor::KNNRegressor::new())
+    }
+
+    /// Default KNN regression algorithm using Minkowski distance
+    pub fn default_knn_regressor_minkowski() -> Self {
+        Self::KNNRegressorMinkowski(smartcore::neighbors::knn_regressor::KNNRegressor::new())
+    }
+
+    /// Default KNN regression algorithm using Hamming distance
+    pub fn default_knn_regressor_hamming() -> Self {
+        Self::KNNRegressorHamming(smartcore::neighbors::knn_regressor::KNNRegressor::new())
     }
 }
 

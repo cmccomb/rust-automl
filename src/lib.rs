@@ -169,7 +169,7 @@ where
         }
 
         // Iterate over variants in Algorithm
-        for alg in Algorithm::all_algorithms() {
+        for alg in Algorithm::all_algorithms(&self.settings) {
             if !self.settings.skiplist.contains(&alg) {
                 self.record_trained_model(alg.cross_validate_model(
                     &self.x_train,
