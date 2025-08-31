@@ -50,6 +50,10 @@ let y = vec![0_i32, 1, 1, 0];
 let _model = ClassificationModel::new(x, y, ClassificationSettings::default());
 ```
 
+Additional runnable examples are available in the [`examples/` directory](examples),
+including [`minimal_classification.rs`](examples/minimal_classification.rs) and
+[`maximal_classification.rs`](examples/maximal_classification.rs).
+
 Model comparison:
 
 ```text
