@@ -1,7 +1,8 @@
-//! Implementation of supervised model training and evaluation.
+//! Implementation of regression model training and evaluation.
 
-use super::preprocessing::Preprocessor;
-use crate::settings::{Algorithm, FinalAlgorithm, Metric, Settings};
+use super::{comparison::ComparisonEntry, preprocessing::Preprocessor};
+use crate::algorithms::RegressionAlgorithm;
+use crate::settings::{FinalAlgorithm, Metric, Settings};
 use smartcore::{
     linalg::{
         basic::arrays::{Array, Array1, Array2, MutArrayView1},
@@ -25,15 +26,8 @@ use {
     humantime::format_duration,
 };
 
-/// Alias for entries in the model comparison table.
-type ComparisonEntry<INPUT, OUTPUT, InputArray, OutputArray> = (
-    CrossValidationResult,
-    Algorithm<INPUT, OUTPUT, InputArray, OutputArray>,
-    Duration,
-);
-
-/// Trains and compares supervised models
-pub struct SupervisedModel<INPUT, OUTPUT, InputArray, OutputArray>
+/// Trains and compares regression models
+pub struct RegressionModel<INPUT, OUTPUT, InputArray, OutputArray>
 where
     INPUT: RealNumber + FloatNumber,
     OUTPUT: FloatNumber,
@@ -53,14 +47,14 @@ where
     /// The training labels.
     y_train: OutputArray,
     /// The results of the model comparison.
-    comparison: Vec<ComparisonEntry<INPUT, OUTPUT, InputArray, OutputArray>>,
+    comparison: Vec<ComparisonEntry<RegressionAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>>>,
     /// The final model.
     metamodel: (CrossValidationResult, FinalAlgorithm, Duration),
     /// Preprocessor responsible for feature engineering.
     preprocessor: Preprocessor<INPUT, InputArray>,
 }
 
-impl<INPUT, OUTPUT, InputArray, OutputArray> SupervisedModel<INPUT, OUTPUT, InputArray, OutputArray>
+impl<INPUT, OUTPUT, InputArray, OutputArray> RegressionModel<INPUT, OUTPUT, InputArray, OutputArray>
 where
     INPUT: RealNumber + FloatNumber,
     OUTPUT: FloatNumber, // + Eq + Hash,
@@ -76,14 +70,14 @@ where
     /// Predict values using the final model based on a vec.
     /// ```
     /// # use smartcore::linalg::basic::matrix::DenseMatrix;
-    /// # use automl::{settings, SupervisedModel, Settings};
+    /// # use automl::{algorithms, RegressionModel, Settings};
     /// # let x = DenseMatrix::from_2d_vec(&vec![vec![1.0_f64; 6]; 16]).unwrap();
     /// # let y = vec![0.0_f64; 16];
-    /// # let mut model = SupervisedModel::new(
+    /// # let mut model = RegressionModel::new(
     /// #    x,
     /// #    y,
     /// #    Settings::default_regression()
-    /// #        .only(&settings::Algorithm::default_linear()),
+    /// #        .only(&algorithms::RegressionAlgorithm::default_linear()),
     /// # );
     /// # model.train();
     /// let X = DenseMatrix::from_2d_vec(&vec![vec![5.0; 6]; 5]).unwrap();
@@ -98,17 +92,22 @@ where
             .preprocess(x, &self.settings.preprocessing);
         match self.settings.final_model_approach {
             FinalAlgorithm::None => panic!(""),
-            FinalAlgorithm::Best => match &self.comparison.first().expect("").1 {
-                Algorithm::Linear(model) => model.predict(&x),
-                Algorithm::Lasso(model) => model.predict(&x),
-                Algorithm::Ridge(model) => model.predict(&x),
-                Algorithm::ElasticNet(model) => model.predict(&x),
-                Algorithm::RandomForestRegressor(model) => model.predict(&x),
-                Algorithm::DecisionTreeRegressor(model) => model.predict(&x),
-                Algorithm::KNNRegressorHamming(model) => model.predict(&x),
-                Algorithm::KNNRegressorEuclidian(model) => model.predict(&x),
-                Algorithm::KNNRegressorManhattan(model) => model.predict(&x),
-                Algorithm::KNNRegressorMinkowski(model) => model.predict(&x),
+            FinalAlgorithm::Best => match &self
+                .comparison
+                .first()
+                .expect("")
+                .algorithm
+            {
+                RegressionAlgorithm::Linear(model) => model.predict(&x),
+                RegressionAlgorithm::Lasso(model) => model.predict(&x),
+                RegressionAlgorithm::Ridge(model) => model.predict(&x),
+                RegressionAlgorithm::ElasticNet(model) => model.predict(&x),
+                RegressionAlgorithm::RandomForestRegressor(model) => model.predict(&x),
+                RegressionAlgorithm::DecisionTreeRegressor(model) => model.predict(&x),
+                RegressionAlgorithm::KNNRegressorHamming(model) => model.predict(&x),
+                RegressionAlgorithm::KNNRegressorEuclidian(model) => model.predict(&x),
+                RegressionAlgorithm::KNNRegressorManhattan(model) => model.predict(&x),
+                RegressionAlgorithm::KNNRegressorMinkowski(model) => model.predict(&x),
             }
             .expect(
                 "Error during inference. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
@@ -120,15 +119,15 @@ where
 
     /// Runs a model comparison and trains a final model.
     /// ```
-    /// # use automl::{settings, SupervisedModel, Settings};
+    /// # use automl::{algorithms, RegressionModel, Settings};
     /// # use smartcore::linalg::basic::matrix::DenseMatrix;
     /// # let x = DenseMatrix::from_2d_vec(&vec![vec![1.0_f64; 6]; 16]).unwrap();
     /// # let y = vec![0.0_f64; 16];
-    /// let mut model = SupervisedModel::new(
+    /// let mut model = RegressionModel::new(
     ///     x,
     ///     y,
     ///     Settings::default_regression()
-    /// #        .only(&settings::Algorithm::default_linear())
+    /// #        .only(&algorithms::RegressionAlgorithm::default_linear())
     /// );
     /// model.train();
     /// ```
@@ -137,8 +136,8 @@ where
         self.preprocessor
             .train(&self.x_train.clone(), &self.settings.preprocessing);
 
-        // Iterate over variants in Algorithm
-        for alg in Algorithm::all_algorithms(&self.settings) {
+        // Iterate over variants in RegressionAlgorithm
+        for alg in RegressionAlgorithm::all_algorithms(&self.settings) {
             if !self.settings.skiplist.contains(&alg) {
                 self.record_trained_model(alg.cross_validate_model(
                     &self.x_train,
@@ -159,7 +158,7 @@ where
     }
 }
 
-impl<INPUT, OUTPUT, InputArray, OutputArray> SupervisedModel<INPUT, OUTPUT, InputArray, OutputArray>
+impl<INPUT, OUTPUT, InputArray, OutputArray> RegressionModel<INPUT, OUTPUT, InputArray, OutputArray>
 where
     INPUT: RealNumber + FloatNumber,
     OUTPUT: FloatNumber, // + Eq + Hash,
@@ -204,11 +203,7 @@ where
     /// Record a model in the comparison.
     fn record_trained_model(
         &mut self,
-        trained_model: (
-            CrossValidationResult,
-            Algorithm<INPUT, OUTPUT, InputArray, OutputArray>,
-            Duration,
-        ),
+        trained_model: ComparisonEntry<RegressionAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>>,
     ) {
         self.comparison.push(trained_model);
         self.sort();
@@ -217,8 +212,9 @@ where
     /// Sort the models in the comparison by their mean test scores.
     fn sort(&mut self) {
         self.comparison.sort_by(|a, b| {
-            a.0.mean_test_score()
-                .partial_cmp(&b.0.mean_test_score())
+            a.result
+                .mean_test_score()
+                .partial_cmp(&b.result.mean_test_score())
                 .unwrap_or(Equal)
         });
         if self.settings.sort_by == Metric::RSquared {
@@ -228,7 +224,7 @@ where
 }
 
 impl<INPUT, OUTPUT, InputArray, OutputArray> Display
-    for SupervisedModel<INPUT, OUTPUT, InputArray, OutputArray>
+    for RegressionModel<INPUT, OUTPUT, InputArray, OutputArray>
 where
     INPUT: RealNumber + FloatNumber,
     OUTPUT: FloatNumber,
@@ -251,16 +247,19 @@ where
         ]);
         for model in &self.comparison {
             let mut row_vec = vec![];
-            row_vec.push(model.1.to_string());
-            row_vec.push(format_duration(model.2).to_string());
-            let decider =
-                f64::midpoint(model.0.mean_train_score(), model.0.mean_test_score()).abs();
+            row_vec.push(model.algorithm.to_string());
+            row_vec.push(format_duration(model.duration).to_string());
+            let decider = f64::midpoint(
+                model.result.mean_train_score(),
+                model.result.mean_test_score(),
+            )
+            .abs();
             if decider > 0.01 && decider < 1000.0 {
-                row_vec.push(format!("{:.2}", &model.0.mean_train_score()));
-                row_vec.push(format!("{:.2}", &model.0.mean_test_score()));
+                row_vec.push(format!("{:.2}", &model.result.mean_train_score()));
+                row_vec.push(format!("{:.2}", &model.result.mean_test_score()));
             } else {
-                row_vec.push(format!("{:.3e}", &model.0.mean_train_score()));
-                row_vec.push(format!("{:.3e}", &model.0.mean_test_score()));
+                row_vec.push(format!("{:.3e}", &model.result.mean_train_score()));
+                row_vec.push(format!("{:.3e}", &model.result.mean_test_score()));
             }
 
             table.add_row(row_vec);

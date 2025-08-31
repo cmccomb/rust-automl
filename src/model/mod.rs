@@ -1,6 +1,10 @@
 //! Types and implementations for machine learning models.
 
+pub mod classification;
+mod comparison;
 mod preprocessing;
-pub mod supervised;
+pub mod regression;
 
-pub use supervised::SupervisedModel;
+pub use classification::ClassificationModel;
+pub use comparison::ComparisonEntry;
+pub use regression::RegressionModel;

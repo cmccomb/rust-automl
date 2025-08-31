@@ -2,7 +2,7 @@
 //! Maximal regression example
 //!
 //! This example demonstrates the maximal steps required to run a model
-//! comparison using the `SupervisedModel` API. It loads a small regression
+//! comparison using the `RegressionModel` API. It loads a small regression
 //! fixture, builds default regression settings, trains all configured
 //! algorithms using cross-validation, and prints a comparison table.
 //!
@@ -16,9 +16,10 @@
 mod regression_data;
 
 use automl::{
-    DenseMatrix, Settings, SupervisedModel,
+    DenseMatrix, RegressionModel, Settings,
+    algorithms::RegressionAlgorithm,
     settings::{
-        Algorithm, DecisionTreeRegressorParameters, Distance, ElasticNetParameters, FinalAlgorithm,
+        DecisionTreeRegressorParameters, Distance, ElasticNetParameters, FinalAlgorithm,
         KNNAlgorithmName, KNNRegressorParameters, KNNWeightFunction, LassoParameters,
         LinearRegressionParameters, LinearRegressionSolverName, Metric,
         RandomForestRegressorParameters, RidgeRegressionParameters, RidgeRegressionSolverName,
@@ -36,7 +37,7 @@ fn main() {
         .shuffle_data(true)
         .verbose(true)
         .with_final_model(FinalAlgorithm::Best)
-        .skip(Algorithm::default_random_forest())
+        .skip(RegressionAlgorithm::default_random_forest())
         .sorted_by(Metric::RSquared)
         // .with_preprocessing(PreProcessing::AddInteractions)
         .with_linear_settings(
@@ -93,7 +94,7 @@ fn main() {
         );
 
     // Load a dataset from smartcore and add it to the regressor along with the customized settings
-    let mut model = SupervisedModel::new(x, y, settings);
+    let mut model = RegressionModel::new(x, y, settings);
 
     // Run a model comparison with all models at default settings
     model.train();

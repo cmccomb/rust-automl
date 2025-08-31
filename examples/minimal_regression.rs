@@ -2,7 +2,7 @@
 //! Minimal regression example
 //!
 //! This example demonstrates the minimal steps required to run a model
-//! comparison using the `SupervisedModel` API. It loads a small regression
+//! comparison using the `RegressionModel` API. It loads a small regression
 //! fixture, builds default regression settings, trains all configured
 //! algorithms using cross-validation, and prints a comparison table.
 //!
@@ -15,7 +15,7 @@
 #[path = "../tests/fixtures/regression_data.rs"]
 mod regression_data;
 
-use automl::{Settings, SupervisedModel};
+use automl::{RegressionModel, Settings};
 use regression_data::regression_testing_data;
 
 fn main() {
@@ -26,7 +26,7 @@ fn main() {
     let settings = Settings::default_regression();
 
     // Load a dataset from smartcore and add it to the regressor along with the customized settings
-    let mut model = SupervisedModel::new(x, y, settings);
+    let mut model = RegressionModel::new(x, y, settings);
 
     // Run a model comparison with all models at default settings
     model.train();
