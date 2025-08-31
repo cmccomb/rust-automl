@@ -131,21 +131,21 @@ where
         self,
         x: InputArray,
         y: OutputArray,
-        settings: Settings<INPUT, OUTPUT, InputArray, OutputArray>,
+        settings: &Settings<INPUT, OUTPUT, InputArray, OutputArray>,
     ) -> Self {
         match self {
             Self::Linear(_) => Self::Linear(
                 smartcore::linear::linear_regression::LinearRegression::fit(
                     &x,
                     &y,
-                    settings.linear_settings.unwrap(),
+                    settings.linear_settings.as_ref().unwrap().clone(),
                 )
                 .expect(
                     "Error during training. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
                 ),
             ),
             Self::Lasso(_) => Self::Lasso(
-                smartcore::linear::lasso::Lasso::fit(&x, &y, settings.lasso_settings.unwrap()).expect(
+                smartcore::linear::lasso::Lasso::fit(&x, &y, settings.lasso_settings.as_ref().unwrap().clone()).expect(
                     "Error during training. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
                 ),
             ),
@@ -153,14 +153,14 @@ where
                 smartcore::linear::ridge_regression::RidgeRegression::fit(
                     &x,
                     &y,
-                    settings.ridge_settings.unwrap(),
+                    settings.ridge_settings.as_ref().unwrap().clone(),
                 )
                 .expect(
                     "Error during training. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
                 ),
             ),
             Self::ElasticNet(_) => Self::ElasticNet(
-                smartcore::linear::elastic_net::ElasticNet::fit(&x, &y, settings.elastic_net_settings.unwrap()).expect(
+                smartcore::linear::elastic_net::ElasticNet::fit(&x, &y, settings.elastic_net_settings.as_ref().unwrap().clone()).expect(
                     "Error during training. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
                 ),
             ),
@@ -168,7 +168,7 @@ where
                 smartcore::ensemble::random_forest_regressor::RandomForestRegressor::fit(
                     &x,
                     &y,
-                    settings.random_forest_regressor_settings.unwrap(),
+                    settings.random_forest_regressor_settings.as_ref().unwrap().clone(),
                 )
                 .expect(
                     "Error during training. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
@@ -178,7 +178,7 @@ where
                 smartcore::tree::decision_tree_regressor::DecisionTreeRegressor::fit(
                     &x,
                     &y,
-                    settings.decision_tree_regressor_settings.unwrap(),
+                    settings.decision_tree_regressor_settings.as_ref().unwrap().clone(),
                 )
                     .expect(
                         "Error during training. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
@@ -249,7 +249,7 @@ where
                 .expect(
                     "Error during cross-validation. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
                 ),
-                Algorithm::default_linear().fit(x.clone(), y.clone(), *settings.clone()),
+                Algorithm::default_linear().fit(x.clone(), y.clone(), settings),
             ),
             Algorithm::Ridge(_) => (
                 smartcore::model_selection::cross_validate(
@@ -263,7 +263,7 @@ where
                 .expect(
                     "Error during cross-validation. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
                 ),
-                Algorithm::default_ridge().fit(x.clone(), y.clone(), *settings.clone()),
+                Algorithm::default_ridge().fit(x.clone(), y.clone(), settings),
             ),
             Algorithm::Lasso(_) => (
                 smartcore::model_selection::cross_validate(
@@ -277,7 +277,7 @@ where
                 .expect(
                     "Error during cross-validation. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
                 ),
-                Algorithm::default_lasso().fit(x.clone(), y.clone(), *settings.clone()),
+                Algorithm::default_lasso().fit(x.clone(), y.clone(), settings),
             ),
             Algorithm::ElasticNet(_) => (
                 smartcore::model_selection::cross_validate(
@@ -291,7 +291,7 @@ where
                 .expect(
                     "Error during cross-validation. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
                 ),
-                Algorithm::default_elastic_net().fit(x.clone(), y.clone(), *settings.clone()),
+                Algorithm::default_elastic_net().fit(x.clone(), y.clone(), settings),
             ),
             Algorithm::RandomForestRegressor(_) => (
                 smartcore::model_selection::cross_validate(
@@ -309,7 +309,7 @@ where
                 .expect(
                     "Error during cross-validation. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
                 ),
-                Algorithm::default_random_forest().fit(x.clone(), y.clone(), *settings.clone()),
+                Algorithm::default_random_forest().fit(x.clone(), y.clone(), settings),
             ),
             Algorithm::DecisionTreeRegressor(_) => (
                 smartcore::model_selection::cross_validate(
@@ -327,7 +327,7 @@ where
                 .expect(
                     "Error during cross-validation. This is likely a bug in the AutoML library",
                 ),
-                Algorithm::default_decision_tree().fit(x.clone(), y.clone(), *settings.clone()),
+                Algorithm::default_decision_tree().fit(x.clone(), y.clone(), settings),
             ),
             Algorithm::KNNRegressorEuclidian(_) => (
                 smartcore::model_selection::cross_validate(
@@ -352,7 +352,7 @@ where
                         "Error during cross-validation. This is likely a bug in the AutoML library",
                     ),
                 Algorithm::default_knn_regressor()
-                    .fit(x.clone(), y.clone(), *settings.clone()),
+                    .fit(x.clone(), y.clone(), settings),
             ),
             Algorithm::KNNRegressorManhattan(_) => (
                 smartcore::model_selection::cross_validate(
@@ -377,7 +377,7 @@ where
                         "Error during cross-validation. This is likely a bug in the AutoML library",
                     ),
                 Algorithm::default_knn_regressor()
-                    .fit(x.clone(), y.clone(), *settings.clone()),
+                    .fit(x.clone(), y.clone(), settings),
             ),
             Algorithm::KNNRegressorMinkowski(_) => (
                 smartcore::model_selection::cross_validate(
@@ -402,7 +402,7 @@ where
                         "Error during cross-validation. This is likely a bug in the AutoML library",
                     ),
                 Algorithm::default_knn_regressor()
-                    .fit(x.clone(), y.clone(), *settings.clone()),
+                    .fit(x.clone(), y.clone(), settings),
             ),
             Algorithm::KNNRegressorHamming(_) => (
                 smartcore::model_selection::cross_validate(
@@ -427,7 +427,7 @@ where
                         "Error during cross-validation. This is likely a bug in the AutoML library",
                     ),
                 Algorithm::default_knn_regressor()
-                    .fit(x.clone(), y.clone(), *settings.clone()),
+                    .fit(x.clone(), y.clone(), settings),
             ),
         }
     }
