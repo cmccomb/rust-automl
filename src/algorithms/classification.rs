@@ -10,6 +10,7 @@ use smartcore::linalg::basic::arrays::{Array1, Array2, MutArrayView1, MutArrayVi
 use smartcore::linalg::traits::cholesky::CholeskyDecomposable;
 use smartcore::linalg::traits::qr::QRDecomposable;
 use smartcore::linalg::traits::svd::SVDDecomposable;
+use smartcore::linear::logistic_regression::LogisticRegressionParameters;
 use smartcore::metrics::distance::euclidian::Euclidian;
 use smartcore::model_selection::CrossValidationResult;
 use smartcore::numbers::basenum::Number;
@@ -52,6 +53,15 @@ where
     /// Random forest classifier
     RandomForestClassifier(
         smartcore::ensemble::random_forest_classifier::RandomForestClassifier<
+            INPUT,
+            OUTPUT,
+            InputArray,
+            OutputArray,
+        >,
+    ),
+    /// Logistic regression classifier
+    LogisticRegression(
+        smartcore::linear::logistic_regression::LogisticRegression<
             INPUT,
             OUTPUT,
             InputArray,
@@ -138,6 +148,31 @@ where
                     "Error during training. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
                 ),
             ),
+            Self::LogisticRegression(_) => Self::LogisticRegression(
+                smartcore::linear::logistic_regression::LogisticRegression::fit(
+                    x,
+                    y,
+                    LogisticRegressionParameters {
+                        solver: settings
+                            .logistic_regression_settings
+                            .as_ref()
+                            .unwrap()
+                            .solver
+                            .clone(),
+                        alpha: INPUT::from(
+                            settings
+                                .logistic_regression_settings
+                                .as_ref()
+                                .unwrap()
+                                .alpha,
+                        )
+                        .unwrap(),
+                    },
+                )
+                .expect(
+                    "Error during training. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
+                ),
+            ),
         }
     }
 
@@ -219,6 +254,35 @@ where
                 ),
                 Self::default_random_forest_classifier().fit(x, y, settings),
             ),
+            Self::LogisticRegression(_) => (
+                smartcore::model_selection::cross_validate(
+                    smartcore::linear::logistic_regression::LogisticRegression::new(),
+                    x,
+                    y,
+                    LogisticRegressionParameters {
+                        solver: settings
+                            .logistic_regression_settings
+                            .as_ref()
+                            .unwrap()
+                            .solver
+                            .clone(),
+                        alpha: INPUT::from(
+                            settings
+                                .logistic_regression_settings
+                                .as_ref()
+                                .unwrap()
+                                .alpha,
+                        )
+                        .unwrap(),
+                    },
+                    &settings.get_kfolds(),
+                    &settings.get_metric::<OUTPUT, OutputArray>(),
+                )
+                .expect(
+                    "Error during cross-validation. This is likely a bug in the AutoML library",
+                ),
+                Self::default_logistic_regression().fit(x, y, settings),
+            ),
         }
     }
 
@@ -248,6 +312,9 @@ where
         if settings.random_forest_classifier_settings.is_some() {
             algorithms.push(Self::default_random_forest_classifier());
         }
+        if settings.logistic_regression_settings.is_some() {
+            algorithms.push(Self::default_logistic_regression());
+        }
         algorithms
     }
 
@@ -272,6 +339,12 @@ where
             smartcore::ensemble::random_forest_classifier::RandomForestClassifier::new(),
         )
     }
+
+    /// Default logistic regression classifier algorithm
+    #[must_use]
+    pub fn default_logistic_regression() -> Self {
+        Self::LogisticRegression(smartcore::linear::logistic_regression::LogisticRegression::new())
+    }
 }
 
 impl<INPUT, OUTPUT, InputArray, OutputArray> PartialEq
@@ -294,6 +367,8 @@ where
             || matches!(self, Self::KNNClassifier(_)) && matches!(other, Self::KNNClassifier(_))
             || matches!(self, Self::RandomForestClassifier(_))
                 && matches!(other, Self::RandomForestClassifier(_))
+            || matches!(self, Self::LogisticRegression(_))
+                && matches!(other, Self::LogisticRegression(_))
     }
 }
 
@@ -335,6 +410,7 @@ where
             Self::DecisionTreeClassifier(_) => write!(f, "Decision Tree Classifier"),
             Self::KNNClassifier(_) => write!(f, "KNN Classifier"),
             Self::RandomForestClassifier(_) => write!(f, "Random Forest Classifier"),
+            Self::LogisticRegression(_) => write!(f, "Logistic Regression"),
         }
     }
 }
