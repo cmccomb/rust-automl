@@ -1,4 +1,4 @@
-use automl::{Settings, SupervisedModel, regression_testing_data};
+use automl::{regression_testing_data, settings::Settings, supervised_model::SupervisedModel};
 
 fn main() {
     // Load some regression data

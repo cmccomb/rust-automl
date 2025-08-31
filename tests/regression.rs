@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod regression_tests {
-    use automl::*;
+    use automl::{
+        DenseMatrix, regression_testing_data, settings::Settings, supervised_model::SupervisedModel,
+    };
 
     #[test]
     fn test_default_regression() {
