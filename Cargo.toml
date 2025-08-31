@@ -13,8 +13,8 @@ keywords = ["machine-learning", "ml", "ai", "smartcore", "automl"]
 categories = ["algorithms", "mathematics", "science"]
 
 [dependencies]
-smartcore = { version = "^0.4", features = ["serde"] }
-serde = { version = "^1", features = ["derive"] }
-itertools = "^0.14"
-comfy-table = "^7"
-humantime = "^2"
+smartcore = { version = "=0.4.2", features = ["serde"] }
+serde = { version = "=1.0.219", features = ["derive"] }
+itertools = "=0.14.0"
+comfy-table = "=7.2.0"
+humantime = "=2.2.0"
