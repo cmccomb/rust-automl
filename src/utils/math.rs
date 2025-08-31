@@ -1,3 +1,5 @@
+//! Mathematical helper functions.
+
 use std::ops::Mul;
 
 /// Function to do element-wise multiplication of two vectors

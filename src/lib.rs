@@ -4,10 +4,7 @@
     clippy::suspicious,
     clippy::complexity,
     clippy::perf,
-    clippy::style,
-    clippy::pedantic,
-    clippy::nursery,
-    clippy::missing_docs_in_private_items
+    clippy::style
 )]
 #![allow(clippy::module_name_repetitions, clippy::too_many_lines)]
 #![warn(missing_docs)]
@@ -54,6 +51,12 @@ use {
     humantime::format_duration,
 };
 
+type ComparisonEntry<INPUT, OUTPUT, InputArray, OutputArray> = (
+    CrossValidationResult,
+    Algorithm<INPUT, OUTPUT, InputArray, OutputArray>,
+    Duration,
+);
+
 /// Trains and compares supervised models
 pub struct SupervisedModel<INPUT, OUTPUT, InputArray, OutputArray>
 where
@@ -74,16 +77,8 @@ where
     x_train: InputArray,
     /// The training labels.
     y_train: OutputArray,
-    /// The validation data.
-    x_val: InputArray,
-    /// The validation labels.
-    y_val: OutputArray,
     /// The results of the model comparison.
-    comparison: Vec<(
-        CrossValidationResult,
-        Algorithm<INPUT, OUTPUT, InputArray, OutputArray>,
-        Duration,
-    )>,
+    comparison: Vec<ComparisonEntry<INPUT, OUTPUT, InputArray, OutputArray>>,
     /// The final model.
     metamodel: (CrossValidationResult, FinalAlgorithm, Duration),
     /// PCA model for preprocessing.
@@ -128,7 +123,7 @@ where
         let x = self.preprocess(x);
         match self.settings.final_model_approach {
             FinalAlgorithm::None => panic!(""),
-            FinalAlgorithm::Best => match &self.comparison.get(0).expect("").1 {
+            FinalAlgorithm::Best => match &self.comparison.first().expect("").1 {
                 Algorithm::Linear(model) => model.predict(&x),
                 Algorithm::Lasso(model) => model.predict(&x),
                 Algorithm::Ridge(model) => model.predict(&x),
@@ -219,11 +214,9 @@ where
     ) -> Self {
         Self {
             settings,
-            x_train: x.clone(),
+            x_train: x,
             // number_of_classes: Self::count_classes(&y),
-            y_train: y.clone(),
-            x_val: x,
-            y_val: y,
+            y_train: y,
             comparison: vec![],
             metamodel: (
                 CrossValidationResult {
@@ -246,10 +239,10 @@ where
         for column_1 in 0..width {
             for column_2 in (column_1 + 1)..width {
                 let col1: Vec<INPUT> = (0..height)
-                    .map(|idx| x.get_col(column_1).get(idx).clone())
+                    .map(|idx| *x.get_col(column_1).get(idx))
                     .collect();
                 let col2: Vec<INPUT> = (0..height)
-                    .map(|idx| x.get_col(column_2).get(idx).clone())
+                    .map(|idx| *x.get_col(column_2).get(idx))
                     .collect();
                 let feature = elementwise_multiply(&col1, &col2);
                 let new_column = DenseMatrix::from_2d_vec(&vec![feature; 1])
@@ -287,9 +280,8 @@ where
 
                 // Multiply the columns together
                 for column in combo {
-                    let col: Vec<INPUT> = (0..height)
-                        .map(|idx| x.get_col(column).get(idx).clone())
-                        .collect();
+                    let col: Vec<INPUT> =
+                        (0..height).map(|idx| *x.get_col(column).get(idx)).collect();
                     feature = elementwise_multiply(&col, &feature);
                 }
 
@@ -376,23 +368,6 @@ where
         }
     }
 
-    /// Count the number of classes in the data.
-    ///
-    /// # Arguments
-    ///
-    /// * `y` - The data to count the classes in
-    ///
-    /// # Returns
-    ///
-    /// * The number of classes
-    // fn count_classes(y: &OutputArray) -> usize {
-    //     let mut classes = HashSet::new();
-    //     for value in y.iterator(0_u8) {
-    //         classes.insert(value.clone());
-    //     }
-    //     classes.len()
-    // }
-
     /// Record a model in the comparison.
     fn record_trained_model(
         &mut self,
@@ -443,9 +418,10 @@ where
         ]);
         for model in &self.comparison {
             let mut row_vec = vec![];
-            row_vec.push(format!("{}", &model.1.to_string()));
-            row_vec.push(format!("{}", format_duration(model.2)));
-            let decider = ((model.0.mean_train_score() + model.0.mean_test_score()) / 2.0).abs();
+            row_vec.push(model.1.to_string());
+            row_vec.push(format_duration(model.2).to_string());
+            let decider =
+                f64::midpoint(model.0.mean_train_score(), model.0.mean_test_score()).abs();
             if decider > 0.01 && decider < 1000.0 {
                 row_vec.push(format!("{:.2}", &model.0.mean_train_score()));
                 row_vec.push(format!("{:.2}", &model.0.mean_test_score()));
@@ -468,10 +444,12 @@ where
 
         // Populate row
         let mut row_vec = vec![];
-        row_vec.push(format!("METAMODEL"));
-        let decider = ((self.metamodel.0.mean_train_score() + self.metamodel.0.mean_test_score())
-            / 2.0)
-            .abs();
+        row_vec.push("METAMODEL".to_string());
+        let decider = f64::midpoint(
+            self.metamodel.0.mean_train_score(),
+            self.metamodel.0.mean_test_score(),
+        )
+        .abs();
         if decider > 0.01 && decider < 1000.0 {
             row_vec.push(format!("{:.2}", self.metamodel.0.mean_train_score()));
             row_vec.push(format!("{:.2}", self.metamodel.0.mean_test_score()));
@@ -486,14 +464,4 @@ where
         // Write
         write!(f, "{table}\n{meta_table}")
     }
-}
-
-/// This is a wrapper for the `CrossValidationResult`
-#[derive(serde::Serialize, serde::Deserialize)]
-#[serde(remote = "CrossValidationResult")]
-struct CrossValidationResultDef {
-    /// Vector with test scores on each cv split
-    pub test_score: Vec<f64>,
-    /// Vector with training scores on each cv split
-    pub train_score: Vec<f64>,
 }
