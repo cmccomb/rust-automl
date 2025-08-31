@@ -5,7 +5,7 @@ use std::fmt::{Display, Formatter};
 use std::time::Instant;
 
 use crate::model::ComparisonEntry;
-use crate::settings::Settings;
+use crate::settings::RegressionSettings;
 use crate::utils::distance::Distance;
 use smartcore::api::SupervisedEstimator;
 use smartcore::linalg::basic::arrays::{Array1, Array2, MutArrayView1, MutArrayView2};
@@ -135,7 +135,7 @@ where
         self,
         x: &InputArray,
         y: &OutputArray,
-        settings: &Settings<INPUT, OUTPUT, InputArray, OutputArray>,
+        settings: &RegressionSettings<INPUT, OUTPUT, InputArray, OutputArray>,
     ) -> Self {
         match self {
             Self::Linear(_) => Self::Linear(
@@ -264,7 +264,7 @@ where
         self,
         x: &InputArray,
         y: &OutputArray,
-        settings: &Settings<INPUT, OUTPUT, InputArray, OutputArray>,
+        settings: &RegressionSettings<INPUT, OUTPUT, InputArray, OutputArray>,
     ) -> (
         CrossValidationResult,
         RegressionAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>,
@@ -531,7 +531,7 @@ where
         self,
         x: &InputArray,
         y: &OutputArray,
-        settings: &Settings<INPUT, OUTPUT, InputArray, OutputArray>,
+        settings: &RegressionSettings<INPUT, OUTPUT, InputArray, OutputArray>,
     ) -> ComparisonEntry<RegressionAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>> {
         let start = Instant::now();
         let results = self.cv(x, y, settings);
@@ -545,7 +545,7 @@ where
 
     /// Get a vector of all possible algorithms
     pub fn all_algorithms(
-        settings: &Settings<INPUT, OUTPUT, InputArray, OutputArray>,
+        settings: &RegressionSettings<INPUT, OUTPUT, InputArray, OutputArray>,
     ) -> Vec<Self> {
         let mut algorithms = vec![
             Self::default_linear(),

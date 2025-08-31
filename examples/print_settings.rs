@@ -2,13 +2,13 @@ use automl::settings::{
     DecisionTreeRegressorParameters, Distance, ElasticNetParameters, KNNAlgorithmName,
     KNNRegressorParameters, KNNWeightFunction, LassoParameters, LinearRegressionParameters,
     LinearRegressionSolverName, Metric, PreProcessing, RandomForestRegressorParameters,
-    RidgeRegressionParameters, RidgeRegressionSolverName, Settings,
+    RegressionSettings, RidgeRegressionParameters, RidgeRegressionSolverName,
 };
 use smartcore::linalg::basic::matrix::DenseMatrix;
 
 fn main() {
-    let regressor_settings: Settings<f64, f64, DenseMatrix<f64>, Vec<f64>> =
-        automl::Settings::default_regression()
+    let regressor_settings: RegressionSettings<f64, f64, DenseMatrix<f64>, Vec<f64>> =
+        automl::RegressionSettings::default()
             .with_number_of_folds(3)
             .shuffle_data(true)
             .verbose(true)
@@ -67,7 +67,7 @@ fn main() {
                     .with_min_samples_leaf(20),
             );
 
-    // let classifier_settings = automl::Settings::default_classification()
+    // let classifier_settings = automl::ClassificationSettings::default()
     //     .with_number_of_folds(3)
     //     .shuffle_data(true)
     //     .verbose(true)

@@ -2,23 +2,23 @@
 mod regression_data;
 
 use automl::algorithms::RegressionAlgorithm;
-use automl::{DenseMatrix, RegressionModel, Settings};
+use automl::{DenseMatrix, RegressionModel, RegressionSettings};
 use regression_data::regression_testing_data;
 
 #[test]
 fn test_default_regression() {
-    let settings = Settings::default_regression();
+    let settings = RegressionSettings::default();
     test_from_settings(settings);
 }
 
 #[test]
 fn test_knn_only_regression() {
     let settings =
-        Settings::default_regression().only(&RegressionAlgorithm::default_knn_regressor());
+        RegressionSettings::default().only(&RegressionAlgorithm::default_knn_regressor());
     test_from_settings(settings);
 }
 
-fn test_from_settings(settings: Settings<f64, f64, DenseMatrix<f64>, Vec<f64>>) {
+fn test_from_settings(settings: RegressionSettings<f64, f64, DenseMatrix<f64>, Vec<f64>>) {
     // Get test data
     let (x, y) = regression_testing_data();
 
