@@ -99,7 +99,7 @@ fn main() {
     model.train();
 
     // Print the results
-    println!("{}", model);
+    println!("{model}");
 
     // Predict with the model, be sure to use a DenseMatrix
     let preds = model.predict(DenseMatrix::from_2d_vec(&vec![vec![5.0_f64; 6]; 10]).unwrap());

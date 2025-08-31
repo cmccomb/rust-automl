@@ -109,7 +109,7 @@ where
     /// #    x,
     /// #    y,
     /// #    Settings::default_regression()
-    /// #        .only(settings::Algorithm::default_linear()),
+    /// #        .only(&settings::Algorithm::default_linear()),
     /// # );
     /// # model.train();
     /// let X = DenseMatrix::from_2d_vec(&vec![vec![5.0; 6]; 5]).unwrap();
@@ -149,7 +149,7 @@ where
     ///     x,
     ///     y,
     ///     Settings::default_regression()
-    /// #        .only(settings::Algorithm::default_linear())
+    /// #        .only(&settings::Algorithm::default_linear())
     /// );
     /// model.train();
     /// ```

@@ -105,6 +105,6 @@ fn main() {
     //     .with_gaussian_nb_settings(GaussianNBParameters::default().with_priors(vec![1.0, 1.0]))
     //     .with_categorical_nb_settings(CategoricalNBParameters::default().with_alpha(1.0));
 
-    println!("{}", regressor_settings);
+    println!("{regressor_settings}");
     // println!("{}", classifier_settings)
 }

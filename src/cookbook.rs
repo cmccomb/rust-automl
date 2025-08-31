@@ -1,4 +1,4 @@
-//! # A cookbook of common AutoML tasks
+//! # A cookbook of common `AutoML` tasks
 //!
 //! This module collects short examples demonstrating common usage patterns.
 //! The examples are embedded from the examples directory and shown in the

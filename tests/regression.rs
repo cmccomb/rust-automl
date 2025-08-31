@@ -13,7 +13,7 @@ fn test_default_regression() {
 
 #[test]
 fn test_knn_only_regression() {
-    let settings = Settings::default_regression().only(Algorithm::default_knn_regressor());
+    let settings = Settings::default_regression().only(&Algorithm::default_knn_regressor());
     test_from_settings(settings);
 }
 
