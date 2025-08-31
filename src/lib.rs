@@ -13,9 +13,11 @@
 #![warn(missing_docs)]
 #![doc = include_str!("../README.md")]
 
+pub mod algorithms;
 pub mod settings;
+use algorithms::Algorithm;
 pub use settings::Settings;
-use settings::{Algorithm, FinalAlgorithm, PreProcessing};
+use settings::{FinalAlgorithm, PreProcessing};
 
 pub mod cookbook;
 
@@ -114,7 +116,7 @@ where
     /// # let mut model = SupervisedModel::new(
     /// #    x, y,
     /// #    Settings::default_regression()
-    /// # .only(automl::settings::Algorithm::default_linear())
+    /// # .only(automl::algorithms::Algorithm::default_linear())
     /// # );
     /// # model.train();
     /// let X = DenseMatrix::from_2d_vec(&vec![vec![5.0; 6]; 5]).unwrap();
@@ -148,7 +150,7 @@ where
     /// let mut model = SupervisedModel::new(
     ///     x, y,
     ///     Settings::default_regression()
-    /// # .only(automl::settings::Algorithm::default_linear())
+    /// # .only(automl::algorithms::Algorithm::default_linear())
     /// );
     /// model.train();
     /// ```
@@ -373,15 +375,15 @@ where
         }
     }
 
-    /// Count the number of classes in the data.
-    ///
-    /// # Arguments
-    ///
-    /// * `y` - The data to count the classes in
-    ///
-    /// # Returns
-    ///
-    /// * The number of classes
+    // Count the number of classes in the data.
+    //
+    // # Arguments
+    //
+    // * `y` - The data to count the classes in
+    //
+    // # Returns
+    //
+    // * The number of classes
     // fn count_classes(y: &OutputArray) -> usize {
     //     let mut classes = HashSet::new();
     //     for value in y.iterator(0_u8) {

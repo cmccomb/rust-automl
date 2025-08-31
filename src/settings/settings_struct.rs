@@ -5,13 +5,15 @@ use comfy_table::{
 };
 
 use super::{
-    Algorithm, CategoricalNBParameters, DecisionTreeClassifierParameters,
-    DecisionTreeRegressorParameters, ElasticNetParameters, FinalAlgorithm, GaussianNBParameters,
-    KNNClassifierParameters, KNNRegressorParameters, LassoParameters, LinearRegressionParameters,
+    CategoricalNBParameters, DecisionTreeClassifierParameters, DecisionTreeRegressorParameters,
+    ElasticNetParameters, FinalAlgorithm, GaussianNBParameters, KNNClassifierParameters,
+    KNNRegressorParameters, LassoParameters, LinearRegressionParameters,
     LinearRegressionSolverName, LogisticRegressionParameters, Metric, PreProcessing,
     RandomForestClassifierParameters, RandomForestRegressorParameters, RidgeRegressionParameters,
     RidgeRegressionSolverName, SVCParameters,
 };
+
+use crate::algorithms::Algorithm;
 
 use crate::utils::print_option;
 
@@ -255,7 +257,7 @@ where
     /// ```
     /// # use automl::Settings;
     /// # use smartcore::linalg::basic::matrix::DenseMatrix;
-    /// use automl::settings::Algorithm;
+    /// use automl::algorithms::Algorithm;
     /// let settings = Settings::<f64, f64, DenseMatrix<f64>, Vec<f64>>::default().skip(Algorithm::default_random_forest());
     /// ```
     #[must_use]
@@ -268,7 +270,7 @@ where
     /// ```
     /// # use automl::Settings;
     /// # use smartcore::linalg::basic::matrix::DenseMatrix;
-    /// use automl::settings::Algorithm;
+    /// use automl::algorithms::Algorithm;
     /// let settings = Settings::<f64, f64, DenseMatrix<f64>, Vec<f64>>::default().only(Algorithm::default_random_forest());
     /// ```
     #[must_use]

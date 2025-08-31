@@ -1,5 +1,12 @@
-use automl::settings::*;
-use automl::*;
+use automl::algorithms::Algorithm;
+use automl::settings::{
+    DecisionTreeRegressorParameters, Distance, ElasticNetParameters, FinalAlgorithm,
+    KNNAlgorithmName, KNNRegressorParameters, KNNWeightFunction, LassoParameters,
+    LinearRegressionParameters, LinearRegressionSolverName, Metric,
+    RandomForestRegressorParameters, RidgeRegressionParameters, RidgeRegressionSolverName,
+    Settings,
+};
+use automl::{DenseMatrix, SupervisedModel, regression_testing_data};
 
 fn main() {
     // Load some regression data
