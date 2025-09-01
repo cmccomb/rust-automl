@@ -33,6 +33,31 @@ let y = vec![1.0_f64, 2.0, 3.0];
 let _model = RegressionModel::new(x, y, RegressionSettings::default());
 ```
 
+### Loading data from CSV
+
+Use `load_labeled_csv` to read a dataset and separate the target column:
+
+```rust
+use automl::{RegressionModel, RegressionSettings};
+use automl::utils::load_labeled_csv;
+
+let (x, y) = load_labeled_csv("tests/fixtures/supervised_sample.csv", 2).unwrap();
+let mut model = RegressionModel::new(x, y, RegressionSettings::default());
+```
+
+Use `load_csv_features` to read unlabeled data for clustering:
+
+```rust
+use automl::{ClusteringModel};
+use automl::settings::ClusteringSettings;
+use automl::utils::load_csv_features;
+
+let x = load_csv_features("tests/fixtures/clustering_points.csv").unwrap();
+let mut model = ClusteringModel::new(x.clone(), ClusteringSettings::default().with_k(2));
+model.train();
+let clusters: Vec<u8> = model.predict(&x);
+```
+
 ## Examples
 ### Classification
 ```rust
