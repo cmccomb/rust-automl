@@ -3,7 +3,7 @@
 use std::fmt::{Display, Formatter};
 
 /// Distance metrics
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Distance {
     /// Euclidean distance
     Euclidean,
@@ -26,7 +26,7 @@ impl Display for Distance {
         match self {
             Self::Euclidean => write!(f, "Euclidean"),
             Self::Manhattan => write!(f, "Manhattan"),
-            Self::Minkowski(n) => write!(f, "Minkowski\n    p = {n}"),
+            Self::Minkowski(n) => write!(f, "Minkowski(p = {n})"),
             Self::Mahalanobis => write!(f, "Mahalanobis"),
             Self::Hamming => write!(f, "Hamming"),
         }
