@@ -4,12 +4,13 @@ use std::fmt::{Display, Formatter};
 use std::time::Instant;
 
 use super::supervised_train::SupervisedTrain;
-use crate::model::ComparisonEntry;
+use crate::model::{ComparisonEntry, supervised::Algorithm};
 use crate::settings::ClassificationSettings;
 use smartcore::api::SupervisedEstimator;
 use smartcore::error::Failed;
 use smartcore::linalg::basic::arrays::{Array1, Array2, MutArrayView1, MutArrayView2};
 use smartcore::linalg::traits::cholesky::CholeskyDecomposable;
+use smartcore::linalg::traits::evd::EVDDecomposable;
 use smartcore::linalg::traits::qr::QRDecomposable;
 use smartcore::linalg::traits::svd::SVDDecomposable;
 use smartcore::linear::logistic_regression::LogisticRegressionParameters;
@@ -30,6 +31,8 @@ where
         + Array2<INPUT>
         + QRDecomposable<INPUT>
         + SVDDecomposable<INPUT>
+        + EVDDecomposable<INPUT>
+        + EVDDecomposable<INPUT>
         + CholeskyDecomposable<INPUT>,
     OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
 {
@@ -84,6 +87,7 @@ where
         + Array2<INPUT>
         + QRDecomposable<INPUT>
         + SVDDecomposable<INPUT>
+        + EVDDecomposable<INPUT>
         + CholeskyDecomposable<INPUT>,
     OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
 {
@@ -273,45 +277,10 @@ where
         + Array2<INPUT>
         + QRDecomposable<INPUT>
         + SVDDecomposable<INPUT>
+        + EVDDecomposable<INPUT>
         + CholeskyDecomposable<INPUT>,
     OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
 {
-    /// Fit the model
-    pub(crate) fn cross_validate_model(
-        self,
-        x: &InputArray,
-        y: &OutputArray,
-        settings: &ClassificationSettings,
-    ) -> Result<
-        ComparisonEntry<ClassificationAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>>,
-        Failed,
-    > {
-        let start = Instant::now();
-        let results = self.cv(x, y, settings)?;
-        let end = Instant::now();
-        Ok(ComparisonEntry {
-            result: results.0,
-            algorithm: results.1,
-            duration: end.duration_since(start),
-        })
-    }
-
-    /// Get a vector of all possible algorithms
-    #[must_use]
-    pub fn all_algorithms(settings: &ClassificationSettings) -> Vec<Self> {
-        let mut algorithms = vec![Self::default_decision_tree_classifier()];
-        if settings.knn_classifier_settings.is_some() {
-            algorithms.push(Self::default_knn_classifier());
-        }
-        if settings.random_forest_classifier_settings.is_some() {
-            algorithms.push(Self::default_random_forest_classifier());
-        }
-        if settings.logistic_regression_settings.is_some() {
-            algorithms.push(Self::default_logistic_regression());
-        }
-        algorithms
-    }
-
     /// Default decision tree classifier algorithm
     #[must_use]
     pub fn default_decision_tree_classifier() -> Self {
@@ -339,6 +308,72 @@ where
     pub fn default_logistic_regression() -> Self {
         Self::LogisticRegression(smartcore::linear::logistic_regression::LogisticRegression::new())
     }
+
+    /// Get a vector of all possible algorithms
+    #[must_use]
+    pub fn all_algorithms(settings: &ClassificationSettings) -> Vec<Self> {
+        <Self as Algorithm<ClassificationSettings>>::all_algorithms(settings)
+    }
+}
+
+impl<INPUT, OUTPUT, InputArray, OutputArray> Algorithm<ClassificationSettings>
+    for ClassificationAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
+where
+    INPUT: RealNumber + FloatNumber,
+    OUTPUT: Number + Ord,
+    InputArray: MutArrayView2<INPUT>
+        + Sized
+        + Clone
+        + Array2<INPUT>
+        + QRDecomposable<INPUT>
+        + SVDDecomposable<INPUT>
+        + EVDDecomposable<INPUT>
+        + CholeskyDecomposable<INPUT>,
+    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
+{
+    type Input = INPUT;
+    type Output = OUTPUT;
+    type InputArray = InputArray;
+    type OutputArray = OutputArray;
+
+    fn predict(&self, x: &Self::InputArray) -> Result<Self::OutputArray, Failed> {
+        match self {
+            Self::DecisionTreeClassifier(model) => model.predict(x),
+            Self::KNNClassifier(model) => model.predict(x),
+            Self::RandomForestClassifier(model) => model.predict(x),
+            Self::LogisticRegression(model) => model.predict(x),
+        }
+    }
+
+    fn cross_validate_model(
+        self,
+        x: &Self::InputArray,
+        y: &Self::OutputArray,
+        settings: &ClassificationSettings,
+    ) -> Result<ComparisonEntry<Self>, Failed> {
+        let start = Instant::now();
+        let results = self.cv(x, y, settings)?;
+        let end = Instant::now();
+        Ok(ComparisonEntry {
+            result: results.0,
+            algorithm: results.1,
+            duration: end.duration_since(start),
+        })
+    }
+
+    fn all_algorithms(settings: &ClassificationSettings) -> Vec<Self> {
+        let mut algorithms = vec![Self::default_decision_tree_classifier()];
+        if settings.knn_classifier_settings.is_some() {
+            algorithms.push(Self::default_knn_classifier());
+        }
+        if settings.random_forest_classifier_settings.is_some() {
+            algorithms.push(Self::default_random_forest_classifier());
+        }
+        if settings.logistic_regression_settings.is_some() {
+            algorithms.push(Self::default_logistic_regression());
+        }
+        algorithms
+    }
 }
 
 impl<INPUT, OUTPUT, InputArray, OutputArray> PartialEq
@@ -352,6 +387,7 @@ where
         + Array2<INPUT>
         + QRDecomposable<INPUT>
         + SVDDecomposable<INPUT>
+        + EVDDecomposable<INPUT>
         + CholeskyDecomposable<INPUT>,
     OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
 {
@@ -377,6 +413,7 @@ where
         + Array2<INPUT>
         + QRDecomposable<INPUT>
         + SVDDecomposable<INPUT>
+        + EVDDecomposable<INPUT>
         + CholeskyDecomposable<INPUT>,
     OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
 {
@@ -396,6 +433,7 @@ where
         + Array2<INPUT>
         + QRDecomposable<INPUT>
         + SVDDecomposable<INPUT>
+        + EVDDecomposable<INPUT>
         + CholeskyDecomposable<INPUT>,
     OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
 {

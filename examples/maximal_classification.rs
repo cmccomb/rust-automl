@@ -53,10 +53,12 @@ fn main() {
     // Run a model comparison with all models at customized settings
     model.train().unwrap();
 
-    // Print the results
+    // Display comparison results
     println!("{model}");
 
     // Predict with the model, be sure to use a DenseMatrix
-    let preds = model.predict(DenseMatrix::from_2d_vec(&vec![vec![0.5_f64, 0.5]; 5]).unwrap());
+    let preds = model
+        .predict(DenseMatrix::from_2d_vec(&vec![vec![0.5_f64, 0.5]; 5]).unwrap())
+        .expect("prediction should succeed");
     println!("Predictions: {preds:?}");
 }

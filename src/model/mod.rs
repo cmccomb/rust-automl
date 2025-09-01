@@ -6,9 +6,11 @@ mod comparison;
 pub mod error;
 mod preprocessing;
 pub mod regression;
+pub mod supervised;
 
 pub use classification::ClassificationModel;
 pub use clustering::ClusteringModel;
 pub use comparison::ComparisonEntry;
 pub use error::{ModelError, ModelResult};
 pub use regression::RegressionModel;
+pub use supervised::{Algorithm, SupervisedLearningSettings, SupervisedModel};

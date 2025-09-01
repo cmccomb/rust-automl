@@ -5,13 +5,14 @@ use std::fmt::{Display, Formatter};
 use std::time::Instant;
 
 use super::supervised_train::SupervisedTrain;
-use crate::model::ComparisonEntry;
+use crate::model::{ComparisonEntry, supervised::Algorithm};
 use crate::settings::RegressionSettings;
 use crate::utils::distance::Distance;
 use smartcore::api::SupervisedEstimator;
 use smartcore::error::Failed;
 use smartcore::linalg::basic::arrays::{Array1, Array2, MutArrayView1, MutArrayView2};
 use smartcore::linalg::traits::cholesky::CholeskyDecomposable;
+use smartcore::linalg::traits::evd::EVDDecomposable;
 use smartcore::linalg::traits::qr::QRDecomposable;
 use smartcore::linalg::traits::svd::SVDDecomposable;
 use smartcore::metrics::distance::{
@@ -32,6 +33,7 @@ where
         + Array2<INPUT>
         + QRDecomposable<INPUT>
         + SVDDecomposable<INPUT>
+        + EVDDecomposable<INPUT>
         + CholeskyDecomposable<INPUT>,
     OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
 {
@@ -134,6 +136,7 @@ where
         + Array2<INPUT>
         + QRDecomposable<INPUT>
         + SVDDecomposable<INPUT>
+        + EVDDecomposable<INPUT>
         + CholeskyDecomposable<INPUT>,
     OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
 {
@@ -518,52 +521,10 @@ where
         + Array2<INPUT>
         + QRDecomposable<INPUT>
         + SVDDecomposable<INPUT>
+        + EVDDecomposable<INPUT>
         + CholeskyDecomposable<INPUT>,
     OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
 {
-    pub(crate) fn cross_validate_model(
-        self,
-        x: &InputArray,
-        y: &OutputArray,
-        settings: &RegressionSettings<INPUT, OUTPUT, InputArray, OutputArray>,
-    ) -> Result<ComparisonEntry<RegressionAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>>, Failed>
-    {
-        let start = Instant::now();
-        let results = self.cv(x, y, settings)?;
-        let end = Instant::now();
-        Ok(ComparisonEntry {
-            result: results.0,
-            algorithm: results.1,
-            duration: end.duration_since(start),
-        })
-    }
-
-    /// Get a vector of all possible algorithms
-    pub fn all_algorithms(
-        settings: &RegressionSettings<INPUT, OUTPUT, InputArray, OutputArray>,
-    ) -> Vec<Self> {
-        let mut algorithms = vec![
-            Self::default_linear(),
-            Self::default_ridge(),
-            Self::default_lasso(),
-            Self::default_elastic_net(),
-            Self::default_random_forest(),
-            Self::default_decision_tree(),
-        ];
-
-        if let Some(knn) = &settings.knn_regressor_settings {
-            match knn.distance {
-                Distance::Euclidean => algorithms.push(Self::default_knn_regressor()),
-                Distance::Manhattan => algorithms.push(Self::default_knn_regressor_manhattan()),
-                Distance::Minkowski(_) => algorithms.push(Self::default_knn_regressor_minkowski()),
-                Distance::Hamming => algorithms.push(Self::default_knn_regressor_hamming()),
-                Distance::Mahalanobis => {}
-            }
-        }
-
-        algorithms
-    }
-
     /// Default linear regression algorithm
     #[must_use]
     pub fn default_linear() -> Self {
@@ -627,6 +588,93 @@ where
     pub fn default_knn_regressor_hamming() -> Self {
         Self::KNNRegressorHamming(smartcore::neighbors::knn_regressor::KNNRegressor::new())
     }
+
+    /// Get a vector of all possible algorithms
+    pub fn all_algorithms(
+        settings: &RegressionSettings<INPUT, OUTPUT, InputArray, OutputArray>,
+    ) -> Vec<Self> {
+        <Self as Algorithm<RegressionSettings<INPUT, OUTPUT, InputArray, OutputArray>>>::all_algorithms(
+            settings,
+        )
+    }
+}
+
+impl<INPUT, OUTPUT, InputArray, OutputArray>
+    Algorithm<RegressionSettings<INPUT, OUTPUT, InputArray, OutputArray>>
+    for RegressionAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
+where
+    INPUT: RealNumber + FloatNumber,
+    OUTPUT: FloatNumber,
+    InputArray: MutArrayView2<INPUT>
+        + Sized
+        + Clone
+        + Array2<INPUT>
+        + QRDecomposable<INPUT>
+        + SVDDecomposable<INPUT>
+        + EVDDecomposable<INPUT>
+        + CholeskyDecomposable<INPUT>,
+    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
+{
+    type Input = INPUT;
+    type Output = OUTPUT;
+    type InputArray = InputArray;
+    type OutputArray = OutputArray;
+
+    fn predict(&self, x: &Self::InputArray) -> Result<Self::OutputArray, Failed> {
+        match self {
+            Self::DecisionTreeRegressor(model) => model.predict(x),
+            Self::RandomForestRegressor(model) => model.predict(x),
+            Self::Linear(model) => model.predict(x),
+            Self::Ridge(model) => model.predict(x),
+            Self::Lasso(model) => model.predict(x),
+            Self::ElasticNet(model) => model.predict(x),
+            Self::KNNRegressorHamming(model) => model.predict(x),
+            Self::KNNRegressorEuclidian(model) => model.predict(x),
+            Self::KNNRegressorManhattan(model) => model.predict(x),
+            Self::KNNRegressorMinkowski(model) => model.predict(x),
+        }
+    }
+
+    fn cross_validate_model(
+        self,
+        x: &Self::InputArray,
+        y: &Self::OutputArray,
+        settings: &RegressionSettings<INPUT, OUTPUT, InputArray, OutputArray>,
+    ) -> Result<ComparisonEntry<Self>, Failed> {
+        let start = Instant::now();
+        let results = self.cv(x, y, settings)?;
+        let end = Instant::now();
+        Ok(ComparisonEntry {
+            result: results.0,
+            algorithm: results.1,
+            duration: end.duration_since(start),
+        })
+    }
+
+    fn all_algorithms(
+        settings: &RegressionSettings<INPUT, OUTPUT, InputArray, OutputArray>,
+    ) -> Vec<Self> {
+        let mut algorithms = vec![
+            Self::default_linear(),
+            Self::default_ridge(),
+            Self::default_lasso(),
+            Self::default_elastic_net(),
+            Self::default_random_forest(),
+            Self::default_decision_tree(),
+        ];
+
+        if let Some(knn) = &settings.knn_regressor_settings {
+            match knn.distance {
+                Distance::Euclidean => algorithms.push(Self::default_knn_regressor()),
+                Distance::Manhattan => algorithms.push(Self::default_knn_regressor_manhattan()),
+                Distance::Minkowski(_) => algorithms.push(Self::default_knn_regressor_minkowski()),
+                Distance::Hamming => algorithms.push(Self::default_knn_regressor_hamming()),
+                Distance::Mahalanobis => {}
+            }
+        }
+
+        algorithms
+    }
 }
 
 impl<INPUT, OUTPUT, InputArray, OutputArray> PartialEq
@@ -640,6 +688,7 @@ where
         + Array2<INPUT>
         + QRDecomposable<INPUT>
         + SVDDecomposable<INPUT>
+        + EVDDecomposable<INPUT>
         + CholeskyDecomposable<INPUT>,
     OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
 {
@@ -685,6 +734,7 @@ where
         + Array2<INPUT>
         + QRDecomposable<INPUT>
         + SVDDecomposable<INPUT>
+        + EVDDecomposable<INPUT>
         + CholeskyDecomposable<INPUT>,
     OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
 {
@@ -704,6 +754,7 @@ where
         + Array2<INPUT>
         + QRDecomposable<INPUT>
         + SVDDecomposable<INPUT>
+        + EVDDecomposable<INPUT>
         + CholeskyDecomposable<INPUT>,
     OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
 {

@@ -26,6 +26,8 @@ pub use algorithms::{ClassificationAlgorithm, ClusteringAlgorithm, RegressionAlg
 
 /// Model definitions and implementations.
 pub mod model;
-pub use model::{ClassificationModel, ClusteringModel, ModelError, ModelResult, RegressionModel};
+pub use model::{
+    ClassificationModel, ClusteringModel, ModelError, ModelResult, RegressionModel, SupervisedModel,
+};
 
 pub use smartcore::linalg::basic::matrix::DenseMatrix;
