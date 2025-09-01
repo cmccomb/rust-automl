@@ -12,6 +12,6 @@ pub use self::display::{
 };
 pub use self::distance::Distance;
 pub use self::features::{interaction_features, polynomial_features};
-pub use self::io::{load_csv_features, load_labeled_csv};
+pub use self::io::{CsvError, load_csv_features, load_labeled_csv};
 pub use self::kernels::Kernel;
 pub use self::math::elementwise_multiply;
