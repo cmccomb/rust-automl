@@ -3,8 +3,41 @@
 use csv::ReaderBuilder;
 use smartcore::linalg::basic::matrix::DenseMatrix;
 use std::error::Error;
+use std::fmt;
 use std::fs::File;
+use std::num::ParseFloatError;
 use std::path::Path;
+
+/// Errors that can occur when loading CSV data.
+#[derive(Debug)]
+pub enum CsvError {
+    /// Failure in underlying I/O operations.
+    Io(std::io::Error),
+    /// Failure while parsing numeric values or CSV records.
+    Parse(Box<dyn Error + Send + Sync>),
+    /// Mismatched row lengths when constructing the feature matrix.
+    Shape(String),
+}
+
+impl fmt::Display for CsvError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CsvError::Io(e) => write!(f, "I/O error: {e}"),
+            CsvError::Parse(e) => write!(f, "Parse error: {e}"),
+            CsvError::Shape(e) => write!(f, "Shape error: {e}"),
+        }
+    }
+}
+
+impl Error for CsvError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            CsvError::Io(e) => Some(e),
+            CsvError::Parse(e) => Some(&**e),
+            CsvError::Shape(_) => None,
+        }
+    }
+}
 
 /// Load a CSV file and return its feature matrix.
 ///
@@ -32,22 +65,33 @@ use std::path::Path;
 /// # Ok(())
 /// # }
 /// ```
-pub fn load_csv_features<P: AsRef<Path>>(path: P) -> Result<DenseMatrix<f64>, Box<dyn Error>> {
-    let file = File::open(path.as_ref())?;
-    let mut reader = ReaderBuilder::new().has_headers(true).from_reader(file);
+pub fn load_csv_features<P: AsRef<Path>>(path: P) -> Result<DenseMatrix<f64>, CsvError> {
+    let file = File::open(path.as_ref()).map_err(CsvError::Io)?;
+    let mut reader = ReaderBuilder::new()
+        .has_headers(true)
+        .flexible(true)
+        .from_reader(file);
 
     let mut features: Vec<Vec<f64>> = Vec::new();
 
     for result in reader.records() {
-        let record = result?;
+        let record = result.map_err(|e| CsvError::Parse(Box::new(e)))?;
         let row = record
             .iter()
-            .map(str::parse::<f64>)
+            .map(|v| {
+                v.parse::<f64>()
+                    .map_err(|e: ParseFloatError| CsvError::Parse(Box::new(e)))
+            })
             .collect::<Result<Vec<_>, _>>()?;
         features.push(row);
     }
 
-    let matrix = DenseMatrix::from_2d_vec(&features)?;
+    let expected = features.first().map_or(0, Vec::len);
+    if features.iter().any(|r| r.len() != expected) {
+        return Err(CsvError::Shape("inconsistent row lengths".to_string()));
+    }
+
+    let matrix = DenseMatrix::from_2d_vec(&features).map_err(|e| CsvError::Shape(e.to_string()))?;
     Ok(matrix)
 }
 
@@ -78,18 +122,23 @@ pub fn load_csv_features<P: AsRef<Path>>(path: P) -> Result<DenseMatrix<f64>, Bo
 pub fn load_labeled_csv<P: AsRef<Path>>(
     path: P,
     target_col: usize,
-) -> Result<(DenseMatrix<f64>, Vec<f64>), Box<dyn Error>> {
-    let file = File::open(path.as_ref())?;
-    let mut reader = ReaderBuilder::new().has_headers(true).from_reader(file);
+) -> Result<(DenseMatrix<f64>, Vec<f64>), CsvError> {
+    let file = File::open(path.as_ref()).map_err(CsvError::Io)?;
+    let mut reader = ReaderBuilder::new()
+        .has_headers(true)
+        .flexible(true)
+        .from_reader(file);
 
     let mut features: Vec<Vec<f64>> = Vec::new();
     let mut targets: Vec<f64> = Vec::new();
 
     for result in reader.records() {
-        let record = result?;
+        let record = result.map_err(|e| CsvError::Parse(Box::new(e)))?;
         let mut row: Vec<f64> = Vec::new();
         for (idx, field) in record.iter().enumerate() {
-            let value: f64 = field.parse()?;
+            let value: f64 = field
+                .parse::<f64>()
+                .map_err(|e: ParseFloatError| CsvError::Parse(Box::new(e)))?;
             if idx == target_col {
                 targets.push(value);
             } else {
@@ -99,6 +148,15 @@ pub fn load_labeled_csv<P: AsRef<Path>>(
         features.push(row);
     }
 
-    let matrix = DenseMatrix::from_2d_vec(&features)?;
+    if targets.len() != features.len() {
+        return Err(CsvError::Shape("inconsistent row lengths".to_string()));
+    }
+
+    let expected = features.first().map_or(0, Vec::len);
+    if features.iter().any(|r| r.len() != expected) {
+        return Err(CsvError::Shape("inconsistent row lengths".to_string()));
+    }
+
+    let matrix = DenseMatrix::from_2d_vec(&features).map_err(|e| CsvError::Shape(e.to_string()))?;
     Ok((matrix, targets))
 }
