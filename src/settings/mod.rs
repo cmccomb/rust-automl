@@ -10,7 +10,7 @@
 //!         KNNParameters, KNNWeightFunction, Kernel, LassoParameters,
 //!         LinearRegressionParameters, LinearRegressionSolverName, Metric,
 //!         RandomForestRegressorParameters, RidgeRegressionParameters, RidgeRegressionSolverName,
-//!         SVRParameters,
+//!         SVRParameters, WithSupervisedSettings,
 //!     },
 //! };
 //!
@@ -138,7 +138,7 @@ mod regression_settings;
 pub use regression_settings::RegressionSettings;
 
 mod common;
-pub use common::SupervisedSettings;
+pub use common::{SupervisedSettings, WithSupervisedSettings};
 
 mod clustering_settings;
 pub use clustering_settings::{ClusteringAlgorithmName, ClusteringSettings};
