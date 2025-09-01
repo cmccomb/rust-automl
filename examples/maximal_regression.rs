@@ -23,6 +23,7 @@ use automl::{
         KNNAlgorithmName, KNNParameters, KNNWeightFunction, LassoParameters,
         LinearRegressionParameters, LinearRegressionSolverName, Metric,
         RandomForestRegressorParameters, RidgeRegressionParameters, RidgeRegressionSolverName,
+        WithSupervisedSettings,
     },
 };
 use regression_data::regression_testing_data;

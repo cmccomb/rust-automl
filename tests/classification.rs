@@ -2,7 +2,9 @@
 mod classification_data;
 
 use automl::algorithms::ClassificationAlgorithm;
-use automl::settings::{ClassificationSettings, RandomForestClassifierParameters};
+use automl::settings::{
+    ClassificationSettings, RandomForestClassifierParameters, WithSupervisedSettings,
+};
 use automl::{DenseMatrix, ModelError, SupervisedModel};
 use classification_data::classification_testing_data;
 
