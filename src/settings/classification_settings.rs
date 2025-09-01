@@ -2,6 +2,7 @@ use super::{
     DecisionTreeClassifierParameters, KNNParameters, LogisticRegressionParameters, Metric,
     RandomForestClassifierParameters, SupervisedSettings, WithSupervisedSettings,
 };
+use crate::settings::macros::with_settings_methods;
 use smartcore::linalg::basic::arrays::Array1;
 use smartcore::metrics::accuracy;
 use smartcore::numbers::basenum::Number;
@@ -48,41 +49,15 @@ impl ClassificationSettings {
         }
     }
 
-    /// Specify settings for KNN classifier
-    #[must_use]
-    pub const fn with_knn_classifier_settings(mut self, settings: KNNParameters) -> Self {
-        self.knn_classifier_settings = Some(settings);
-        self
-    }
-
-    /// Specify settings for decision tree classifier
-    #[must_use]
-    pub const fn with_decision_tree_classifier_settings(
-        mut self,
-        settings: DecisionTreeClassifierParameters,
-    ) -> Self {
-        self.decision_tree_classifier_settings = Some(settings);
-        self
-    }
-
-    /// Specify settings for random forest classifier
-    #[must_use]
-    pub const fn with_random_forest_classifier_settings(
-        mut self,
-        settings: RandomForestClassifierParameters,
-    ) -> Self {
-        self.random_forest_classifier_settings = Some(settings);
-        self
-    }
-
-    /// Specify settings for logistic regression classifier
-    #[must_use]
-    pub const fn with_logistic_regression_settings(
-        mut self,
-        settings: LogisticRegressionParameters<f64>,
-    ) -> Self {
-        self.logistic_regression_settings = Some(settings);
-        self
+    with_settings_methods! {
+        /// Specify settings for KNN classifier
+        with_knn_classifier_settings, knn_classifier_settings, KNNParameters;
+        /// Specify settings for decision tree classifier
+        with_decision_tree_classifier_settings, decision_tree_classifier_settings, DecisionTreeClassifierParameters;
+        /// Specify settings for random forest classifier
+        with_random_forest_classifier_settings, random_forest_classifier_settings, RandomForestClassifierParameters;
+        /// Specify settings for logistic regression classifier
+        with_logistic_regression_settings, logistic_regression_settings, LogisticRegressionParameters<f64>;
     }
 }
 
