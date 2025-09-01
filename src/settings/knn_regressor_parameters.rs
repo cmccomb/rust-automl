@@ -18,6 +18,13 @@ pub struct KNNRegressorParameters {
 
 impl KNNRegressorParameters {
     /// Define the number of nearest neighbors to use
+    ///
+    /// # Examples
+    /// ```
+    /// use automl::settings::KNNRegressorParameters;
+    ///
+    /// let _params = KNNRegressorParameters::default().with_k(5);
+    /// ```
     #[must_use]
     pub const fn with_k(mut self, k: usize) -> Self {
         self.k = k;
@@ -25,6 +32,14 @@ impl KNNRegressorParameters {
     }
 
     /// Define the weighting function to use with KNN regression
+    ///
+    /// # Examples
+    /// ```
+    /// use automl::settings::{KNNRegressorParameters, KNNWeightFunction};
+    ///
+    /// let _params = KNNRegressorParameters::default()
+    ///     .with_weight(KNNWeightFunction::Distance);
+    /// ```
     #[must_use]
     pub const fn with_weight(mut self, weight: KNNWeightFunction) -> Self {
         self.weight = weight;
@@ -32,6 +47,14 @@ impl KNNRegressorParameters {
     }
 
     /// Define the search algorithm to use with KNN regression
+    ///
+    /// # Examples
+    /// ```
+    /// use automl::settings::{KNNAlgorithmName, KNNRegressorParameters};
+    ///
+    /// let _params = KNNRegressorParameters::default()
+    ///     .with_algorithm(KNNAlgorithmName::LinearSearch);
+    /// ```
     #[must_use]
     pub const fn with_algorithm(mut self, algorithm: KNNAlgorithmName) -> Self {
         self.algorithm = algorithm;
@@ -39,6 +62,14 @@ impl KNNRegressorParameters {
     }
 
     /// Define the distance metric to use with KNN regression
+    ///
+    /// # Examples
+    /// ```
+    /// use automl::settings::{Distance, KNNRegressorParameters};
+    ///
+    /// let _params = KNNRegressorParameters::default()
+    ///     .with_distance(Distance::Manhattan);
+    /// ```
     #[must_use]
     pub const fn with_distance(mut self, distance: Distance) -> Self {
         self.distance = distance;
