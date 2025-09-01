@@ -137,6 +137,8 @@ cargo audit
 cargo test --doc
 ```
 
+Security audits run weekly via a scheduled workflow, but running `cargo audit` locally before submitting changes helps catch issues earlier.
+
 Pull requests are welcome!
 
 ## License
