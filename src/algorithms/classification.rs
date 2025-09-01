@@ -6,6 +6,7 @@ use std::time::Instant;
 use super::supervised_train::SupervisedTrain;
 use crate::model::{ComparisonEntry, supervised::Algorithm};
 use crate::settings::{ClassificationSettings, WithSupervisedSettings};
+use crate::utils::distance::KNNRegressorDistance;
 use smartcore::api::SupervisedEstimator;
 use smartcore::error::Failed;
 use smartcore::linalg::basic::arrays::{Array1, Array2, MutArrayView1, MutArrayView2};
@@ -14,7 +15,6 @@ use smartcore::linalg::traits::evd::EVDDecomposable;
 use smartcore::linalg::traits::qr::QRDecomposable;
 use smartcore::linalg::traits::svd::SVDDecomposable;
 use smartcore::linear::logistic_regression::LogisticRegressionParameters;
-use smartcore::metrics::distance::euclidian::Euclidian;
 use smartcore::model_selection::CrossValidationResult;
 use smartcore::numbers::basenum::Number;
 use smartcore::numbers::floatnum::FloatNumber;
@@ -52,7 +52,7 @@ where
             OUTPUT,
             InputArray,
             OutputArray,
-            Euclidian<INPUT>,
+            KNNRegressorDistance<INPUT>,
         >,
     ),
     /// Random forest classifier
@@ -110,28 +110,13 @@ where
                 )?,
             ),
             Self::KNNClassifier(_) => {
+                let params = settings
+                    .knn_classifier_settings
+                    .as_ref()
+                    .unwrap()
+                    .to_classifier_params::<INPUT>();
                 Self::KNNClassifier(smartcore::neighbors::knn_classifier::KNNClassifier::fit(
-                    x,
-                    y,
-                    smartcore::neighbors::knn_classifier::KNNClassifierParameters::default()
-                        .with_k(settings.knn_classifier_settings.as_ref().unwrap().k)
-                        .with_algorithm(
-                            settings
-                                .knn_classifier_settings
-                                .as_ref()
-                                .unwrap()
-                                .algorithm
-                                .clone(),
-                        )
-                        .with_weight(
-                            settings
-                                .knn_classifier_settings
-                                .as_ref()
-                                .unwrap()
-                                .weight
-                                .clone(),
-                        )
-                        .with_distance(Euclidian::new()),
+                    x, y, params,
                 )?)
             }
             Self::RandomForestClassifier(_) => Self::RandomForestClassifier(
@@ -191,34 +176,23 @@ where
                 &settings.get_kfolds(),
                 Self::metric(settings),
             ),
-            Self::KNNClassifier(_) => Self::cross_validate_with(
-                self,
-                smartcore::neighbors::knn_classifier::KNNClassifier::new(),
-                smartcore::neighbors::knn_classifier::KNNClassifierParameters::default()
-                    .with_k(settings.knn_classifier_settings.as_ref().unwrap().k)
-                    .with_algorithm(
-                        settings
-                            .knn_classifier_settings
-                            .as_ref()
-                            .unwrap()
-                            .algorithm
-                            .clone(),
-                    )
-                    .with_weight(
-                        settings
-                            .knn_classifier_settings
-                            .as_ref()
-                            .unwrap()
-                            .weight
-                            .clone(),
-                    )
-                    .with_distance(Euclidian::new()),
-                x,
-                y,
-                settings,
-                &settings.get_kfolds(),
-                Self::metric(settings),
-            ),
+            Self::KNNClassifier(_) => {
+                let params = settings
+                    .knn_classifier_settings
+                    .as_ref()
+                    .unwrap()
+                    .to_classifier_params::<INPUT>();
+                Self::cross_validate_with(
+                    self,
+                    smartcore::neighbors::knn_classifier::KNNClassifier::new(),
+                    params,
+                    x,
+                    y,
+                    settings,
+                    &settings.get_kfolds(),
+                    Self::metric(settings),
+                )
+            }
             Self::RandomForestClassifier(_) => Self::cross_validate_with(
                 self,
                 smartcore::ensemble::random_forest_classifier::RandomForestClassifier::new(),

@@ -40,7 +40,7 @@ impl Display for Distance {
 }
 
 /// Wrapper implementing [`SmartcoreDistance`] for KNN regressors.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum KNNRegressorDistance<T: Number> {
     /// Euclidean distance
     Euclidean(Euclidian<T>),
