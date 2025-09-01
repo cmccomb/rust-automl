@@ -1,5 +1,5 @@
 use automl::algorithms::RegressionAlgorithm;
-use automl::settings::{Distance, KNNRegressorParameters};
+use automl::settings::{Distance, KNNParameters};
 use automl::{DenseMatrix, RegressionSettings};
 
 type Alg = RegressionAlgorithm<f64, f64, DenseMatrix<f64>, Vec<f64>>;
@@ -17,9 +17,8 @@ fn all_algorithms_contains_linear() {
 
 #[test]
 fn all_algorithms_respects_knn_distance() {
-    let settings = RegressionSettings::default().with_knn_regressor_settings(
-        KNNRegressorParameters::default().with_distance(Distance::Manhattan),
-    );
+    let settings = RegressionSettings::default()
+        .with_knn_regressor_settings(KNNParameters::default().with_distance(Distance::Manhattan));
     let algorithms = Alg::all_algorithms(&settings);
     assert!(
         algorithms

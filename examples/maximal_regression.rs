@@ -20,7 +20,7 @@ use automl::{
     algorithms::RegressionAlgorithm,
     settings::{
         DecisionTreeRegressorParameters, Distance, ElasticNetParameters, FinalAlgorithm,
-        KNNAlgorithmName, KNNRegressorParameters, KNNWeightFunction, LassoParameters,
+        KNNAlgorithmName, KNNParameters, KNNWeightFunction, LassoParameters,
         LinearRegressionParameters, LinearRegressionSolverName, Metric,
         RandomForestRegressorParameters, RidgeRegressionParameters, RidgeRegressionSolverName,
     },
@@ -66,7 +66,7 @@ fn main() -> Result<(), Failed> {
                 .with_l1_ratio(0.5),
         )
         .with_knn_regressor_settings(
-            KNNRegressorParameters::default()
+            KNNParameters::default()
                 .with_algorithm(KNNAlgorithmName::CoverTree)
                 .with_k(3)
                 .with_distance(Distance::Euclidean)
