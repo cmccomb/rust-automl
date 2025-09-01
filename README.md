@@ -33,6 +33,18 @@ let y = vec![1.0_f64, 2.0, 3.0];
 let _model = RegressionModel::new(x, y, RegressionSettings::default());
 ```
 
+### Loading data from CSV
+
+Use `load_labeled_csv` to read a dataset and separate the target column:
+
+```rust
+use automl::{RegressionModel, RegressionSettings};
+use automl::utils::load_labeled_csv;
+
+let (x, y) = load_labeled_csv("tests/fixtures/supervised_sample.csv", 2).unwrap();
+let mut model = RegressionModel::new(x, y, RegressionSettings::default());
+```
+
 ## Examples
 ### Classification
 ```rust
