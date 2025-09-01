@@ -11,15 +11,12 @@
 //! ```bash
 //! cargo run --example minimal_clustering
 //! ```
-#[path = "../tests/fixtures/clustering_data.rs"]
-mod clustering_data;
-
+use automl::utils::load_csv_features;
 use automl::{ClusteringModel, settings::ClusteringSettings};
-use clustering_data::clustering_testing_data;
 
 fn main() {
-    // Load some sample data
-    let x = clustering_testing_data();
+    // Load some sample data from CSV
+    let x = load_csv_features("tests/fixtures/clustering_points.csv").unwrap();
 
     // Build default clustering settings
     let settings = ClusteringSettings::default().with_k(2);
