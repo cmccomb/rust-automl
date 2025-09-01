@@ -1,7 +1,7 @@
 //! Utilities for data preprocessing.
 
 use crate::settings::PreProcessing;
-use crate::utils::features::{interaction_features, polynomial_features};
+use crate::utils::features::{FeatureError, interaction_features, polynomial_features};
 use smartcore::{
     decomposition::{
         pca::{PCA, PCAParameters},
@@ -70,18 +70,22 @@ where
     }
 
     /// Apply preprocessing to data.
-    pub fn preprocess(&self, x: InputArray, settings: &PreProcessing) -> InputArray {
-        match settings {
+    pub fn preprocess(
+        &self,
+        x: InputArray,
+        settings: &PreProcessing,
+    ) -> Result<InputArray, FeatureError> {
+        Ok(match settings {
             PreProcessing::None => x,
-            PreProcessing::AddInteractions => interaction_features(x),
-            PreProcessing::AddPolynomial { order } => polynomial_features(x, *order),
+            PreProcessing::AddInteractions => interaction_features(x)?,
+            PreProcessing::AddPolynomial { order } => polynomial_features(x, *order)?,
             PreProcessing::ReplaceWithPCA {
                 number_of_components: _,
             } => self.pca_features(&x),
             PreProcessing::ReplaceWithSVD {
                 number_of_components: _,
             } => self.svd_features(&x),
-        }
+        })
     }
 
     fn train_pca(&mut self, x: &InputArray, n: usize) {
