@@ -3,7 +3,7 @@ mod classification_data;
 
 use automl::algorithms::ClassificationAlgorithm;
 use automl::settings::{ClassificationSettings, RandomForestClassifierParameters};
-use automl::{ClassificationModel, DenseMatrix};
+use automl::{ClassificationModel, DenseMatrix, ModelError};
 use classification_data::classification_testing_data;
 
 #[test]
@@ -39,5 +39,15 @@ fn test_from_settings(settings: ClassificationSettings) {
     let mut model = ClassificationModel::new(x, y, settings);
     model.train();
 
-    model.predict(DenseMatrix::from_2d_array(&[&[0.0, 0.0], &[1.0, 1.0]]).unwrap());
+    model
+        .predict(DenseMatrix::from_2d_array(&[&[0.0, 0.0], &[1.0, 1.0]]).unwrap())
+        .expect("prediction should succeed");
+}
+
+#[test]
+fn predict_requires_training() {
+    let (x, y) = classification_testing_data();
+    let model = ClassificationModel::new(x, y, ClassificationSettings::default());
+    let res = model.predict(DenseMatrix::from_2d_array(&[&[0.0, 0.0], &[1.0, 1.0]]).unwrap());
+    assert!(matches!(res, Err(ModelError::NotTrained)));
 }
