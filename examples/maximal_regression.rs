@@ -100,11 +100,13 @@ fn main() -> Result<(), Failed> {
     // Run a model comparison with all models at default settings
     model.train()?;
 
-    // Print the results
+    // Display comparison results
     println!("{model}");
 
     // Predict with the model, be sure to use a DenseMatrix
-    let preds = model.predict(DenseMatrix::from_2d_vec(&vec![vec![5.0_f64; 6]; 10])?)?;
+    let preds = model
+        .predict(DenseMatrix::from_2d_vec(&vec![vec![5.0_f64; 6]; 10])?)
+        .expect("prediction should succeed");
     println!("Predictions: {preds:?}");
     Ok(())
 }

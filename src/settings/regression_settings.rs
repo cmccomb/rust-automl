@@ -11,7 +11,7 @@ use crate::algorithms::RegressionAlgorithm;
 
 use smartcore::linalg::basic::arrays::Array1;
 use smartcore::linalg::traits::{
-    cholesky::CholeskyDecomposable, qr::QRDecomposable, svd::SVDDecomposable,
+    cholesky::CholeskyDecomposable, evd::EVDDecomposable, qr::QRDecomposable, svd::SVDDecomposable,
 };
 use smartcore::numbers::{basenum::Number, floatnum::FloatNumber, realnum::RealNumber};
 use smartcore::{
@@ -27,7 +27,10 @@ pub struct RegressionSettings<INPUT, OUTPUT, InputArray, OutputArray>
 where
     INPUT: FloatNumber + RealNumber,
     OUTPUT: FloatNumber,
-    InputArray: CholeskyDecomposable<INPUT> + SVDDecomposable<INPUT> + QRDecomposable<INPUT>,
+    InputArray: CholeskyDecomposable<INPUT>
+        + SVDDecomposable<INPUT>
+        + EVDDecomposable<INPUT>
+        + QRDecomposable<INPUT>,
     OutputArray: Array1<OUTPUT>,
 {
     /// Shared supervised settings
@@ -55,7 +58,10 @@ impl<INPUT, OUTPUT, InputArray, OutputArray> Default
 where
     INPUT: FloatNumber + RealNumber,
     OUTPUT: FloatNumber,
-    InputArray: CholeskyDecomposable<INPUT> + SVDDecomposable<INPUT> + QRDecomposable<INPUT>,
+    InputArray: CholeskyDecomposable<INPUT>
+        + SVDDecomposable<INPUT>
+        + EVDDecomposable<INPUT>
+        + QRDecomposable<INPUT>,
     OutputArray: Array1<OUTPUT>,
 {
     fn default() -> Self {
@@ -81,7 +87,10 @@ impl<INPUT, OUTPUT, InputArray, OutputArray>
 where
     INPUT: FloatNumber + RealNumber + Number,
     OUTPUT: FloatNumber + Number,
-    InputArray: CholeskyDecomposable<INPUT> + SVDDecomposable<INPUT> + QRDecomposable<INPUT>,
+    InputArray: CholeskyDecomposable<INPUT>
+        + SVDDecomposable<INPUT>
+        + EVDDecomposable<INPUT>
+        + QRDecomposable<INPUT>,
     OutputArray: Array1<OUTPUT>,
 {
     /// Get the k-fold cross-validator
@@ -226,7 +235,10 @@ impl<INPUT, OUTPUT, InputArray, OutputArray> Display
 where
     INPUT: FloatNumber + RealNumber,
     OUTPUT: FloatNumber,
-    InputArray: CholeskyDecomposable<INPUT> + SVDDecomposable<INPUT> + QRDecomposable<INPUT>,
+    InputArray: CholeskyDecomposable<INPUT>
+        + SVDDecomposable<INPUT>
+        + EVDDecomposable<INPUT>
+        + QRDecomposable<INPUT>,
     OutputArray: Array1<OUTPUT>,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
