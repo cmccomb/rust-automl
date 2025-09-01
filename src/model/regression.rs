@@ -4,6 +4,7 @@ use super::{comparison::ComparisonEntry, preprocessing::Preprocessor};
 use crate::algorithms::RegressionAlgorithm;
 use crate::settings::{FinalAlgorithm, Metric, RegressionSettings};
 use smartcore::{
+    error::Failed,
     linalg::{
         basic::arrays::{Array, Array1, Array2, MutArrayView1},
         traits::{
@@ -69,7 +70,7 @@ where
 {
     /// Predict values using the final model based on a vec.
     /// ```
-    /// # use smartcore::linalg::basic::matrix::DenseMatrix;
+    /// # use smartcore::{error::Failed, linalg::basic::matrix::DenseMatrix};
     /// # use automl::{algorithms, RegressionModel, RegressionSettings};
     /// # let x = DenseMatrix::from_2d_vec(
     /// #     &(0..12).map(|i| vec![i as f64 + 1.0; 6]).collect::<Vec<_>>(),
@@ -82,42 +83,41 @@ where
     /// #    RegressionSettings::default().with_number_of_folds(3)
     /// #        .only(&algorithms::RegressionAlgorithm::default_linear()),
     /// # );
-    /// # model.train();
+    /// # model.train().unwrap();
     /// let X = DenseMatrix::from_2d_vec(&vec![vec![5.0; 6]; 5]).unwrap();
-    /// model.predict(X);
+    /// model.predict(X).unwrap();
     /// ```
-    /// # Panics
     ///
-    /// If the model has not been trained, this function will panic.
-    pub fn predict(self, x: InputArray) -> OutputArray {
+    /// # Errors
+    ///
+    /// Returns an error if preprocessing or prediction fails, or if no model has
+    /// been trained.
+    pub fn predict(self, x: InputArray) -> Result<OutputArray, Failed> {
         let x = self
             .preprocessor
             .preprocess(x, &self.settings.preprocessing)
-            .expect("Cannot preprocess features");
+            .map_err(|_| Failed::transform("Cannot preprocess features"))?;
         match self.settings.final_model_approach {
-            FinalAlgorithm::None => panic!(""),
-            FinalAlgorithm::Best => match &self
-                .comparison
-                .first()
-                .expect("")
-                .algorithm
-            {
-                RegressionAlgorithm::Linear(model) => model.predict(&x),
-                RegressionAlgorithm::Lasso(model) => model.predict(&x),
-                RegressionAlgorithm::Ridge(model) => model.predict(&x),
-                RegressionAlgorithm::ElasticNet(model) => model.predict(&x),
-                RegressionAlgorithm::RandomForestRegressor(model) => model.predict(&x),
-                RegressionAlgorithm::DecisionTreeRegressor(model) => model.predict(&x),
-                RegressionAlgorithm::KNNRegressorHamming(model) => model.predict(&x),
-                RegressionAlgorithm::KNNRegressorEuclidian(model) => model.predict(&x),
-                RegressionAlgorithm::KNNRegressorManhattan(model) => model.predict(&x),
-                RegressionAlgorithm::KNNRegressorMinkowski(model) => model.predict(&x),
-            }
-            .expect(
-                "Error during inference. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
-            ),
-            // FinalAlgorithm::Blending { .. } => self.predict_by_model(x, top_model),
-            // self.predict_blended_model(x, algorithm),
+            FinalAlgorithm::None => Err(Failed::invalid_state("no final algorithm selected")),
+            FinalAlgorithm::Best => {
+                let alg = self
+                    .comparison
+                    .first()
+                    .ok_or_else(|| Failed::invalid_state("model was not trained"))?;
+                match &alg.algorithm {
+                    RegressionAlgorithm::Linear(model) => model.predict(&x),
+                    RegressionAlgorithm::Lasso(model) => model.predict(&x),
+                    RegressionAlgorithm::Ridge(model) => model.predict(&x),
+                    RegressionAlgorithm::ElasticNet(model) => model.predict(&x),
+                    RegressionAlgorithm::RandomForestRegressor(model) => model.predict(&x),
+                    RegressionAlgorithm::DecisionTreeRegressor(model) => model.predict(&x),
+                    RegressionAlgorithm::KNNRegressorHamming(model) => model.predict(&x),
+                    RegressionAlgorithm::KNNRegressorEuclidian(model) => model.predict(&x),
+                    RegressionAlgorithm::KNNRegressorManhattan(model) => model.predict(&x),
+                    RegressionAlgorithm::KNNRegressorMinkowski(model) => model.predict(&x),
+                }
+            } // FinalAlgorithm::Blending { .. } => self.predict_by_model(x, top_model),
+              // self.predict_blended_model(x, algorithm),
         }
     }
 
@@ -136,9 +136,13 @@ where
     ///     RegressionSettings::default().with_number_of_folds(3)
     /// #        .only(&algorithms::RegressionAlgorithm::default_linear())
     /// );
-    /// model.train();
+    /// model.train().unwrap();
     /// ```
-    pub fn train(&mut self) {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if preprocessing or model evaluation fails.
+    pub fn train(&mut self) -> Result<(), Failed> {
         // Train any necessary preprocessing
         self.preprocessor
             .train(&self.x_train.clone(), &self.settings.preprocessing);
@@ -150,7 +154,7 @@ where
                     &self.x_train,
                     &self.y_train,
                     &self.settings,
-                ));
+                )?);
             }
         }
 
@@ -162,6 +166,7 @@ where
         // {
         //     self.train_blended_model(algorithm, meta_training_fraction, meta_testing_fraction);
         // }
+        Ok(())
     }
 }
 

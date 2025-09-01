@@ -17,8 +17,9 @@ mod regression_data;
 
 use automl::{RegressionModel, RegressionSettings};
 use regression_data::regression_testing_data;
+use smartcore::error::Failed;
 
-fn main() {
+fn main() -> Result<(), Failed> {
     // Load some regression data
     let (x, y) = regression_testing_data();
 
@@ -29,5 +30,6 @@ fn main() {
     let mut model = RegressionModel::new(x, y, settings);
 
     // Run a model comparison with all models at default settings
-    model.train();
+    model.train()?;
+    Ok(())
 }

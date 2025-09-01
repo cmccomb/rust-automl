@@ -26,8 +26,9 @@ use automl::{
     },
 };
 use regression_data::regression_testing_data;
+use smartcore::error::Failed;
 
-fn main() {
+fn main() -> Result<(), Failed> {
     // Load some regression data
     let (x, y) = regression_testing_data();
 
@@ -97,12 +98,13 @@ fn main() {
     let mut model = RegressionModel::new(x, y, settings);
 
     // Run a model comparison with all models at default settings
-    model.train();
+    model.train()?;
 
     // Print the results
     println!("{model}");
 
     // Predict with the model, be sure to use a DenseMatrix
-    let preds = model.predict(DenseMatrix::from_2d_vec(&vec![vec![5.0_f64; 6]; 10]).unwrap());
+    let preds = model.predict(DenseMatrix::from_2d_vec(&vec![vec![5.0_f64; 6]; 10])?)?;
     println!("Predictions: {preds:?}");
+    Ok(())
 }
