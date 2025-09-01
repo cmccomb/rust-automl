@@ -3,9 +3,9 @@
 #![allow(clippy::struct_field_names)]
 
 use super::{
-    DecisionTreeRegressorParameters, ElasticNetParameters, FinalAlgorithm, KNNParameters,
-    LassoParameters, LinearRegressionParameters, Metric, PreProcessing,
-    RandomForestRegressorParameters, RidgeRegressionParameters, SupervisedSettings,
+    DecisionTreeRegressorParameters, ElasticNetParameters, KNNParameters, LassoParameters,
+    LinearRegressionParameters, Metric, RandomForestRegressorParameters, RidgeRegressionParameters,
+    SupervisedSettings, WithSupervisedSettings,
 };
 use crate::algorithms::RegressionAlgorithm;
 
@@ -13,11 +13,8 @@ use smartcore::linalg::basic::arrays::Array1;
 use smartcore::linalg::traits::{
     cholesky::CholeskyDecomposable, evd::EVDDecomposable, qr::QRDecomposable, svd::SVDDecomposable,
 };
+use smartcore::metrics::{mean_absolute_error, mean_squared_error, r2};
 use smartcore::numbers::{basenum::Number, floatnum::FloatNumber, realnum::RealNumber};
-use smartcore::{
-    metrics::{mean_absolute_error, mean_squared_error, r2},
-    model_selection::KFold,
-};
 use std::fmt::{Display, Formatter};
 
 /// Settings for regression models.
@@ -93,11 +90,6 @@ where
         + QRDecomposable<INPUT>,
     OutputArray: Array1<OUTPUT>,
 {
-    /// Get the k-fold cross-validator
-    pub(crate) fn get_kfolds(&self) -> KFold {
-        self.supervised.get_kfolds()
-    }
-
     /// Get the metric function
     pub(crate) fn get_metric(&self) -> fn(&OutputArray, &OutputArray) -> f64 {
         match self.supervised.sort_by {
@@ -107,41 +99,6 @@ where
             Metric::Accuracy => panic!("Accuracy metric not supported for regression"),
             Metric::None => panic!("A metric must be set."),
         }
-    }
-
-    /// Specify number of folds for cross-validation
-    #[must_use]
-    pub const fn with_number_of_folds(mut self, n: usize) -> Self {
-        self.supervised = self.supervised.with_number_of_folds(n);
-        self
-    }
-
-    /// Specify whether data should be shuffled
-    #[must_use]
-    pub const fn shuffle_data(mut self, shuffle: bool) -> Self {
-        self.supervised = self.supervised.shuffle_data(shuffle);
-        self
-    }
-
-    /// Specify whether to be verbose
-    #[must_use]
-    pub const fn verbose(mut self, verbose: bool) -> Self {
-        self.supervised = self.supervised.verbose(verbose);
-        self
-    }
-
-    /// Specify what type of preprocessing should be performed
-    #[must_use]
-    pub const fn with_preprocessing(mut self, pre: PreProcessing) -> Self {
-        self.supervised = self.supervised.with_preprocessing(pre);
-        self
-    }
-
-    /// Specify what type of final model to use
-    #[must_use]
-    pub fn with_final_model(mut self, approach: FinalAlgorithm) -> Self {
-        self.supervised = self.supervised.with_final_model(approach);
-        self
     }
 
     /// Specify algorithms that shouldn't be included in comparison
@@ -164,13 +121,6 @@ where
             .into_iter()
             .filter(|algo| algo != only)
             .collect();
-        self
-    }
-
-    /// Adds a specific sorting function to the settings
-    #[must_use]
-    pub const fn sorted_by(mut self, sort_by: Metric) -> Self {
-        self.supervised = self.supervised.sorted_by(sort_by);
         self
     }
 
@@ -227,6 +177,26 @@ where
     ) -> Self {
         self.decision_tree_regressor_settings = Some(settings);
         self
+    }
+}
+
+impl<INPUT, OUTPUT, InputArray, OutputArray> WithSupervisedSettings
+    for RegressionSettings<INPUT, OUTPUT, InputArray, OutputArray>
+where
+    INPUT: FloatNumber + RealNumber,
+    OUTPUT: FloatNumber,
+    InputArray: CholeskyDecomposable<INPUT>
+        + SVDDecomposable<INPUT>
+        + EVDDecomposable<INPUT>
+        + QRDecomposable<INPUT>,
+    OutputArray: Array1<OUTPUT>,
+{
+    fn supervised(&self) -> &SupervisedSettings {
+        &self.supervised
+    }
+
+    fn supervised_mut(&mut self) -> &mut SupervisedSettings {
+        &mut self.supervised
     }
 }
 

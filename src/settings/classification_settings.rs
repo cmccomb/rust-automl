@@ -1,10 +1,10 @@
 use super::{
-    DecisionTreeClassifierParameters, FinalAlgorithm, KNNParameters, LogisticRegressionParameters,
-    Metric, PreProcessing, RandomForestClassifierParameters, SupervisedSettings,
+    DecisionTreeClassifierParameters, KNNParameters, LogisticRegressionParameters, Metric,
+    RandomForestClassifierParameters, SupervisedSettings, WithSupervisedSettings,
 };
 use smartcore::linalg::basic::arrays::Array1;
+use smartcore::metrics::accuracy;
 use smartcore::numbers::basenum::Number;
-use smartcore::{metrics::accuracy, model_selection::KFold};
 
 /// Settings for classification models
 pub struct ClassificationSettings {
@@ -36,11 +36,6 @@ impl Default for ClassificationSettings {
 }
 
 impl ClassificationSettings {
-    /// Get the k-fold cross-validator
-    pub(crate) fn get_kfolds(&self) -> KFold {
-        self.supervised.get_kfolds()
-    }
-
     pub(crate) fn get_metric<OUTPUT, OutputArray>(&self) -> fn(&OutputArray, &OutputArray) -> f64
     where
         OUTPUT: Number + Ord,
@@ -51,41 +46,6 @@ impl ClassificationSettings {
             Metric::None => panic!("A metric must be set."),
             _ => panic!("Unsupported metric for classification"),
         }
-    }
-
-    /// Specify number of folds for cross-validation
-    #[must_use]
-    pub const fn with_number_of_folds(mut self, n: usize) -> Self {
-        self.supervised = self.supervised.with_number_of_folds(n);
-        self
-    }
-
-    /// Specify whether data should be shuffled
-    #[must_use]
-    pub const fn shuffle_data(mut self, shuffle: bool) -> Self {
-        self.supervised = self.supervised.shuffle_data(shuffle);
-        self
-    }
-
-    /// Specify whether to be verbose
-    #[must_use]
-    pub const fn verbose(mut self, verbose: bool) -> Self {
-        self.supervised = self.supervised.verbose(verbose);
-        self
-    }
-
-    /// Specify what type of preprocessing should be performed
-    #[must_use]
-    pub const fn with_preprocessing(mut self, pre: PreProcessing) -> Self {
-        self.supervised = self.supervised.with_preprocessing(pre);
-        self
-    }
-
-    /// Specify what type of final model to use
-    #[must_use]
-    pub fn with_final_model(mut self, approach: FinalAlgorithm) -> Self {
-        self.supervised = self.supervised.with_final_model(approach);
-        self
     }
 
     /// Specify settings for KNN classifier
@@ -123,5 +83,15 @@ impl ClassificationSettings {
     ) -> Self {
         self.logistic_regression_settings = Some(settings);
         self
+    }
+}
+
+impl WithSupervisedSettings for ClassificationSettings {
+    fn supervised(&self) -> &SupervisedSettings {
+        &self.supervised
+    }
+
+    fn supervised_mut(&mut self) -> &mut SupervisedSettings {
+        &mut self.supervised
     }
 }
