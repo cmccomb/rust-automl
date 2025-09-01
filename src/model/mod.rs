@@ -3,10 +3,12 @@
 pub mod classification;
 pub mod clustering;
 mod comparison;
+pub mod error;
 mod preprocessing;
 pub mod regression;
 
 pub use classification::ClassificationModel;
 pub use clustering::ClusteringModel;
 pub use comparison::ComparisonEntry;
+pub use error::{ModelError, ModelResult};
 pub use regression::RegressionModel;

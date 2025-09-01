@@ -26,6 +26,6 @@ fn main() {
     model.train();
 
     // Predict cluster assignments
-    let clusters: Vec<u8> = model.predict(&x);
+    let clusters: Vec<u8> = model.predict(&x).expect("prediction failed");
     println!("Predicted clusters: {clusters:?}");
 }
