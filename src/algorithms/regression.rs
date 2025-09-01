@@ -6,8 +6,8 @@ use std::time::Instant;
 
 use super::supervised_train::SupervisedTrain;
 use crate::model::{ComparisonEntry, supervised::Algorithm};
+use crate::settings::{RegressionSettings, WithSupervisedSettings};
 use crate::utils::distance::{Distance, KNNRegressorDistance};
-use crate::settings::{KNNParameters, RegressionSettings, WithSupervisedSettings};
 use smartcore::api::SupervisedEstimator;
 use smartcore::error::Failed;
 use smartcore::linalg::basic::arrays::{Array1, Array2, MutArrayView1, MutArrayView2};
@@ -84,18 +84,6 @@ where
             KNNRegressorDistance<INPUT>,
         >,
     ),
-}
-
-fn build_knn_regressor_params<INPUT: RealNumber + FloatNumber>(
-    settings: &KNNParameters,
-    distance: Distance,
-) -> smartcore::neighbors::knn_regressor::KNNRegressorParameters<INPUT, KNNRegressorDistance<INPUT>>
-{
-    smartcore::neighbors::knn_regressor::KNNRegressorParameters::default()
-        .with_k(settings.k)
-        .with_algorithm(settings.algorithm.clone())
-        .with_weight(settings.weight.clone())
-        .with_distance(KNNRegressorDistance::from(distance))
 }
 
 impl<INPUT, OUTPUT, InputArray, OutputArray>
@@ -177,8 +165,7 @@ where
             ),
             Self::KNNRegressor(_) => {
                 let knn_settings = settings.knn_regressor_settings.as_ref().unwrap();
-                let params =
-                    build_knn_regressor_params::<INPUT>(knn_settings, knn_settings.distance);
+                let params = knn_settings.to_regressor_params::<INPUT>();
                 Self::KNNRegressor(smartcore::neighbors::knn_regressor::KNNRegressor::fit(
                     x, y, params,
                 )?)
@@ -265,8 +252,7 @@ where
             ),
             RegressionAlgorithm::KNNRegressor(_) => {
                 let knn_settings = settings.knn_regressor_settings.as_ref().unwrap();
-                let params =
-                    build_knn_regressor_params::<INPUT>(knn_settings, knn_settings.distance);
+                let params = knn_settings.to_regressor_params::<INPUT>();
                 Self::cross_validate_with(
                     self,
                     smartcore::neighbors::knn_regressor::KNNRegressor::new(),
