@@ -71,7 +71,8 @@ where
     pub fn predict(self, x: InputArray) -> OutputArray {
         let x = self
             .preprocessor
-            .preprocess(x, &self.settings.preprocessing);
+            .preprocess(x, &self.settings.preprocessing)
+            .expect("Cannot preprocess features");
         match self.settings.final_model_approach {
             FinalAlgorithm::None => panic!(""),
             FinalAlgorithm::Best => match &self
