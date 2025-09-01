@@ -8,3 +8,7 @@ pub use classification::ClassificationAlgorithm;
 
 pub mod clustering;
 pub use clustering::ClusteringAlgorithm;
+
+/// Shared training utilities for supervised algorithms.
+pub mod supervised_train;
+pub use supervised_train::SupervisedTrain;

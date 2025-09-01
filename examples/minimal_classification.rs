@@ -30,5 +30,5 @@ fn main() {
     let mut model = ClassificationModel::new(x, y, settings);
 
     // Run a model comparison with all models at default settings
-    model.train();
+    model.train().unwrap();
 }

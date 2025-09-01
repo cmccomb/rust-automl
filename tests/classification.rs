@@ -37,7 +37,7 @@ fn test_from_settings(settings: ClassificationSettings) {
     let (x, y) = classification_testing_data();
 
     let mut model = ClassificationModel::new(x, y, settings);
-    model.train();
+    model.train().unwrap();
 
     model
         .predict(DenseMatrix::from_2d_array(&[&[0.0, 0.0], &[1.0, 1.0]]).unwrap())

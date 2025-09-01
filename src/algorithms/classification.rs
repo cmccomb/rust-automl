@@ -3,9 +3,11 @@
 use std::fmt::{Display, Formatter};
 use std::time::Instant;
 
+use super::supervised_train::SupervisedTrain;
 use crate::model::ComparisonEntry;
 use crate::settings::ClassificationSettings;
 use smartcore::api::SupervisedEstimator;
+use smartcore::error::Failed;
 use smartcore::linalg::basic::arrays::{Array1, Array2, MutArrayView1, MutArrayView2};
 use smartcore::linalg::traits::cholesky::CholeskyDecomposable;
 use smartcore::linalg::traits::qr::QRDecomposable;
@@ -71,7 +73,8 @@ where
 }
 
 impl<INPUT, OUTPUT, InputArray, OutputArray>
-    ClassificationAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
+    SupervisedTrain<INPUT, OUTPUT, InputArray, OutputArray, ClassificationSettings>
+    for ClassificationAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
 where
     INPUT: RealNumber + FloatNumber,
     OUTPUT: Number + Ord,
@@ -84,14 +87,13 @@ where
         + CholeskyDecomposable<INPUT>,
     OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
 {
-    /// Fit the model
-    pub(crate) fn fit(
+    fn fit_inner(
         self,
         x: &InputArray,
         y: &OutputArray,
         settings: &ClassificationSettings,
-    ) -> Self {
-        match self {
+    ) -> Result<Self, Failed> {
+        Ok(match self {
             Self::DecisionTreeClassifier(_) => Self::DecisionTreeClassifier(
                 smartcore::tree::decision_tree_classifier::DecisionTreeClassifier::fit(
                     x,
@@ -101,13 +103,10 @@ where
                         .as_ref()
                         .unwrap()
                         .clone(),
-                )
-                .expect(
-                    "Error during training. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
-                ),
+                )?,
             ),
-            Self::KNNClassifier(_) => Self::KNNClassifier(
-                smartcore::neighbors::knn_classifier::KNNClassifier::fit(
+            Self::KNNClassifier(_) => {
+                Self::KNNClassifier(smartcore::neighbors::knn_classifier::KNNClassifier::fit(
                     x,
                     y,
                     smartcore::neighbors::knn_classifier::KNNClassifierParameters::default()
@@ -129,11 +128,8 @@ where
                                 .clone(),
                         )
                         .with_distance(Euclidian::new()),
-                )
-                .expect(
-                    "Error during training. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
-                ),
-            ),
+                )?)
+            }
             Self::RandomForestClassifier(_) => Self::RandomForestClassifier(
                 smartcore::ensemble::random_forest_classifier::RandomForestClassifier::fit(
                     x,
@@ -143,10 +139,7 @@ where
                         .as_ref()
                         .unwrap()
                         .clone(),
-                )
-                .expect(
-                    "Error during training. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
-                ),
+                )?,
             ),
             Self::LogisticRegression(_) => Self::LogisticRegression(
                 smartcore::linear::logistic_regression::LogisticRegression::fit(
@@ -168,12 +161,9 @@ where
                         )
                         .unwrap(),
                     },
-                )
-                .expect(
-                    "Error during training. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
-                ),
+                )?,
             ),
-        }
+        })
     }
 
     fn cv(
@@ -181,125 +171,129 @@ where
         x: &InputArray,
         y: &OutputArray,
         settings: &ClassificationSettings,
-    ) -> (
-        CrossValidationResult,
-        ClassificationAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>,
-    ) {
+    ) -> Result<(CrossValidationResult, Self), Failed> {
         match self {
-            Self::DecisionTreeClassifier(_) => (
-                smartcore::model_selection::cross_validate(
-                    smartcore::tree::decision_tree_classifier::DecisionTreeClassifier::new(),
-                    x,
-                    y,
-                    settings
-                        .decision_tree_classifier_settings
+            Self::DecisionTreeClassifier(_) => Self::cross_validate_with(
+                self,
+                smartcore::tree::decision_tree_classifier::DecisionTreeClassifier::new(),
+                settings
+                    .decision_tree_classifier_settings
+                    .as_ref()
+                    .unwrap()
+                    .clone(),
+                x,
+                y,
+                settings,
+                &settings.get_kfolds(),
+                Self::metric(settings),
+            ),
+            Self::KNNClassifier(_) => Self::cross_validate_with(
+                self,
+                smartcore::neighbors::knn_classifier::KNNClassifier::new(),
+                smartcore::neighbors::knn_classifier::KNNClassifierParameters::default()
+                    .with_k(settings.knn_classifier_settings.as_ref().unwrap().k)
+                    .with_algorithm(
+                        settings
+                            .knn_classifier_settings
+                            .as_ref()
+                            .unwrap()
+                            .algorithm
+                            .clone(),
+                    )
+                    .with_weight(
+                        settings
+                            .knn_classifier_settings
+                            .as_ref()
+                            .unwrap()
+                            .weight
+                            .clone(),
+                    )
+                    .with_distance(Euclidian::new()),
+                x,
+                y,
+                settings,
+                &settings.get_kfolds(),
+                Self::metric(settings),
+            ),
+            Self::RandomForestClassifier(_) => Self::cross_validate_with(
+                self,
+                smartcore::ensemble::random_forest_classifier::RandomForestClassifier::new(),
+                settings
+                    .random_forest_classifier_settings
+                    .as_ref()
+                    .unwrap()
+                    .clone(),
+                x,
+                y,
+                settings,
+                &settings.get_kfolds(),
+                Self::metric(settings),
+            ),
+            Self::LogisticRegression(_) => Self::cross_validate_with(
+                self,
+                smartcore::linear::logistic_regression::LogisticRegression::new(),
+                LogisticRegressionParameters {
+                    solver: settings
+                        .logistic_regression_settings
                         .as_ref()
                         .unwrap()
+                        .solver
                         .clone(),
-                    &settings.get_kfolds(),
-                    &settings.get_metric::<OUTPUT, OutputArray>(),
-                )
-                .expect(
-                    "Error during cross-validation. This is likely a bug in the AutoML library",
-                ),
-                Self::default_decision_tree_classifier().fit(x, y, settings),
-            ),
-            Self::KNNClassifier(_) => (
-                smartcore::model_selection::cross_validate(
-                    smartcore::neighbors::knn_classifier::KNNClassifier::new(),
-                    x,
-                    y,
-                    smartcore::neighbors::knn_classifier::KNNClassifierParameters::default()
-                        .with_k(settings.knn_classifier_settings.as_ref().unwrap().k)
-                        .with_algorithm(
-                            settings
-                                .knn_classifier_settings
-                                .as_ref()
-                                .unwrap()
-                                .algorithm
-                                .clone(),
-                        )
-                        .with_weight(
-                            settings
-                                .knn_classifier_settings
-                                .as_ref()
-                                .unwrap()
-                                .weight
-                                .clone(),
-                        )
-                        .with_distance(Euclidian::new()),
-                    &settings.get_kfolds(),
-                    &settings.get_metric::<OUTPUT, OutputArray>(),
-                )
-                .expect(
-                    "Error during cross-validation. This is likely a bug in the AutoML library",
-                ),
-                Self::default_knn_classifier().fit(x, y, settings),
-            ),
-            Self::RandomForestClassifier(_) => (
-                smartcore::model_selection::cross_validate(
-                    smartcore::ensemble::random_forest_classifier::RandomForestClassifier::new(),
-                    x,
-                    y,
-                    settings
-                        .random_forest_classifier_settings
-                        .as_ref()
-                        .unwrap()
-                        .clone(),
-                    &settings.get_kfolds(),
-                    &settings.get_metric::<OUTPUT, OutputArray>(),
-                )
-                .expect(
-                    "Error during cross-validation. This is likely a bug in the AutoML library",
-                ),
-                Self::default_random_forest_classifier().fit(x, y, settings),
-            ),
-            Self::LogisticRegression(_) => (
-                smartcore::model_selection::cross_validate(
-                    smartcore::linear::logistic_regression::LogisticRegression::new(),
-                    x,
-                    y,
-                    LogisticRegressionParameters {
-                        solver: settings
+                    alpha: INPUT::from(
+                        settings
                             .logistic_regression_settings
                             .as_ref()
                             .unwrap()
-                            .solver
-                            .clone(),
-                        alpha: INPUT::from(
-                            settings
-                                .logistic_regression_settings
-                                .as_ref()
-                                .unwrap()
-                                .alpha,
-                        )
-                        .unwrap(),
-                    },
-                    &settings.get_kfolds(),
-                    &settings.get_metric::<OUTPUT, OutputArray>(),
-                )
-                .expect(
-                    "Error during cross-validation. This is likely a bug in the AutoML library",
-                ),
-                Self::default_logistic_regression().fit(x, y, settings),
+                            .alpha,
+                    )
+                    .unwrap(),
+                },
+                x,
+                y,
+                settings,
+                &settings.get_kfolds(),
+                Self::metric(settings),
             ),
         }
     }
 
+    fn metric(settings: &ClassificationSettings) -> fn(&OutputArray, &OutputArray) -> f64 {
+        settings.get_metric::<OUTPUT, OutputArray>()
+    }
+}
+
+impl<INPUT, OUTPUT, InputArray, OutputArray>
+    ClassificationAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
+where
+    INPUT: RealNumber + FloatNumber,
+    OUTPUT: Number + Ord,
+    InputArray: MutArrayView2<INPUT>
+        + Sized
+        + Clone
+        + Array2<INPUT>
+        + QRDecomposable<INPUT>
+        + SVDDecomposable<INPUT>
+        + CholeskyDecomposable<INPUT>,
+    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
+{
+    /// Fit the model
     pub(crate) fn cross_validate_model(
         self,
         x: &InputArray,
         y: &OutputArray,
         settings: &ClassificationSettings,
-    ) -> ComparisonEntry<ClassificationAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>> {
+    ) -> Result<
+        ComparisonEntry<ClassificationAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>>,
+        Failed,
+    > {
         let start = Instant::now();
-        let results = self.cv(x, y, settings);
+        let results = self.cv(x, y, settings)?;
         let end = Instant::now();
-        ComparisonEntry {
+        Ok(ComparisonEntry {
             result: results.0,
             algorithm: results.1,
             duration: end.duration_since(start),
-        }
+        })
     }
 
     /// Get a vector of all possible algorithms
