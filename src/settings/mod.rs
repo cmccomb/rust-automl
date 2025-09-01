@@ -125,6 +125,9 @@ pub use svr_parameters::SVRParameters;
 mod knn_classifier_parameters;
 pub use knn_classifier_parameters::KNNClassifierParameters;
 
+mod knn_common;
+pub use knn_common::{build_knn_classifier_parameters, build_knn_regressor_parameters};
+
 mod svc_parameters;
 pub use svc_parameters::SVCParameters;
 

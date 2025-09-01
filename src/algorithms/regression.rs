@@ -5,7 +5,7 @@ use std::fmt::{Display, Formatter};
 use std::time::Instant;
 
 use crate::model::ComparisonEntry;
-use crate::settings::RegressionSettings;
+use crate::settings::{RegressionSettings, build_knn_regressor_parameters};
 use crate::utils::distance::Distance;
 use smartcore::api::SupervisedEstimator;
 use smartcore::linalg::basic::arrays::{Array1, Array2, MutArrayView1, MutArrayView2};
@@ -192,17 +192,23 @@ where
                 smartcore::neighbors::knn_regressor::KNNRegressor::fit(
                     x,
                     y,
-                    smartcore::neighbors::knn_regressor::KNNRegressorParameters::default().with_k(settings.knn_regressor_settings.as_ref().unwrap().k).with_algorithm(settings.knn_regressor_settings.as_ref().unwrap().algorithm.clone()).with_weight(settings.knn_regressor_settings.as_ref().unwrap().weight.clone()).with_distance(Euclidian::new()),
-                )
-                    .expect(
-                        "Error during training. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
+                    build_knn_regressor_parameters::<INPUT, _>(
+                        settings.knn_regressor_settings.as_ref().unwrap(),
+                        Euclidian::new(),
                     ),
+                )
+                .expect(
+                    "Error during training. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
+                ),
             ),
             Self::KNNRegressorManhattan(_) => Self::KNNRegressorManhattan(
                 smartcore::neighbors::knn_regressor::KNNRegressor::fit(
                     x,
                     y,
-                    smartcore::neighbors::knn_regressor::KNNRegressorParameters::default().with_k(settings.knn_regressor_settings.as_ref().unwrap().k).with_algorithm(settings.knn_regressor_settings.as_ref().unwrap().algorithm.clone()).with_weight(settings.knn_regressor_settings.as_ref().unwrap().weight.clone()).with_distance(Manhattan::new()),
+                    build_knn_regressor_parameters::<INPUT, _>(
+                        settings.knn_regressor_settings.as_ref().unwrap(),
+                        Manhattan::new(),
+                    ),
                 )
                 .expect(
                     "Error during training. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
@@ -221,25 +227,10 @@ where
                     smartcore::neighbors::knn_regressor::KNNRegressor::fit(
                         x,
                         y,
-                        smartcore::neighbors::knn_regressor::KNNRegressorParameters::default()
-                            .with_k(settings.knn_regressor_settings.as_ref().unwrap().k)
-                            .with_algorithm(
-                                settings
-                                    .knn_regressor_settings
-                                    .as_ref()
-                                    .unwrap()
-                                    .algorithm
-                                    .clone(),
-                            )
-                            .with_weight(
-                                settings
-                                    .knn_regressor_settings
-                                    .as_ref()
-                                    .unwrap()
-                                    .weight
-                                    .clone(),
-                            )
-                            .with_distance(Minkowski::new(p)),
+                        build_knn_regressor_parameters::<INPUT, _>(
+                            settings.knn_regressor_settings.as_ref().unwrap(),
+                            Minkowski::new(p),
+                        )
                     )
                     .expect(
                         "Error during training. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
@@ -250,7 +241,10 @@ where
                 smartcore::neighbors::knn_regressor::KNNRegressor::fit(
                     x,
                     y,
-                    smartcore::neighbors::knn_regressor::KNNRegressorParameters::default().with_k(settings.knn_regressor_settings.as_ref().unwrap().k).with_algorithm(settings.knn_regressor_settings.as_ref().unwrap().algorithm.clone()).with_weight(settings.knn_regressor_settings.as_ref().unwrap().weight.clone()).with_distance(Hamming::new()),
+                    build_knn_regressor_parameters::<INPUT, _>(
+                        settings.knn_regressor_settings.as_ref().unwrap(),
+                        Hamming::new(),
+                    ),
                 )
                     .expect(
                         "Error during training. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
@@ -373,25 +367,10 @@ where
                     >::new(),
                     x,
                     y,
-                    smartcore::neighbors::knn_regressor::KNNRegressorParameters::default()
-                        .with_k(settings.knn_regressor_settings.as_ref().unwrap().k)
-                        .with_algorithm(
-                            settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .algorithm
-                                .clone(),
-                        )
-                        .with_weight(
-                            settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .weight
-                                .clone(),
-                        )
-                        .with_distance(Euclidian::new()),
+                    build_knn_regressor_parameters::<INPUT, _>(
+                        settings.knn_regressor_settings.as_ref().unwrap(),
+                        Euclidian::new(),
+                    ),
                     &settings.get_kfolds(),
                     &settings.get_metric(),
                 )
@@ -411,25 +390,10 @@ where
                     >::new(),
                     x,
                     y,
-                    smartcore::neighbors::knn_regressor::KNNRegressorParameters::default()
-                        .with_k(settings.knn_regressor_settings.as_ref().unwrap().k)
-                        .with_algorithm(
-                            settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .algorithm
-                                .clone(),
-                        )
-                        .with_weight(
-                            settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .weight
-                                .clone(),
-                        )
-                        .with_distance(Manhattan::new()),
+                    build_knn_regressor_parameters::<INPUT, _>(
+                        settings.knn_regressor_settings.as_ref().unwrap(),
+                        Manhattan::new(),
+                    ),
                     &settings.get_kfolds(),
                     &settings.get_metric(),
                 )
@@ -458,25 +422,10 @@ where
                         >::new(),
                         x,
                         y,
-                        smartcore::neighbors::knn_regressor::KNNRegressorParameters::default()
-                            .with_k(settings.knn_regressor_settings.as_ref().unwrap().k)
-                            .with_algorithm(
-                                settings
-                                    .knn_regressor_settings
-                                    .as_ref()
-                                    .unwrap()
-                                    .algorithm
-                                    .clone(),
-                            )
-                            .with_weight(
-                                settings
-                                    .knn_regressor_settings
-                                    .as_ref()
-                                    .unwrap()
-                                    .weight
-                                    .clone(),
-                            )
-                            .with_distance(Minkowski::new(p)),
+                        build_knn_regressor_parameters::<INPUT, _>(
+                            settings.knn_regressor_settings.as_ref().unwrap(),
+                            Minkowski::new(p),
+                        ),
                         &settings.get_kfolds(),
                         &settings.get_metric(),
                     )
@@ -497,25 +446,10 @@ where
                     >::new(),
                     x,
                     y,
-                    smartcore::neighbors::knn_regressor::KNNRegressorParameters::default()
-                        .with_k(settings.knn_regressor_settings.as_ref().unwrap().k)
-                        .with_algorithm(
-                            settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .algorithm
-                                .clone(),
-                        )
-                        .with_weight(
-                            settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .weight
-                                .clone(),
-                        )
-                        .with_distance(Hamming::new()),
+                    build_knn_regressor_parameters::<INPUT, _>(
+                        settings.knn_regressor_settings.as_ref().unwrap(),
+                        Hamming::new(),
+                    ),
                     &settings.get_kfolds(),
                     &settings.get_metric(),
                 )

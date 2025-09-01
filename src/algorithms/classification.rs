@@ -4,7 +4,7 @@ use std::fmt::{Display, Formatter};
 use std::time::Instant;
 
 use crate::model::ComparisonEntry;
-use crate::settings::ClassificationSettings;
+use crate::settings::{ClassificationSettings, build_knn_classifier_parameters};
 use smartcore::api::SupervisedEstimator;
 use smartcore::linalg::basic::arrays::{Array1, Array2, MutArrayView1, MutArrayView2};
 use smartcore::linalg::traits::cholesky::CholeskyDecomposable;
@@ -110,25 +110,10 @@ where
                 smartcore::neighbors::knn_classifier::KNNClassifier::fit(
                     x,
                     y,
-                    smartcore::neighbors::knn_classifier::KNNClassifierParameters::default()
-                        .with_k(settings.knn_classifier_settings.as_ref().unwrap().k)
-                        .with_algorithm(
-                            settings
-                                .knn_classifier_settings
-                                .as_ref()
-                                .unwrap()
-                                .algorithm
-                                .clone(),
-                        )
-                        .with_weight(
-                            settings
-                                .knn_classifier_settings
-                                .as_ref()
-                                .unwrap()
-                                .weight
-                                .clone(),
-                        )
-                        .with_distance(Euclidian::new()),
+                    build_knn_classifier_parameters::<INPUT, _>(
+                        settings.knn_classifier_settings.as_ref().unwrap(),
+                        Euclidian::new(),
+                    ),
                 )
                 .expect(
                     "Error during training. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
@@ -209,25 +194,10 @@ where
                     smartcore::neighbors::knn_classifier::KNNClassifier::new(),
                     x,
                     y,
-                    smartcore::neighbors::knn_classifier::KNNClassifierParameters::default()
-                        .with_k(settings.knn_classifier_settings.as_ref().unwrap().k)
-                        .with_algorithm(
-                            settings
-                                .knn_classifier_settings
-                                .as_ref()
-                                .unwrap()
-                                .algorithm
-                                .clone(),
-                        )
-                        .with_weight(
-                            settings
-                                .knn_classifier_settings
-                                .as_ref()
-                                .unwrap()
-                                .weight
-                                .clone(),
-                        )
-                        .with_distance(Euclidian::new()),
+                    build_knn_classifier_parameters::<INPUT, _>(
+                        settings.knn_classifier_settings.as_ref().unwrap(),
+                        Euclidian::new(),
+                    ),
                     &settings.get_kfolds(),
                     &settings.get_metric::<OUTPUT, OutputArray>(),
                 )

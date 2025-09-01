@@ -2,8 +2,12 @@
 mod regression_data;
 
 use automl::algorithms::RegressionAlgorithm;
+use automl::settings::{
+    KNNAlgorithmName, KNNRegressorParameters, KNNWeightFunction, build_knn_regressor_parameters,
+};
 use automl::{DenseMatrix, RegressionModel, RegressionSettings};
 use regression_data::regression_testing_data;
+use smartcore::metrics::distance::manhattan::Manhattan;
 
 #[test]
 fn test_default_regression() {
@@ -16,6 +20,18 @@ fn test_knn_only_regression() {
     let settings =
         RegressionSettings::default().only(&RegressionAlgorithm::default_knn_regressor());
     test_from_settings(settings);
+}
+
+#[test]
+fn test_build_knn_regressor_parameters_helper() {
+    let settings = KNNRegressorParameters::default()
+        .with_k(3)
+        .with_algorithm(KNNAlgorithmName::CoverTree)
+        .with_weight(KNNWeightFunction::Uniform);
+    let params = build_knn_regressor_parameters::<f64, _>(&settings, Manhattan::new());
+    assert_eq!(params.k, 3);
+    assert!(matches!(params.algorithm, KNNAlgorithmName::CoverTree));
+    assert!(matches!(params.weight, KNNWeightFunction::Uniform));
 }
 
 fn test_from_settings(settings: RegressionSettings<f64, f64, DenseMatrix<f64>, Vec<f64>>) {
