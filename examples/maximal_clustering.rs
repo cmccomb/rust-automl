@@ -36,6 +36,6 @@ fn main() {
 
     // Predict cluster assignments for new data
     let new_points = DenseMatrix::from_2d_vec(&vec![vec![0.9_f64, 1.1], vec![8.1, 8.3]]).unwrap();
-    let clusters: Vec<u8> = model.predict(new_points);
+    let clusters: Vec<u8> = model.predict(&new_points);
     println!("Predicted clusters: {clusters:?}");
 }

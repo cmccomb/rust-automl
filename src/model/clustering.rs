@@ -54,9 +54,9 @@ where
     /// # Panics
     ///
     /// Panics if the model has not been trained.
-    pub fn predict(&self, x: InputArray) -> ClusterArray {
+    pub fn predict(&self, x: &InputArray) -> ClusterArray {
         match &self.algorithm {
-            Some(alg) => alg.predict(&x, &self.settings),
+            Some(alg) => alg.predict(x, &self.settings),
             None => panic!("Model has not been trained"),
         }
     }

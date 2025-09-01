@@ -66,10 +66,10 @@ let x = DenseMatrix::from_2d_vec(&vec![
     vec![8.0, 8.0],
     vec![8.2, 8.2],
 ]).unwrap();
-let mut model = ClusteringModel::new(x.clone(), ClusteringSettings::default().with_k(2));
-model.train();
-let _clusters: Vec<u8> = model.predict(x);
-```
+  let mut model = ClusteringModel::new(x.clone(), ClusteringSettings::default().with_k(2));
+  model.train();
+  let _clusters: Vec<u8> = model.predict(&x);
+  ```
 
 Additional runnable examples are available in the [`examples/` directory](examples),
 including [`minimal_classification.rs`](examples/minimal_classification.rs),
