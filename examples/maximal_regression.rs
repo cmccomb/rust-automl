@@ -16,7 +16,7 @@
 mod regression_data;
 
 use automl::{
-    DenseMatrix, RegressionModel, Settings,
+    DenseMatrix, RegressionModel, RegressionSettings,
     algorithms::RegressionAlgorithm,
     settings::{
         DecisionTreeRegressorParameters, Distance, ElasticNetParameters, FinalAlgorithm,
@@ -32,7 +32,7 @@ fn main() {
     let (x, y) = regression_testing_data();
 
     // Totally customize settings
-    let settings = Settings::default_regression()
+    let settings = RegressionSettings::default()
         .with_number_of_folds(3)
         .shuffle_data(true)
         .verbose(true)

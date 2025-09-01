@@ -3,7 +3,7 @@
 [![docs.rs](https://img.shields.io/docsrs/automl/latest?logo=rust)](https://docs.rs/automl)
 
 ## What & Why
-`automl` automates model selection and training on top of the `smartcore` machine learning library, helping Rust developers quickly build regression and classification models.
+`automl` automates model selection and training on top of the `smartcore` machine learning library, helping Rust developers quickly build regression, classification, and clustering models.
 
 ## Quickstart
 Install from [crates.io](https://crates.io/crates/automl) or use the GitHub repository for the latest changes:
@@ -21,7 +21,7 @@ automl = { git = "https://github.com/cmccomb/rust-automl" }
 ```
 
 ```rust
-use automl::{RegressionModel, Settings};
+use automl::{RegressionModel, RegressionSettings};
 use smartcore::linalg::basic::matrix::DenseMatrix;
 
 let x = DenseMatrix::from_2d_vec(&vec![
@@ -30,7 +30,7 @@ let x = DenseMatrix::from_2d_vec(&vec![
     vec![3.0, 4.0, 5.0],
 ]).unwrap();
 let y = vec![1.0_f64, 2.0, 3.0];
-let _model = RegressionModel::new(x, y, Settings::default_regression());
+let _model = RegressionModel::new(x, y, RegressionSettings::default());
 ```
 
 ## Examples
@@ -54,9 +54,30 @@ let settings = ClassificationSettings::default()
 let _model = ClassificationModel::new(x, y, settings);
 ```
 
+### Clustering
+```rust
+use automl::{ClusteringModel};
+use automl::settings::ClusteringSettings;
+use smartcore::linalg::basic::matrix::DenseMatrix;
+
+let x = DenseMatrix::from_2d_vec(&vec![
+    vec![1.0_f64, 1.0],
+    vec![1.2, 0.8],
+    vec![8.0, 8.0],
+    vec![8.2, 8.2],
+]).unwrap();
+  let mut model = ClusteringModel::new(x.clone(), ClusteringSettings::default().with_k(2));
+  model.train();
+  let _clusters: Vec<u8> = model.predict(&x);
+  ```
+
 Additional runnable examples are available in the [`examples/` directory](examples),
-including [`minimal_classification.rs`](examples/minimal_classification.rs) and
-[`maximal_classification.rs`](examples/maximal_classification.rs).
+including [`minimal_classification.rs`](examples/minimal_classification.rs),
+[`maximal_classification.rs`](examples/maximal_classification.rs),
+[`minimal_regression.rs`](examples/minimal_regression.rs),
+[`maximal_regression.rs`](examples/maximal_regression.rs),
+[`minimal_clustering.rs`](examples/minimal_clustering.rs), and
+[`maximal_clustering.rs`](examples/maximal_clustering.rs).
 
 Model comparison:
 
@@ -76,6 +97,7 @@ Model comparison:
 - Feature Engineering: PCA, SVD, interaction terms, polynomial terms
 - Regression: Decision Tree, KNN, Random Forest, Linear, Ridge, LASSO, Elastic Net, Support Vector Regression
 - Classification: Random Forest, Decision Tree, KNN, Logistic Regression
+- Clustering: K-Means, Agglomerative, DBSCAN
 - Meta-learning: Blending (experimental)
 - Persistence: Save/load settings and models
 

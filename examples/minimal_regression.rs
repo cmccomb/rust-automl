@@ -15,7 +15,7 @@
 #[path = "../tests/fixtures/regression_data.rs"]
 mod regression_data;
 
-use automl::{RegressionModel, Settings};
+use automl::{RegressionModel, RegressionSettings};
 use regression_data::regression_testing_data;
 
 fn main() {
@@ -23,7 +23,7 @@ fn main() {
     let (x, y) = regression_testing_data();
 
     // Totally customize settings
-    let settings = Settings::default_regression();
+    let settings = RegressionSettings::default();
 
     // Load a dataset from smartcore and add it to the regressor along with the customized settings
     let mut model = RegressionModel::new(x, y, settings);

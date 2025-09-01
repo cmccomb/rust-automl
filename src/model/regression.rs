@@ -2,7 +2,7 @@
 
 use super::{comparison::ComparisonEntry, preprocessing::Preprocessor};
 use crate::algorithms::RegressionAlgorithm;
-use crate::settings::{FinalAlgorithm, Metric, Settings};
+use crate::settings::{FinalAlgorithm, Metric, RegressionSettings};
 use smartcore::{
     linalg::{
         basic::arrays::{Array, Array1, Array2, MutArrayView1},
@@ -41,7 +41,7 @@ where
     OutputArray: Clone + MutArrayView1<OUTPUT> + Array1<OUTPUT>,
 {
     /// Settings for the model.
-    settings: Settings<INPUT, OUTPUT, InputArray, OutputArray>,
+    settings: RegressionSettings<INPUT, OUTPUT, InputArray, OutputArray>,
     /// The training data.
     x_train: InputArray,
     /// The training labels.
@@ -70,13 +70,16 @@ where
     /// Predict values using the final model based on a vec.
     /// ```
     /// # use smartcore::linalg::basic::matrix::DenseMatrix;
-    /// # use automl::{algorithms, RegressionModel, Settings};
-    /// # let x = DenseMatrix::from_2d_vec(&vec![vec![1.0_f64; 6]; 16]).unwrap();
-    /// # let y = vec![0.0_f64; 16];
+    /// # use automl::{algorithms, RegressionModel, RegressionSettings};
+    /// # let x = DenseMatrix::from_2d_vec(
+    /// #     &(0..12).map(|i| vec![i as f64 + 1.0; 6]).collect::<Vec<_>>(),
+    /// # )
+    /// # .unwrap();
+    /// # let y = vec![0.0_f64; 12];
     /// # let mut model = RegressionModel::new(
     /// #    x,
     /// #    y,
-    /// #    Settings::default_regression()
+    /// #    RegressionSettings::default().with_number_of_folds(3)
     /// #        .only(&algorithms::RegressionAlgorithm::default_linear()),
     /// # );
     /// # model.train();
@@ -119,14 +122,17 @@ where
 
     /// Runs a model comparison and trains a final model.
     /// ```
-    /// # use automl::{algorithms, RegressionModel, Settings};
+    /// # use automl::{algorithms, RegressionModel, RegressionSettings};
     /// # use smartcore::linalg::basic::matrix::DenseMatrix;
-    /// # let x = DenseMatrix::from_2d_vec(&vec![vec![1.0_f64; 6]; 16]).unwrap();
-    /// # let y = vec![0.0_f64; 16];
+    /// # let x = DenseMatrix::from_2d_vec(
+    /// #     &(0..12).map(|i| vec![i as f64 + 1.0; 6]).collect::<Vec<_>>(),
+    /// # )
+    /// # .unwrap();
+    /// # let y = vec![0.0_f64; 12];
     /// let mut model = RegressionModel::new(
     ///     x,
     ///     y,
-    ///     Settings::default_regression()
+    ///     RegressionSettings::default().with_number_of_folds(3)
     /// #        .only(&algorithms::RegressionAlgorithm::default_linear())
     /// );
     /// model.train();
@@ -180,7 +186,7 @@ where
     pub fn new(
         x: InputArray,
         y: OutputArray,
-        settings: Settings<INPUT, OUTPUT, InputArray, OutputArray>,
+        settings: RegressionSettings<INPUT, OUTPUT, InputArray, OutputArray>,
     ) -> Self {
         Self {
             settings,

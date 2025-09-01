@@ -14,7 +14,7 @@
 //!     },
 //! };
 //!
-//!  let settings = automl::Settings::<f64, f64, DenseMatrix<f64>, Vec<f64>>::default_regression()
+//!  let settings = automl::RegressionSettings::<f64, f64, DenseMatrix<f64>, Vec<f64>>::default()
 //!     .with_number_of_folds(3)
 //!     .shuffle_data(true)
 //!     .verbose(true)
@@ -131,11 +131,12 @@ pub use svc_parameters::SVCParameters;
 mod classification_settings;
 pub use classification_settings::ClassificationSettings;
 
-mod settings_struct;
+mod regression_settings;
 #[doc(no_inline)]
-pub use settings_struct::Settings;
+pub use regression_settings::RegressionSettings;
 
-mod display;
+mod clustering_settings;
+pub use clustering_settings::{ClusteringAlgorithmName, ClusteringSettings};
 
 use std::fmt::{Display, Formatter};
 

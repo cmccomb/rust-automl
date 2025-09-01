@@ -11,18 +11,21 @@
 #![doc = include_str!("../README.md")]
 
 pub mod settings;
-pub use settings::Settings;
+pub use settings::{ClassificationSettings, ClusteringSettings, RegressionSettings};
 
 pub mod cookbook;
 
 pub mod utils;
 
+/// Metric re-exports.
+pub mod metrics;
+
 /// Algorithm enumerations and helpers.
 pub mod algorithms;
-pub use algorithms::{ClassificationAlgorithm, RegressionAlgorithm};
+pub use algorithms::{ClassificationAlgorithm, ClusteringAlgorithm, RegressionAlgorithm};
 
 /// Model definitions and implementations.
 pub mod model;
-pub use model::{ClassificationModel, RegressionModel};
+pub use model::{ClassificationModel, ClusteringModel, RegressionModel};
 
 pub use smartcore::linalg::basic::matrix::DenseMatrix;
