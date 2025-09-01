@@ -7,6 +7,7 @@ use automl::{
     settings::{ClusteringAlgorithmName, ClusteringSettings},
 };
 use clustering_data::clustering_testing_data;
+use smartcore::linalg::basic::matrix::DenseMatrix;
 
 #[test]
 fn kmeans_clustering_runs() {
@@ -53,6 +54,25 @@ fn clustering_metrics_compute() {
     assert!((scores.homogeneity().unwrap() - 1.0).abs() < 1e-12);
     assert!((scores.completeness().unwrap() - 1.0).abs() < 1e-12);
     assert!((scores.v_measure().unwrap() - 1.0).abs() < 1e-12);
+}
+
+#[test]
+fn clustering_model_display_shows_metrics() {
+    // Arrange
+    let x = clustering_testing_data();
+    let mut model: ClusteringModel<f64, u8, DenseMatrix<f64>, Vec<u8>> =
+        ClusteringModel::new(x.clone(), ClusteringSettings::default().with_k(2));
+    model.train();
+    let truth = vec![1_u8, 1, 2, 2];
+    model.evaluate(&truth);
+
+    // Act
+    let output = format!("{model}");
+
+    // Assert
+    assert!(output.contains("KMeans"));
+    assert!(output.contains("V-Measure"));
+    assert!(output.contains("1.00"));
 }
 
 #[test]
