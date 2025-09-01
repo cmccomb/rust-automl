@@ -1,6 +1,6 @@
 //! Implementation of classification model training and evaluation.
 
-use super::{comparison::ComparisonEntry, preprocessing::Preprocessor};
+use super::{ModelError, ModelResult, comparison::ComparisonEntry, preprocessing::Preprocessor};
 use crate::algorithms::ClassificationAlgorithm;
 use crate::settings::{ClassificationSettings, FinalAlgorithm, Metric};
 use smartcore::{
@@ -65,30 +65,57 @@ where
         + QRDecomposable<INPUT>,
     OutputArray: Clone + MutArrayView1<OUTPUT> + Array1<OUTPUT>,
 {
-    /// Predict values using the final model based on a vec.
-    /// # Panics
-    /// If the model has not been trained, this function will panic.
-    pub fn predict(self, x: InputArray) -> OutputArray {
+    /// Predict values using the final model based on a feature matrix.
+    ///
+    /// # Examples
+    /// ```
+    /// use smartcore::linalg::basic::matrix::DenseMatrix;
+    /// use automl::{ClassificationModel, settings::ClassificationSettings};
+    /// let x = DenseMatrix::from_2d_array(&[
+    ///     &[0.0, 0.0],
+    ///     &[1.0, 1.0],
+    ///     &[0.0, 1.0],
+    ///     &[1.0, 0.0],
+    ///     &[0.5, 0.5],
+    ///     &[1.5, 1.5],
+    ///     &[0.5, 1.5],
+    ///     &[1.5, 0.5],
+    /// ]).unwrap();
+    /// let y = vec![0_i32, 1, 0, 1, 0, 1, 0, 1];
+    /// let mut model = ClassificationModel::new(
+    ///     x,
+    ///     y,
+    ///     ClassificationSettings::default().with_number_of_folds(2),
+    /// );
+    /// model.train();
+    /// let preds = model.predict(
+    ///     DenseMatrix::from_2d_array(&[&[0.0, 0.0], &[1.0, 1.0]]).unwrap(),
+    /// );
+    /// assert!(preds.is_ok());
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ModelError::NotTrained`] if the model has not been trained or
+    /// [`ModelError::Inference`] if the underlying algorithm fails.
+    pub fn predict(&self, x: InputArray) -> ModelResult<OutputArray> {
         let x = self
             .preprocessor
             .preprocess(x, &self.settings.preprocessing)
-            .expect("Cannot preprocess features");
+            .map_err(|e| ModelError::Inference(e.to_string()))?;
+
         match self.settings.final_model_approach {
-            FinalAlgorithm::None => panic!(""),
-            FinalAlgorithm::Best => match &self
-                .comparison
-                .first()
-                .expect("")
-                .algorithm
-            {
-                ClassificationAlgorithm::DecisionTreeClassifier(model) => model.predict(&x),
-                ClassificationAlgorithm::KNNClassifier(model) => model.predict(&x),
-                ClassificationAlgorithm::RandomForestClassifier(model) => model.predict(&x),
-                ClassificationAlgorithm::LogisticRegression(model) => model.predict(&x),
+            FinalAlgorithm::None => Err(ModelError::NotTrained),
+            FinalAlgorithm::Best => {
+                let entry = self.comparison.first().ok_or(ModelError::NotTrained)?;
+                match &entry.algorithm {
+                    ClassificationAlgorithm::DecisionTreeClassifier(model) => model.predict(&x),
+                    ClassificationAlgorithm::KNNClassifier(model) => model.predict(&x),
+                    ClassificationAlgorithm::RandomForestClassifier(model) => model.predict(&x),
+                    ClassificationAlgorithm::LogisticRegression(model) => model.predict(&x),
+                }
+                .map_err(|e| ModelError::Inference(e.to_string()))
             }
-            .expect(
-                "Error during inference. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
-            ),
         }
     }
 
