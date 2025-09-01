@@ -1,7 +1,6 @@
 use super::{
-    DecisionTreeClassifierParameters, FinalAlgorithm, KNNClassifierParameters,
-    LogisticRegressionParameters, Metric, PreProcessing, RandomForestClassifierParameters,
-    SupervisedSettings,
+    DecisionTreeClassifierParameters, FinalAlgorithm, KNNParameters, LogisticRegressionParameters,
+    Metric, PreProcessing, RandomForestClassifierParameters, SupervisedSettings,
 };
 use smartcore::linalg::basic::arrays::Array1;
 use smartcore::numbers::basenum::Number;
@@ -12,7 +11,7 @@ pub struct ClassificationSettings {
     /// Shared supervised settings
     pub(crate) supervised: SupervisedSettings,
     /// Optional settings for KNN classifier
-    pub(crate) knn_classifier_settings: Option<KNNClassifierParameters>,
+    pub(crate) knn_classifier_settings: Option<KNNParameters>,
     /// Optional settings for decision tree classifier
     pub(crate) decision_tree_classifier_settings: Option<DecisionTreeClassifierParameters>,
     /// Optional settings for random forest classifier
@@ -28,7 +27,7 @@ impl Default for ClassificationSettings {
                 sort_by: Metric::Accuracy,
                 ..SupervisedSettings::default()
             },
-            knn_classifier_settings: Some(KNNClassifierParameters::default()),
+            knn_classifier_settings: Some(KNNParameters::default()),
             decision_tree_classifier_settings: Some(DecisionTreeClassifierParameters::default()),
             random_forest_classifier_settings: Some(RandomForestClassifierParameters::default()),
             logistic_regression_settings: Some(LogisticRegressionParameters::default()),
@@ -91,7 +90,7 @@ impl ClassificationSettings {
 
     /// Specify settings for KNN classifier
     #[must_use]
-    pub const fn with_knn_classifier_settings(mut self, settings: KNNClassifierParameters) -> Self {
+    pub const fn with_knn_classifier_settings(mut self, settings: KNNParameters) -> Self {
         self.knn_classifier_settings = Some(settings);
         self
     }

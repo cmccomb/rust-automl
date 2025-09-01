@@ -3,7 +3,7 @@
 #![allow(clippy::struct_field_names)]
 
 use super::{
-    DecisionTreeRegressorParameters, ElasticNetParameters, FinalAlgorithm, KNNRegressorParameters,
+    DecisionTreeRegressorParameters, ElasticNetParameters, FinalAlgorithm, KNNParameters,
     LassoParameters, LinearRegressionParameters, Metric, PreProcessing,
     RandomForestRegressorParameters, RidgeRegressionParameters, SupervisedSettings,
 };
@@ -50,7 +50,7 @@ where
     /// Optional settings for random forest regressor
     pub(crate) random_forest_regressor_settings: Option<RandomForestRegressorParameters>,
     /// Optional settings for KNN regressor
-    pub(crate) knn_regressor_settings: Option<KNNRegressorParameters>,
+    pub(crate) knn_regressor_settings: Option<KNNParameters>,
 }
 
 impl<INPUT, OUTPUT, InputArray, OutputArray> Default
@@ -77,7 +77,7 @@ where
             elastic_net_settings: Some(ElasticNetParameters::default()),
             decision_tree_regressor_settings: Some(DecisionTreeRegressorParameters::default()),
             random_forest_regressor_settings: Some(RandomForestRegressorParameters::default()),
-            knn_regressor_settings: Some(KNNRegressorParameters::default()),
+            knn_regressor_settings: Some(KNNParameters::default()),
         }
     }
 }
@@ -204,7 +204,7 @@ where
 
     /// Specify settings for KNN regressor
     #[must_use]
-    pub const fn with_knn_regressor_settings(mut self, settings: KNNRegressorParameters) -> Self {
+    pub const fn with_knn_regressor_settings(mut self, settings: KNNParameters) -> Self {
         self.knn_regressor_settings = Some(settings);
         self
     }

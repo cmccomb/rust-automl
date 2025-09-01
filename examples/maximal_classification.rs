@@ -17,8 +17,8 @@ mod classification_data;
 
 use automl::settings::ClassificationSettings;
 use automl::settings::{
-    DecisionTreeClassifierParameters, Distance, FinalAlgorithm, KNNAlgorithmName,
-    KNNClassifierParameters, KNNWeightFunction,
+    DecisionTreeClassifierParameters, Distance, FinalAlgorithm, KNNAlgorithmName, KNNParameters,
+    KNNWeightFunction,
 };
 use automl::{ClassificationModel, DenseMatrix};
 use classification_data::classification_testing_data;
@@ -34,7 +34,7 @@ fn main() {
         .verbose(true)
         .with_final_model(FinalAlgorithm::Best)
         .with_knn_classifier_settings(
-            KNNClassifierParameters::default()
+            KNNParameters::default()
                 .with_algorithm(KNNAlgorithmName::CoverTree)
                 .with_k(3)
                 .with_distance(Distance::Euclidean)

@@ -7,7 +7,7 @@
 //!     algorithms::RegressionAlgorithm,
 //!     settings::{
 //!         DecisionTreeRegressorParameters, Distance, ElasticNetParameters, KNNAlgorithmName,
-//!         KNNRegressorParameters, KNNWeightFunction, Kernel, LassoParameters,
+//!         KNNParameters, KNNWeightFunction, Kernel, LassoParameters,
 //!         LinearRegressionParameters, LinearRegressionSolverName, Metric,
 //!         RandomForestRegressorParameters, RidgeRegressionParameters, RidgeRegressionSolverName,
 //!         SVRParameters,
@@ -45,7 +45,7 @@
 //!             .with_l1_ratio(0.5),
 //!     )
 //!     .with_knn_regressor_settings(
-//!         KNNRegressorParameters::default()
+//!         KNNParameters::default()
 //!             .with_algorithm(KNNAlgorithmName::CoverTree)
 //!             .with_k(3)
 //!             .with_distance(Distance::Euclidean)
@@ -116,14 +116,16 @@ pub use smartcore::linear::logistic_regression::LogisticRegressionSolverName;
 /// Parameters for decision tree classification (re-export from [Smartcore](https://docs.rs/smartcore/))
 pub use smartcore::tree::decision_tree_classifier::DecisionTreeClassifierParameters;
 
-mod knn_regressor_parameters;
-pub use knn_regressor_parameters::KNNRegressorParameters;
+mod knn_parameters;
+pub use knn_parameters::KNNParameters;
+/// Backwards compatibility alias for KNN parameters used in regression
+pub type KNNRegressorParameters = KNNParameters;
 
 mod svr_parameters;
 pub use svr_parameters::SVRParameters;
 
-mod knn_classifier_parameters;
-pub use knn_classifier_parameters::KNNClassifierParameters;
+/// Backwards compatibility alias for KNN parameters used in classification
+pub type KNNClassifierParameters = KNNParameters;
 
 mod svc_parameters;
 pub use svc_parameters::SVCParameters;
