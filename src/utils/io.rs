@@ -61,7 +61,7 @@ impl Error for CsvError {
 /// let settings = ClusteringSettings::default().with_k(2);
 /// let mut model = ClusteringModel::new(x.clone(), settings);
 /// model.train();
-/// let clusters: Vec<u8> = model.predict(&x);
+/// let clusters: Vec<u8> = model.predict(&x)?;
 /// # Ok(())
 /// # }
 /// ```

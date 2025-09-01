@@ -2,6 +2,7 @@
 
 use std::fmt::{Display, Formatter};
 
+use crate::model::{ModelError, ModelResult};
 use crate::settings::ClusteringSettings;
 use smartcore::cluster::{
     agglomerative::{AgglomerativeClustering, AgglomerativeClusteringParameters},
@@ -105,39 +106,31 @@ where
     }
 
     /// Predict cluster assignments
-    pub(crate) fn predict(&self, x: &InputArray, settings: &ClusteringSettings) -> ClusterArray {
+    pub(crate) fn predict(
+        &self,
+        x: &InputArray,
+        settings: &ClusteringSettings,
+    ) -> ModelResult<ClusterArray> {
         match self {
             Self::KMeans(Some(model)) => model
                 .predict(x)
-                .expect(
-                    "Error during inference. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
-                ),
+                .map_err(|e| ModelError::Inference(e.to_string())),
             Self::Agglomerative(_) => {
-                let model = AgglomerativeClustering::<
-                    INPUT,
-                    usize,
-                    InputArray,
-                    Vec<usize>,
-                >::fit(
+                let model = AgglomerativeClustering::<INPUT, usize, InputArray, Vec<usize>>::fit(
                     x,
-                    AgglomerativeClusteringParameters::default()
-                        .with_n_clusters(settings.k),
+                    AgglomerativeClusteringParameters::default().with_n_clusters(settings.k),
                 )
-                .expect(
-                    "Error during inference. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
-                );
+                .map_err(|e| ModelError::Inference(e.to_string()))?;
                 model
                     .labels
                     .into_iter()
-                    .map(|l| CLUSTER::from_usize(l).unwrap())
+                    .map(|l| CLUSTER::from_usize(l).ok_or(ModelError::InvalidClusterLabel(l)))
                     .collect()
             }
             Self::DBSCAN(Some(model)) => model
                 .predict(x)
-                .expect(
-                    "Error during inference. This is likely a bug in the AutoML library. Please open an issue on GitHub.",
-                ),
-            _ => panic!("Model not trained"),
+                .map_err(|e| ModelError::Inference(e.to_string())),
+            _ => Err(ModelError::NotTrained),
         }
     }
 }

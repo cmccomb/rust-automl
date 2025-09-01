@@ -1,5 +1,6 @@
 //! Implementation of clustering model training.
 
+use crate::model::{ModelError, ModelResult};
 use crate::settings::{ClusteringAlgorithmName, ClusteringSettings};
 use crate::{
     algorithms::ClusteringAlgorithm,
@@ -61,13 +62,13 @@ where
 
     /// Predict cluster assignments for new data.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if the model has not been trained.
-    pub fn predict(&self, x: &InputArray) -> ClusterArray {
+    /// Returns [`ModelError::NotTrained`] if the model has not been trained.
+    pub fn predict(&self, x: &InputArray) -> ModelResult<ClusterArray> {
         match &self.algorithm {
             Some(alg) => alg.predict(x, &self.settings),
-            None => panic!("Model has not been trained"),
+            None => Err(ModelError::NotTrained),
         }
     }
 

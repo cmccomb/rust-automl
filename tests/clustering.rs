@@ -2,7 +2,7 @@
 mod clustering_data;
 
 use automl::{
-    ClusteringModel,
+    ClusteringModel, ModelError,
     metrics::ClusterMetrics,
     settings::{ClusteringAlgorithmName, ClusteringSettings},
 };
@@ -14,7 +14,7 @@ fn kmeans_clustering_runs() {
     let x = clustering_testing_data();
     let mut model = ClusteringModel::new(x.clone(), ClusteringSettings::default().with_k(2));
     model.train();
-    let labels: Vec<u8> = model.predict(&x);
+    let labels: Vec<u8> = model.predict(&x).unwrap();
     assert_eq!(labels.len(), 4);
 }
 
@@ -26,7 +26,7 @@ fn agglomerative_clustering_runs() {
         .with_algorithm(ClusteringAlgorithmName::Agglomerative);
     let mut model = ClusteringModel::new(x.clone(), settings);
     model.train();
-    let labels: Vec<u8> = model.predict(&x);
+    let labels: Vec<u8> = model.predict(&x).unwrap();
     assert_eq!(labels.len(), 4);
 }
 
@@ -38,7 +38,7 @@ fn dbscan_clustering_runs() {
         .with_min_samples(2);
     let mut model = ClusteringModel::new(x.clone(), settings);
     model.train();
-    let labels: Vec<u8> = model.predict(&x);
+    let labels: Vec<u8> = model.predict(&x).unwrap();
     assert_eq!(labels.len(), 4);
 }
 
@@ -47,7 +47,7 @@ fn clustering_metrics_compute() {
     let x = clustering_testing_data();
     let mut model = ClusteringModel::new(x.clone(), ClusteringSettings::default().with_k(2));
     model.train();
-    let predicted: Vec<u8> = model.predict(&x);
+    let predicted: Vec<u8> = model.predict(&x).unwrap();
     let truth = vec![1_u8, 1, 2, 2];
     let mut scores = ClusterMetrics::<u8>::hcv_score();
     scores.compute(&truth, &predicted);
@@ -73,4 +73,13 @@ fn clustering_model_display_shows_metrics() {
     assert!(output.contains("KMeans"));
     assert!(output.contains("V-Measure"));
     assert!(output.contains("1.00"));
+}
+
+#[test]
+fn predict_without_training_returns_error() {
+    let x = clustering_testing_data();
+    let model: ClusteringModel<f64, u8, automl::DenseMatrix<f64>, Vec<u8>> =
+        ClusteringModel::new(x.clone(), ClusteringSettings::default().with_k(2));
+    let err = model.predict(&x).unwrap_err();
+    assert!(matches!(err, ModelError::NotTrained));
 }

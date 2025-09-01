@@ -4,21 +4,24 @@ mod regression_data;
 use automl::algorithms::RegressionAlgorithm;
 use automl::{DenseMatrix, RegressionModel, RegressionSettings};
 use regression_data::regression_testing_data;
+use smartcore::error::Failed;
 
 #[test]
-fn test_default_regression() {
+fn test_default_regression() -> Result<(), Failed> {
     let settings = RegressionSettings::default();
-    test_from_settings(settings);
+    test_from_settings(settings)
 }
 
 #[test]
-fn test_knn_only_regression() {
+fn test_knn_only_regression() -> Result<(), Failed> {
     let settings =
         RegressionSettings::default().only(&RegressionAlgorithm::default_knn_regressor());
-    test_from_settings(settings);
+    test_from_settings(settings)
 }
 
-fn test_from_settings(settings: RegressionSettings<f64, f64, DenseMatrix<f64>, Vec<f64>>) {
+fn test_from_settings(
+    settings: RegressionSettings<f64, f64, DenseMatrix<f64>, Vec<f64>>,
+) -> Result<(), Failed> {
     // Get test data
     let (x, y) = regression_testing_data();
 
@@ -26,14 +29,12 @@ fn test_from_settings(settings: RegressionSettings<f64, f64, DenseMatrix<f64>, V
     let mut regressor = RegressionModel::new(x, y, settings);
 
     // Compare models
-    regressor.train();
+    regressor.train()?;
 
     // Try to predict something
-    regressor.predict(
-        DenseMatrix::from_2d_array(&[
-            &[234.289, 235.6, 159.0, 107.608, 1947., 60.323],
-            &[259.426, 232.5, 145.6, 108.632, 1948., 61.122],
-        ])
-        .unwrap(),
-    );
+    regressor.predict(DenseMatrix::from_2d_array(&[
+        &[234.289, 235.6, 159.0, 107.608, 1947., 60.323],
+        &[259.426, 232.5, 145.6, 108.632, 1948., 61.122],
+    ])?)?;
+    Ok(())
 }

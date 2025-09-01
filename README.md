@@ -55,7 +55,7 @@ use automl::utils::load_csv_features;
 let x = load_csv_features("tests/fixtures/clustering_points.csv").unwrap();
 let mut model = ClusteringModel::new(x.clone(), ClusteringSettings::default().with_k(2));
 model.train();
-let clusters: Vec<u8> = model.predict(&x);
+let clusters: Vec<u8> = model.predict(&x).unwrap();
 ```
 
 ## Examples
