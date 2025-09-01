@@ -8,6 +8,7 @@ use super::{
     SupervisedSettings, WithSupervisedSettings,
 };
 use crate::algorithms::RegressionAlgorithm;
+use crate::settings::macros::with_settings_methods;
 
 use smartcore::linalg::basic::arrays::Array1;
 use smartcore::linalg::traits::{
@@ -124,59 +125,21 @@ where
         self
     }
 
-    /// Specify settings for linear regression
-    #[must_use]
-    pub const fn with_linear_settings(mut self, settings: LinearRegressionParameters) -> Self {
-        self.linear_settings = Some(settings);
-        self
-    }
-
-    /// Specify settings for lasso regression
-    #[must_use]
-    pub const fn with_lasso_settings(mut self, settings: LassoParameters) -> Self {
-        self.lasso_settings = Some(settings);
-        self
-    }
-
-    /// Specify settings for ridge regression
-    #[must_use]
-    pub const fn with_ridge_settings(mut self, settings: RidgeRegressionParameters<INPUT>) -> Self {
-        self.ridge_settings = Some(settings);
-        self
-    }
-
-    /// Specify settings for elastic net
-    #[must_use]
-    pub const fn with_elastic_net_settings(mut self, settings: ElasticNetParameters) -> Self {
-        self.elastic_net_settings = Some(settings);
-        self
-    }
-
-    /// Specify settings for KNN regressor
-    #[must_use]
-    pub const fn with_knn_regressor_settings(mut self, settings: KNNParameters) -> Self {
-        self.knn_regressor_settings = Some(settings);
-        self
-    }
-
-    /// Specify settings for random forest regressor
-    #[must_use]
-    pub const fn with_random_forest_regressor_settings(
-        mut self,
-        settings: RandomForestRegressorParameters,
-    ) -> Self {
-        self.random_forest_regressor_settings = Some(settings);
-        self
-    }
-
-    /// Specify settings for decision tree regressor
-    #[must_use]
-    pub const fn with_decision_tree_regressor_settings(
-        mut self,
-        settings: DecisionTreeRegressorParameters,
-    ) -> Self {
-        self.decision_tree_regressor_settings = Some(settings);
-        self
+    with_settings_methods! {
+        /// Specify settings for linear regression
+        with_linear_settings, linear_settings, LinearRegressionParameters;
+        /// Specify settings for lasso regression
+        with_lasso_settings, lasso_settings, LassoParameters;
+        /// Specify settings for ridge regression
+        with_ridge_settings, ridge_settings, RidgeRegressionParameters<INPUT>;
+        /// Specify settings for elastic net
+        with_elastic_net_settings, elastic_net_settings, ElasticNetParameters;
+        /// Specify settings for KNN regressor
+        with_knn_regressor_settings, knn_regressor_settings, KNNParameters;
+        /// Specify settings for random forest regressor
+        with_random_forest_regressor_settings, random_forest_regressor_settings, RandomForestRegressorParameters;
+        /// Specify settings for decision tree regressor
+        with_decision_tree_regressor_settings, decision_tree_regressor_settings, DecisionTreeRegressorParameters;
     }
 }
 
