@@ -1,6 +1,6 @@
 use automl::settings::{
     DecisionTreeRegressorParameters, Distance, ElasticNetParameters, KNNAlgorithmName,
-    KNNRegressorParameters, KNNWeightFunction, LassoParameters, LinearRegressionParameters,
+    KNNParameters, KNNWeightFunction, LassoParameters, LinearRegressionParameters,
     LinearRegressionSolverName, Metric, PreProcessing, RandomForestRegressorParameters,
     RegressionSettings, RidgeRegressionParameters, RidgeRegressionSolverName,
 };
@@ -39,7 +39,7 @@ fn main() {
                     .with_l1_ratio(0.5),
             )
             .with_knn_regressor_settings(
-                KNNRegressorParameters::default()
+                KNNParameters::default()
                     .with_algorithm(KNNAlgorithmName::CoverTree)
                     .with_k(3)
                     .with_distance(Distance::Euclidean)
@@ -96,7 +96,7 @@ fn main() {
     //             .with_min_samples_leaf(20),
     //     )
     //     .with_knn_classifier_settings(
-    //         KNNClassifierParameters::default()
+    //         KNNParameters::default()
     //             .with_algorithm(KNNAlgorithmName::CoverTree)
     //             .with_k(3)
     //             .with_distance(Distance::Hamming)
