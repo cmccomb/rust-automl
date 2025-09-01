@@ -6,8 +6,8 @@ use std::time::Instant;
 
 use super::supervised_train::SupervisedTrain;
 use crate::model::{ComparisonEntry, supervised::Algorithm};
-use crate::settings::RegressionSettings;
-use crate::utils::distance::Distance;
+use crate::settings::{KNNParameters, RegressionSettings};
+use crate::utils::distance::{Distance, KNNRegressorDistance};
 use smartcore::api::SupervisedEstimator;
 use smartcore::error::Failed;
 use smartcore::linalg::basic::arrays::{Array1, Array2, MutArrayView1, MutArrayView2};
@@ -15,9 +15,6 @@ use smartcore::linalg::traits::cholesky::CholeskyDecomposable;
 use smartcore::linalg::traits::evd::EVDDecomposable;
 use smartcore::linalg::traits::qr::QRDecomposable;
 use smartcore::linalg::traits::svd::SVDDecomposable;
-use smartcore::metrics::distance::{
-    euclidian::Euclidian, hamming::Hamming, manhattan::Manhattan, minkowski::Minkowski,
-};
 use smartcore::model_selection::CrossValidationResult;
 use smartcore::numbers::floatnum::FloatNumber;
 use smartcore::numbers::realnum::RealNumber;
@@ -77,46 +74,28 @@ where
     Lasso(smartcore::linear::lasso::Lasso<INPUT, OUTPUT, InputArray, OutputArray>),
     /// Elastic net regressor
     ElasticNet(smartcore::linear::elastic_net::ElasticNet<INPUT, OUTPUT, InputArray, OutputArray>),
-    /// K-nearest neighbors regressor with Euclidean distance
-    KNNRegressorEuclidian(
+    /// K-nearest neighbors regressor
+    KNNRegressor(
         smartcore::neighbors::knn_regressor::KNNRegressor<
             INPUT,
             OUTPUT,
             InputArray,
             OutputArray,
-            Euclidian<INPUT>,
+            KNNRegressorDistance<INPUT>,
         >,
     ),
-    /// K-nearest neighbors regressor with Manhattan distance
-    KNNRegressorManhattan(
-        smartcore::neighbors::knn_regressor::KNNRegressor<
-            INPUT,
-            OUTPUT,
-            InputArray,
-            OutputArray,
-            Manhattan<INPUT>,
-        >,
-    ),
-    /// K-nearest neighbors regressor with Minkowski distance
-    KNNRegressorMinkowski(
-        smartcore::neighbors::knn_regressor::KNNRegressor<
-            INPUT,
-            OUTPUT,
-            InputArray,
-            OutputArray,
-            Minkowski<INPUT>,
-        >,
-    ),
-    /// K-nearest neighbors regressor with Hamming distance
-    KNNRegressorHamming(
-        smartcore::neighbors::knn_regressor::KNNRegressor<
-            INPUT,
-            OUTPUT,
-            InputArray,
-            OutputArray,
-            Hamming<INPUT>,
-        >,
-    ),
+}
+
+fn build_knn_regressor_params<INPUT: RealNumber + FloatNumber>(
+    settings: &KNNParameters,
+    distance: Distance,
+) -> smartcore::neighbors::knn_regressor::KNNRegressorParameters<INPUT, KNNRegressorDistance<INPUT>>
+{
+    smartcore::neighbors::knn_regressor::KNNRegressorParameters::default()
+        .with_k(settings.k)
+        .with_algorithm(settings.algorithm.clone())
+        .with_weight(settings.weight.clone())
+        .with_distance(KNNRegressorDistance::from(distance))
 }
 
 impl<INPUT, OUTPUT, InputArray, OutputArray>
@@ -196,109 +175,12 @@ where
                         .clone(),
                 )?,
             ),
-            Self::KNNRegressorEuclidian(_) => {
-                Self::KNNRegressorEuclidian(smartcore::neighbors::knn_regressor::KNNRegressor::fit(
-                    x,
-                    y,
-                    smartcore::neighbors::knn_regressor::KNNRegressorParameters::default()
-                        .with_k(settings.knn_regressor_settings.as_ref().unwrap().k)
-                        .with_algorithm(
-                            settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .algorithm
-                                .clone(),
-                        )
-                        .with_weight(
-                            settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .weight
-                                .clone(),
-                        )
-                        .with_distance(Euclidian::new()),
-                )?)
-            }
-            Self::KNNRegressorManhattan(_) => {
-                Self::KNNRegressorManhattan(smartcore::neighbors::knn_regressor::KNNRegressor::fit(
-                    x,
-                    y,
-                    smartcore::neighbors::knn_regressor::KNNRegressorParameters::default()
-                        .with_k(settings.knn_regressor_settings.as_ref().unwrap().k)
-                        .with_algorithm(
-                            settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .algorithm
-                                .clone(),
-                        )
-                        .with_weight(
-                            settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .weight
-                                .clone(),
-                        )
-                        .with_distance(Manhattan::new()),
-                )?)
-            }
-            Self::KNNRegressorMinkowski(_) => {
-                let Distance::Minkowski(p) =
-                    settings.knn_regressor_settings.as_ref().unwrap().distance
-                else {
-                    unreachable!("Minkowski variant without Minkowski distance")
-                };
-                Self::KNNRegressorMinkowski(smartcore::neighbors::knn_regressor::KNNRegressor::fit(
-                    x,
-                    y,
-                    smartcore::neighbors::knn_regressor::KNNRegressorParameters::default()
-                        .with_k(settings.knn_regressor_settings.as_ref().unwrap().k)
-                        .with_algorithm(
-                            settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .algorithm
-                                .clone(),
-                        )
-                        .with_weight(
-                            settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .weight
-                                .clone(),
-                        )
-                        .with_distance(Minkowski::new(p)),
-                )?)
-            }
-            Self::KNNRegressorHamming(_) => {
-                Self::KNNRegressorHamming(smartcore::neighbors::knn_regressor::KNNRegressor::fit(
-                    x,
-                    y,
-                    smartcore::neighbors::knn_regressor::KNNRegressorParameters::default()
-                        .with_k(settings.knn_regressor_settings.as_ref().unwrap().k)
-                        .with_algorithm(
-                            settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .algorithm
-                                .clone(),
-                        )
-                        .with_weight(
-                            settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .weight
-                                .clone(),
-                        )
-                        .with_distance(Hamming::new()),
+            Self::KNNRegressor(_) => {
+                let knn_settings = settings.knn_regressor_settings.as_ref().unwrap();
+                let params =
+                    build_knn_regressor_params::<INPUT>(knn_settings, knn_settings.distance);
+                Self::KNNRegressor(smartcore::neighbors::knn_regressor::KNNRegressor::fit(
+                    x, y, params,
                 )?)
             }
         })
@@ -381,90 +263,14 @@ where
                 &settings.get_kfolds(),
                 Self::metric(settings),
             ),
-            RegressionAlgorithm::KNNRegressorEuclidian(_) => Self::cross_validate_with(
-                self,
-                smartcore::neighbors::knn_regressor::KNNRegressor::new(),
-                smartcore::neighbors::knn_regressor::KNNRegressorParameters::default()
-                    .with_k(settings.knn_regressor_settings.as_ref().unwrap().k)
-                    .with_algorithm(
-                        settings
-                            .knn_regressor_settings
-                            .as_ref()
-                            .unwrap()
-                            .algorithm
-                            .clone(),
-                    )
-                    .with_weight(
-                        settings
-                            .knn_regressor_settings
-                            .as_ref()
-                            .unwrap()
-                            .weight
-                            .clone(),
-                    )
-                    .with_distance(Euclidian::new()),
-                x,
-                y,
-                settings,
-                &settings.get_kfolds(),
-                Self::metric(settings),
-            ),
-            RegressionAlgorithm::KNNRegressorManhattan(_) => Self::cross_validate_with(
-                self,
-                smartcore::neighbors::knn_regressor::KNNRegressor::new(),
-                smartcore::neighbors::knn_regressor::KNNRegressorParameters::default()
-                    .with_k(settings.knn_regressor_settings.as_ref().unwrap().k)
-                    .with_algorithm(
-                        settings
-                            .knn_regressor_settings
-                            .as_ref()
-                            .unwrap()
-                            .algorithm
-                            .clone(),
-                    )
-                    .with_weight(
-                        settings
-                            .knn_regressor_settings
-                            .as_ref()
-                            .unwrap()
-                            .weight
-                            .clone(),
-                    )
-                    .with_distance(Manhattan::new()),
-                x,
-                y,
-                settings,
-                &settings.get_kfolds(),
-                Self::metric(settings),
-            ),
-            RegressionAlgorithm::KNNRegressorMinkowski(_) => {
-                let Distance::Minkowski(p) =
-                    settings.knn_regressor_settings.as_ref().unwrap().distance
-                else {
-                    unreachable!("Minkowski variant without Minkowski distance")
-                };
+            RegressionAlgorithm::KNNRegressor(_) => {
+                let knn_settings = settings.knn_regressor_settings.as_ref().unwrap();
+                let params =
+                    build_knn_regressor_params::<INPUT>(knn_settings, knn_settings.distance);
                 Self::cross_validate_with(
                     self,
                     smartcore::neighbors::knn_regressor::KNNRegressor::new(),
-                    smartcore::neighbors::knn_regressor::KNNRegressorParameters::default()
-                        .with_k(settings.knn_regressor_settings.as_ref().unwrap().k)
-                        .with_algorithm(
-                            settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .algorithm
-                                .clone(),
-                        )
-                        .with_weight(
-                            settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .weight
-                                .clone(),
-                        )
-                        .with_distance(Minkowski::new(p)),
+                    params,
                     x,
                     y,
                     settings,
@@ -472,34 +278,6 @@ where
                     Self::metric(settings),
                 )
             }
-            RegressionAlgorithm::KNNRegressorHamming(_) => Self::cross_validate_with(
-                self,
-                smartcore::neighbors::knn_regressor::KNNRegressor::new(),
-                smartcore::neighbors::knn_regressor::KNNRegressorParameters::default()
-                    .with_k(settings.knn_regressor_settings.as_ref().unwrap().k)
-                    .with_algorithm(
-                        settings
-                            .knn_regressor_settings
-                            .as_ref()
-                            .unwrap()
-                            .algorithm
-                            .clone(),
-                    )
-                    .with_weight(
-                        settings
-                            .knn_regressor_settings
-                            .as_ref()
-                            .unwrap()
-                            .weight
-                            .clone(),
-                    )
-                    .with_distance(Hamming::new()),
-                x,
-                y,
-                settings,
-                &settings.get_kfolds(),
-                Self::metric(settings),
-            ),
         }
     }
 
@@ -568,25 +346,7 @@ where
     /// Default KNN regression algorithm
     #[must_use]
     pub fn default_knn_regressor() -> Self {
-        Self::KNNRegressorEuclidian(smartcore::neighbors::knn_regressor::KNNRegressor::new())
-    }
-
-    /// Default KNN regression algorithm using Manhattan distance
-    #[must_use]
-    pub fn default_knn_regressor_manhattan() -> Self {
-        Self::KNNRegressorManhattan(smartcore::neighbors::knn_regressor::KNNRegressor::new())
-    }
-
-    /// Default KNN regression algorithm using Minkowski distance
-    #[must_use]
-    pub fn default_knn_regressor_minkowski() -> Self {
-        Self::KNNRegressorMinkowski(smartcore::neighbors::knn_regressor::KNNRegressor::new())
-    }
-
-    /// Default KNN regression algorithm using Hamming distance
-    #[must_use]
-    pub fn default_knn_regressor_hamming() -> Self {
-        Self::KNNRegressorHamming(smartcore::neighbors::knn_regressor::KNNRegressor::new())
+        Self::KNNRegressor(smartcore::neighbors::knn_regressor::KNNRegressor::new())
     }
 
     /// Get a vector of all possible algorithms
@@ -628,10 +388,7 @@ where
             Self::Ridge(model) => model.predict(x),
             Self::Lasso(model) => model.predict(x),
             Self::ElasticNet(model) => model.predict(x),
-            Self::KNNRegressorHamming(model) => model.predict(x),
-            Self::KNNRegressorEuclidian(model) => model.predict(x),
-            Self::KNNRegressorManhattan(model) => model.predict(x),
-            Self::KNNRegressorMinkowski(model) => model.predict(x),
+            Self::KNNRegressor(model) => model.predict(x),
         }
     }
 
@@ -663,14 +420,10 @@ where
             Self::default_decision_tree(),
         ];
 
-        if let Some(knn) = &settings.knn_regressor_settings {
-            match knn.distance {
-                Distance::Euclidean => algorithms.push(Self::default_knn_regressor()),
-                Distance::Manhattan => algorithms.push(Self::default_knn_regressor_manhattan()),
-                Distance::Minkowski(_) => algorithms.push(Self::default_knn_regressor_minkowski()),
-                Distance::Hamming => algorithms.push(Self::default_knn_regressor_hamming()),
-                Distance::Mahalanobis => {}
-            }
+        if let Some(knn) = &settings.knn_regressor_settings
+            && !matches!(knn.distance, Distance::Mahalanobis)
+        {
+            algorithms.push(Self::default_knn_regressor());
         }
 
         algorithms
@@ -693,33 +446,20 @@ where
     OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
 {
     fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::DecisionTreeRegressor(_), Self::DecisionTreeRegressor(_))
-            | (Self::RandomForestRegressor(_), Self::RandomForestRegressor(_))
-            | (Self::Linear(_), Self::Linear(_))
-            | (Self::Ridge(_), Self::Ridge(_))
-            | (Self::Lasso(_), Self::Lasso(_))
-            | (Self::ElasticNet(_), Self::ElasticNet(_)) => true,
-            // treat any KNN variant as equivalent
-            (a, b)
-                if matches!(
-                    a,
-                    Self::KNNRegressorEuclidian(_)
-                        | Self::KNNRegressorManhattan(_)
-                        | Self::KNNRegressorMinkowski(_)
-                        | Self::KNNRegressorHamming(_)
-                ) && matches!(
-                    b,
-                    Self::KNNRegressorEuclidian(_)
-                        | Self::KNNRegressorManhattan(_)
-                        | Self::KNNRegressorMinkowski(_)
-                        | Self::KNNRegressorHamming(_)
-                ) =>
-            {
-                true
-            }
-            _ => false,
-        }
+        matches!(
+            (self, other),
+            (
+                Self::DecisionTreeRegressor(_),
+                Self::DecisionTreeRegressor(_)
+            ) | (
+                Self::RandomForestRegressor(_),
+                Self::RandomForestRegressor(_)
+            ) | (Self::Linear(_), Self::Linear(_))
+                | (Self::Ridge(_), Self::Ridge(_))
+                | (Self::Lasso(_), Self::Lasso(_))
+                | (Self::ElasticNet(_), Self::ElasticNet(_))
+                | (Self::KNNRegressor(_), Self::KNNRegressor(_))
+        )
     }
 }
 
@@ -766,10 +506,7 @@ where
             Self::Ridge(_) => write!(f, "Ridge Regressor"),
             Self::Lasso(_) => write!(f, "LASSO Regressor"),
             Self::ElasticNet(_) => write!(f, "Elastic Net Regressor"),
-            Self::KNNRegressorEuclidian(_)
-            | Self::KNNRegressorManhattan(_)
-            | Self::KNNRegressorMinkowski(_)
-            | Self::KNNRegressorHamming(_) => write!(f, "KNN Regressor"),
+            Self::KNNRegressor(_) => write!(f, "KNN Regressor"),
         }
     }
 }
