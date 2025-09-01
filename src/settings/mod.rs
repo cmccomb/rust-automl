@@ -135,6 +135,9 @@ mod regression_settings;
 #[doc(no_inline)]
 pub use regression_settings::RegressionSettings;
 
+mod common;
+pub use common::SupervisedSettings;
+
 mod clustering_settings;
 pub use clustering_settings::{ClusteringAlgorithmName, ClusteringSettings};
 

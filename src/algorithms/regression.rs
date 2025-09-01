@@ -4,6 +4,7 @@
 use std::fmt::{Display, Formatter};
 use std::time::Instant;
 
+use super::supervised_train::SupervisedTrain;
 use crate::model::ComparisonEntry;
 use crate::settings::RegressionSettings;
 use crate::utils::distance::Distance;
@@ -117,7 +118,13 @@ where
 }
 
 impl<INPUT, OUTPUT, InputArray, OutputArray>
-    RegressionAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
+    SupervisedTrain<
+        INPUT,
+        OUTPUT,
+        InputArray,
+        OutputArray,
+        RegressionSettings<INPUT, OUTPUT, InputArray, OutputArray>,
+    > for RegressionAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
 where
     INPUT: RealNumber + FloatNumber,
     OUTPUT: FloatNumber,
@@ -130,9 +137,8 @@ where
         + CholeskyDecomposable<INPUT>,
     OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
 {
-    /// Fit the model
     #[allow(clippy::too_many_lines)]
-    pub(crate) fn fit(
+    fn fit_inner(
         self,
         x: &InputArray,
         y: &OutputArray,
@@ -302,232 +308,141 @@ where
         x: &InputArray,
         y: &OutputArray,
         settings: &RegressionSettings<INPUT, OUTPUT, InputArray, OutputArray>,
-    ) -> Result<
-        (
-            CrossValidationResult,
-            RegressionAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>,
-        ),
-        Failed,
-    > {
+    ) -> Result<(CrossValidationResult, Self), Failed> {
         match self {
-            RegressionAlgorithm::Linear(_) => Ok((
-                smartcore::model_selection::cross_validate(
-                    smartcore::linear::linear_regression::LinearRegression::<
-                        INPUT,
-                        OUTPUT,
-                        InputArray,
-                        OutputArray,
-                    >::new(),
-                    x,
-                    y,
-                    settings.linear_settings.as_ref().unwrap().clone(),
-                    &settings.get_kfolds(),
-                    &settings.get_metric(),
-                )?,
-                RegressionAlgorithm::default_linear().fit(x, y, settings)?,
-            )),
-            RegressionAlgorithm::Ridge(_) => Ok((
-                smartcore::model_selection::cross_validate(
-                    smartcore::linear::ridge_regression::RidgeRegression::<
-                        INPUT,
-                        OUTPUT,
-                        InputArray,
-                        OutputArray,
-                    >::new(),
-                    x,
-                    y,
-                    settings.ridge_settings.as_ref().unwrap().clone(),
-                    &settings.get_kfolds(),
-                    &settings.get_metric(),
-                )?,
-                RegressionAlgorithm::default_ridge().fit(x, y, settings)?,
-            )),
-            RegressionAlgorithm::Lasso(_) => Ok((
-                smartcore::model_selection::cross_validate(
-                    smartcore::linear::lasso::Lasso::<INPUT, OUTPUT, InputArray, OutputArray>::new(
-                    ),
-                    x,
-                    y,
-                    settings.lasso_settings.as_ref().unwrap().clone(),
-                    &settings.get_kfolds(),
-                    &settings.get_metric(),
-                )?,
-                RegressionAlgorithm::default_lasso().fit(x, y, settings)?,
-            )),
-            RegressionAlgorithm::ElasticNet(_) => Ok((
-                smartcore::model_selection::cross_validate(
-                    smartcore::linear::elastic_net::ElasticNet::<
-                        INPUT,
-                        OUTPUT,
-                        InputArray,
-                        OutputArray,
-                    >::new(),
-                    x,
-                    y,
-                    settings.elastic_net_settings.as_ref().unwrap().clone(),
-                    &settings.get_kfolds(),
-                    &settings.get_metric(),
-                )?,
-                RegressionAlgorithm::default_elastic_net().fit(x, y, settings)?,
-            )),
-            RegressionAlgorithm::RandomForestRegressor(_) => Ok((
-                smartcore::model_selection::cross_validate(
-                    smartcore::ensemble::random_forest_regressor::RandomForestRegressor::<
-                        INPUT,
-                        OUTPUT,
-                        InputArray,
-                        OutputArray,
-                    >::new(),
-                    x,
-                    y,
-                    settings
-                        .random_forest_regressor_settings
-                        .as_ref()
-                        .unwrap()
-                        .clone(),
-                    &settings.get_kfolds(),
-                    &settings.get_metric(),
-                )?,
-                RegressionAlgorithm::default_random_forest().fit(x, y, settings)?,
-            )),
-            RegressionAlgorithm::DecisionTreeRegressor(_) => Ok((
-                smartcore::model_selection::cross_validate(
-                    smartcore::tree::decision_tree_regressor::DecisionTreeRegressor::new(),
-                    x,
-                    y,
-                    settings
-                        .decision_tree_regressor_settings
-                        .as_ref()
-                        .unwrap()
-                        .clone(),
-                    &settings.get_kfolds(),
-                    &settings.get_metric(),
-                )?,
-                RegressionAlgorithm::default_decision_tree().fit(x, y, settings)?,
-            )),
-            RegressionAlgorithm::KNNRegressorEuclidian(_) => Ok((
-                smartcore::model_selection::cross_validate(
-                    smartcore::neighbors::knn_regressor::KNNRegressor::<
-                        INPUT,
-                        OUTPUT,
-                        InputArray,
-                        OutputArray,
-                        Euclidian<INPUT>,
-                    >::new(),
-                    x,
-                    y,
-                    smartcore::neighbors::knn_regressor::KNNRegressorParameters::default()
-                        .with_k(settings.knn_regressor_settings.as_ref().unwrap().k)
-                        .with_algorithm(
-                            settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .algorithm
-                                .clone(),
-                        )
-                        .with_weight(
-                            settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .weight
-                                .clone(),
-                        )
-                        .with_distance(Euclidian::new()),
-                    &settings.get_kfolds(),
-                    &settings.get_metric(),
-                )?,
-                RegressionAlgorithm::default_knn_regressor().fit(x, y, settings)?,
-            )),
-            RegressionAlgorithm::KNNRegressorManhattan(_) => Ok((
-                smartcore::model_selection::cross_validate(
-                    smartcore::neighbors::knn_regressor::KNNRegressor::<
-                        INPUT,
-                        OUTPUT,
-                        InputArray,
-                        OutputArray,
-                        Manhattan<INPUT>,
-                    >::new(),
-                    x,
-                    y,
-                    smartcore::neighbors::knn_regressor::KNNRegressorParameters::default()
-                        .with_k(settings.knn_regressor_settings.as_ref().unwrap().k)
-                        .with_algorithm(
-                            settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .algorithm
-                                .clone(),
-                        )
-                        .with_weight(
-                            settings
-                                .knn_regressor_settings
-                                .as_ref()
-                                .unwrap()
-                                .weight
-                                .clone(),
-                        )
-                        .with_distance(Manhattan::new()),
-                    &settings.get_kfolds(),
-                    &settings.get_metric(),
-                )?,
-                RegressionAlgorithm::default_knn_regressor_manhattan().fit(x, y, settings)?,
-            )),
+            RegressionAlgorithm::Linear(_) => Self::cross_validate_with(
+                self,
+                smartcore::linear::linear_regression::LinearRegression::new(),
+                settings.linear_settings.as_ref().unwrap().clone(),
+                x,
+                y,
+                settings,
+                &settings.get_kfolds(),
+                Self::metric(settings),
+            ),
+            RegressionAlgorithm::Ridge(_) => Self::cross_validate_with(
+                self,
+                smartcore::linear::ridge_regression::RidgeRegression::new(),
+                settings.ridge_settings.as_ref().unwrap().clone(),
+                x,
+                y,
+                settings,
+                &settings.get_kfolds(),
+                Self::metric(settings),
+            ),
+            RegressionAlgorithm::Lasso(_) => Self::cross_validate_with(
+                self,
+                smartcore::linear::lasso::Lasso::new(),
+                settings.lasso_settings.as_ref().unwrap().clone(),
+                x,
+                y,
+                settings,
+                &settings.get_kfolds(),
+                Self::metric(settings),
+            ),
+            RegressionAlgorithm::ElasticNet(_) => Self::cross_validate_with(
+                self,
+                smartcore::linear::elastic_net::ElasticNet::new(),
+                settings.elastic_net_settings.as_ref().unwrap().clone(),
+                x,
+                y,
+                settings,
+                &settings.get_kfolds(),
+                Self::metric(settings),
+            ),
+            RegressionAlgorithm::RandomForestRegressor(_) => Self::cross_validate_with(
+                self,
+                smartcore::ensemble::random_forest_regressor::RandomForestRegressor::new(),
+                settings
+                    .random_forest_regressor_settings
+                    .as_ref()
+                    .unwrap()
+                    .clone(),
+                x,
+                y,
+                settings,
+                &settings.get_kfolds(),
+                Self::metric(settings),
+            ),
+            RegressionAlgorithm::DecisionTreeRegressor(_) => Self::cross_validate_with(
+                self,
+                smartcore::tree::decision_tree_regressor::DecisionTreeRegressor::new(),
+                settings
+                    .decision_tree_regressor_settings
+                    .as_ref()
+                    .unwrap()
+                    .clone(),
+                x,
+                y,
+                settings,
+                &settings.get_kfolds(),
+                Self::metric(settings),
+            ),
+            RegressionAlgorithm::KNNRegressorEuclidian(_) => Self::cross_validate_with(
+                self,
+                smartcore::neighbors::knn_regressor::KNNRegressor::new(),
+                smartcore::neighbors::knn_regressor::KNNRegressorParameters::default()
+                    .with_k(settings.knn_regressor_settings.as_ref().unwrap().k)
+                    .with_algorithm(
+                        settings
+                            .knn_regressor_settings
+                            .as_ref()
+                            .unwrap()
+                            .algorithm
+                            .clone(),
+                    )
+                    .with_weight(
+                        settings
+                            .knn_regressor_settings
+                            .as_ref()
+                            .unwrap()
+                            .weight
+                            .clone(),
+                    )
+                    .with_distance(Euclidian::new()),
+                x,
+                y,
+                settings,
+                &settings.get_kfolds(),
+                Self::metric(settings),
+            ),
+            RegressionAlgorithm::KNNRegressorManhattan(_) => Self::cross_validate_with(
+                self,
+                smartcore::neighbors::knn_regressor::KNNRegressor::new(),
+                smartcore::neighbors::knn_regressor::KNNRegressorParameters::default()
+                    .with_k(settings.knn_regressor_settings.as_ref().unwrap().k)
+                    .with_algorithm(
+                        settings
+                            .knn_regressor_settings
+                            .as_ref()
+                            .unwrap()
+                            .algorithm
+                            .clone(),
+                    )
+                    .with_weight(
+                        settings
+                            .knn_regressor_settings
+                            .as_ref()
+                            .unwrap()
+                            .weight
+                            .clone(),
+                    )
+                    .with_distance(Manhattan::new()),
+                x,
+                y,
+                settings,
+                &settings.get_kfolds(),
+                Self::metric(settings),
+            ),
             RegressionAlgorithm::KNNRegressorMinkowski(_) => {
                 let Distance::Minkowski(p) =
                     settings.knn_regressor_settings.as_ref().unwrap().distance
                 else {
                     unreachable!("Minkowski variant without Minkowski distance")
                 };
-                Ok((
-                    smartcore::model_selection::cross_validate(
-                        smartcore::neighbors::knn_regressor::KNNRegressor::<
-                            INPUT,
-                            OUTPUT,
-                            InputArray,
-                            OutputArray,
-                            Minkowski<INPUT>,
-                        >::new(),
-                        x,
-                        y,
-                        smartcore::neighbors::knn_regressor::KNNRegressorParameters::default()
-                            .with_k(settings.knn_regressor_settings.as_ref().unwrap().k)
-                            .with_algorithm(
-                                settings
-                                    .knn_regressor_settings
-                                    .as_ref()
-                                    .unwrap()
-                                    .algorithm
-                                    .clone(),
-                            )
-                            .with_weight(
-                                settings
-                                    .knn_regressor_settings
-                                    .as_ref()
-                                    .unwrap()
-                                    .weight
-                                    .clone(),
-                            )
-                            .with_distance(Minkowski::new(p)),
-                        &settings.get_kfolds(),
-                        &settings.get_metric(),
-                    )?,
-                    RegressionAlgorithm::default_knn_regressor_minkowski().fit(x, y, settings)?,
-                ))
-            }
-            RegressionAlgorithm::KNNRegressorHamming(_) => Ok((
-                smartcore::model_selection::cross_validate(
-                    smartcore::neighbors::knn_regressor::KNNRegressor::<
-                        INPUT,
-                        OUTPUT,
-                        InputArray,
-                        OutputArray,
-                        Hamming<INPUT>,
-                    >::new(),
-                    x,
-                    y,
+                Self::cross_validate_with(
+                    self,
+                    smartcore::neighbors::knn_regressor::KNNRegressor::new(),
                     smartcore::neighbors::knn_regressor::KNNRegressorParameters::default()
                         .with_k(settings.knn_regressor_settings.as_ref().unwrap().k)
                         .with_algorithm(
@@ -546,15 +461,66 @@ where
                                 .weight
                                 .clone(),
                         )
-                        .with_distance(Hamming::new()),
+                        .with_distance(Minkowski::new(p)),
+                    x,
+                    y,
+                    settings,
                     &settings.get_kfolds(),
-                    &settings.get_metric(),
-                )?,
-                RegressionAlgorithm::default_knn_regressor_hamming().fit(x, y, settings)?,
-            )),
+                    Self::metric(settings),
+                )
+            }
+            RegressionAlgorithm::KNNRegressorHamming(_) => Self::cross_validate_with(
+                self,
+                smartcore::neighbors::knn_regressor::KNNRegressor::new(),
+                smartcore::neighbors::knn_regressor::KNNRegressorParameters::default()
+                    .with_k(settings.knn_regressor_settings.as_ref().unwrap().k)
+                    .with_algorithm(
+                        settings
+                            .knn_regressor_settings
+                            .as_ref()
+                            .unwrap()
+                            .algorithm
+                            .clone(),
+                    )
+                    .with_weight(
+                        settings
+                            .knn_regressor_settings
+                            .as_ref()
+                            .unwrap()
+                            .weight
+                            .clone(),
+                    )
+                    .with_distance(Hamming::new()),
+                x,
+                y,
+                settings,
+                &settings.get_kfolds(),
+                Self::metric(settings),
+            ),
         }
     }
 
+    fn metric(
+        settings: &RegressionSettings<INPUT, OUTPUT, InputArray, OutputArray>,
+    ) -> fn(&OutputArray, &OutputArray) -> f64 {
+        settings.get_metric()
+    }
+}
+
+impl<INPUT, OUTPUT, InputArray, OutputArray>
+    RegressionAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
+where
+    INPUT: RealNumber + FloatNumber,
+    OUTPUT: FloatNumber,
+    InputArray: MutArrayView2<INPUT>
+        + Sized
+        + Clone
+        + Array2<INPUT>
+        + QRDecomposable<INPUT>
+        + SVDDecomposable<INPUT>
+        + CholeskyDecomposable<INPUT>,
+    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
+{
     pub(crate) fn cross_validate_model(
         self,
         x: &InputArray,

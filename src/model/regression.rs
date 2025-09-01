@@ -95,9 +95,9 @@ where
     pub fn predict(self, x: InputArray) -> Result<OutputArray, Failed> {
         let x = self
             .preprocessor
-            .preprocess(x, &self.settings.preprocessing)
+            .preprocess(x, &self.settings.supervised.preprocessing)
             .map_err(|_| Failed::transform("Cannot preprocess features"))?;
-        match self.settings.final_model_approach {
+        match self.settings.supervised.final_model_approach {
             FinalAlgorithm::None => Err(Failed::invalid_state("no final algorithm selected")),
             FinalAlgorithm::Best => {
                 let alg = self
@@ -144,8 +144,10 @@ where
     /// Returns an error if preprocessing or model evaluation fails.
     pub fn train(&mut self) -> Result<(), Failed> {
         // Train any necessary preprocessing
-        self.preprocessor
-            .train(&self.x_train.clone(), &self.settings.preprocessing);
+        self.preprocessor.train(
+            &self.x_train.clone(),
+            &self.settings.supervised.preprocessing,
+        );
 
         // Iterate over variants in RegressionAlgorithm
         for alg in RegressionAlgorithm::all_algorithms(&self.settings) {
@@ -229,7 +231,7 @@ where
                 .partial_cmp(&b.result.mean_test_score())
                 .unwrap_or(Equal)
         });
-        if self.settings.sort_by == Metric::RSquared {
+        if self.settings.supervised.sort_by == Metric::RSquared {
             self.comparison.reverse();
         }
     }
@@ -254,8 +256,10 @@ where
         table.set_header(vec![
             Cell::new("Model").add_attribute(Attribute::Bold),
             Cell::new("Time").add_attribute(Attribute::Bold),
-            Cell::new(format!("Training {}", self.settings.sort_by)).add_attribute(Attribute::Bold),
-            Cell::new(format!("Testing {}", self.settings.sort_by)).add_attribute(Attribute::Bold),
+            Cell::new(format!("Training {}", self.settings.supervised.sort_by))
+                .add_attribute(Attribute::Bold),
+            Cell::new(format!("Testing {}", self.settings.supervised.sort_by))
+                .add_attribute(Attribute::Bold),
         ]);
         for model in &self.comparison {
             let mut row_vec = vec![];
@@ -282,8 +286,10 @@ where
         meta_table.apply_modifier(UTF8_SOLID_INNER_BORDERS);
         meta_table.set_header(vec![
             Cell::new("Meta Model").add_attribute(Attribute::Bold),
-            Cell::new(format!("Training {}", self.settings.sort_by)).add_attribute(Attribute::Bold),
-            Cell::new(format!("Testing {}", self.settings.sort_by)).add_attribute(Attribute::Bold),
+            Cell::new(format!("Training {}", self.settings.supervised.sort_by))
+                .add_attribute(Attribute::Bold),
+            Cell::new(format!("Testing {}", self.settings.supervised.sort_by))
+                .add_attribute(Attribute::Bold),
         ]);
 
         // Populate row

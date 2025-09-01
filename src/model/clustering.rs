@@ -76,8 +76,14 @@ where
     ///
     /// # Arguments
     /// * `truth` - Ground truth cluster labels.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the model has not been trained.
     pub fn evaluate(&mut self, truth: &ClusterArray) {
-        let predicted = self.predict(&self.x_train);
+        let predicted = self
+            .predict(&self.x_train)
+            .expect("model must be trained before evaluation");
         let mut scores = ClusterMetrics::<CLUSTER>::hcv_score();
         scores.compute(truth, &predicted);
         self.metrics = Some(scores);

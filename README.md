@@ -96,7 +96,7 @@ model.train();
 let truth = vec![1_u8, 1, 2, 2];
 model.evaluate(&truth);
 println!("{model}");
-let _clusters: Vec<u8> = model.predict(&x);
+let _clusters: Vec<u8> = model.predict(&x).expect("prediction");
 ```
 
 Additional runnable examples are available in the [`examples/` directory](examples),

@@ -3,6 +3,7 @@
 use super::{ModelError, ModelResult, comparison::ComparisonEntry, preprocessing::Preprocessor};
 use crate::algorithms::ClassificationAlgorithm;
 use crate::settings::{ClassificationSettings, FinalAlgorithm, Metric};
+use smartcore::error::Failed;
 use smartcore::{
     linalg::{
         basic::arrays::{Array, Array1, Array2, MutArrayView1},
@@ -101,10 +102,10 @@ where
     pub fn predict(&self, x: InputArray) -> ModelResult<OutputArray> {
         let x = self
             .preprocessor
-            .preprocess(x, &self.settings.preprocessing)
+            .preprocess(x, &self.settings.supervised.preprocessing)
             .map_err(|e| ModelError::Inference(e.to_string()))?;
 
-        match self.settings.final_model_approach {
+        match self.settings.supervised.final_model_approach {
             FinalAlgorithm::None => Err(ModelError::NotTrained),
             FinalAlgorithm::Best => {
                 let entry = self.comparison.first().ok_or(ModelError::NotTrained)?;
@@ -120,10 +121,16 @@ where
     }
 
     /// Runs a model comparison and trains a final model.
-    pub fn train(&mut self) {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if model evaluation fails.
+    pub fn train(&mut self) -> Result<(), Failed> {
         // Train any necessary preprocessing
-        self.preprocessor
-            .train(&self.x_train.clone(), &self.settings.preprocessing);
+        self.preprocessor.train(
+            &self.x_train.clone(),
+            &self.settings.supervised.preprocessing,
+        );
 
         // Iterate over variants in Algorithm
         for alg in ClassificationAlgorithm::all_algorithms(&self.settings) {
@@ -131,8 +138,9 @@ where
                 &self.x_train,
                 &self.y_train,
                 &self.settings,
-            ));
+            )?);
         }
+        Ok(())
     }
 }
 
@@ -179,7 +187,10 @@ where
                 .partial_cmp(&b.result.mean_test_score())
                 .unwrap_or(Equal)
         });
-        if matches!(self.settings.sort_by, Metric::RSquared | Metric::Accuracy) {
+        if matches!(
+            self.settings.supervised.sort_by,
+            Metric::RSquared | Metric::Accuracy
+        ) {
             self.comparison.reverse();
         }
     }
@@ -204,8 +215,10 @@ where
         table.set_header(vec![
             Cell::new("Model").add_attribute(Attribute::Bold),
             Cell::new("Time").add_attribute(Attribute::Bold),
-            Cell::new(format!("Training {}", self.settings.sort_by)).add_attribute(Attribute::Bold),
-            Cell::new(format!("Testing {}", self.settings.sort_by)).add_attribute(Attribute::Bold),
+            Cell::new(format!("Training {}", self.settings.supervised.sort_by))
+                .add_attribute(Attribute::Bold),
+            Cell::new(format!("Testing {}", self.settings.supervised.sort_by))
+                .add_attribute(Attribute::Bold),
         ]);
         for model in &self.comparison {
             let mut row_vec = vec![];

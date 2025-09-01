@@ -5,7 +5,7 @@
 use super::{
     DecisionTreeRegressorParameters, ElasticNetParameters, FinalAlgorithm, KNNRegressorParameters,
     LassoParameters, LinearRegressionParameters, Metric, PreProcessing,
-    RandomForestRegressorParameters, RidgeRegressionParameters,
+    RandomForestRegressorParameters, RidgeRegressionParameters, SupervisedSettings,
 };
 use crate::algorithms::RegressionAlgorithm;
 
@@ -30,20 +30,10 @@ where
     InputArray: CholeskyDecomposable<INPUT> + SVDDecomposable<INPUT> + QRDecomposable<INPUT>,
     OutputArray: Array1<OUTPUT>,
 {
-    /// The metric to sort by
-    pub(crate) sort_by: Metric,
+    /// Shared supervised settings
+    pub(crate) supervised: SupervisedSettings,
     /// The algorithms to skip
     pub(crate) skiplist: Vec<RegressionAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>>,
-    /// The number of folds for cross-validation
-    pub(crate) number_of_folds: usize,
-    /// Whether to shuffle the data
-    pub(crate) shuffle: bool,
-    /// Whether to be verbose
-    pub(crate) verbose: bool,
-    /// The approach to use for the final model
-    pub(crate) final_model_approach: FinalAlgorithm,
-    /// The kind of preprocessing to perform
-    pub(crate) preprocessing: PreProcessing,
     /// Optional settings for linear regression
     pub(crate) linear_settings: Option<LinearRegressionParameters>,
     /// Optional settings for lasso regression
@@ -70,13 +60,11 @@ where
 {
     fn default() -> Self {
         Self {
-            sort_by: Metric::RSquared,
+            supervised: SupervisedSettings {
+                sort_by: Metric::RSquared,
+                ..SupervisedSettings::default()
+            },
             skiplist: vec![],
-            number_of_folds: 10,
-            shuffle: false,
-            verbose: false,
-            final_model_approach: FinalAlgorithm::Best,
-            preprocessing: PreProcessing::None,
             linear_settings: Some(LinearRegressionParameters::default()),
             lasso_settings: Some(LassoParameters::default()),
             ridge_settings: Some(RidgeRegressionParameters::default()),
@@ -98,14 +86,12 @@ where
 {
     /// Get the k-fold cross-validator
     pub(crate) fn get_kfolds(&self) -> KFold {
-        KFold::default()
-            .with_n_splits(self.number_of_folds)
-            .with_shuffle(self.shuffle)
+        self.supervised.get_kfolds()
     }
 
     /// Get the metric function
     pub(crate) fn get_metric(&self) -> fn(&OutputArray, &OutputArray) -> f64 {
-        match self.sort_by {
+        match self.supervised.sort_by {
             Metric::RSquared => r2,
             Metric::MeanAbsoluteError => mean_absolute_error,
             Metric::MeanSquaredError => mean_squared_error,
@@ -117,35 +103,35 @@ where
     /// Specify number of folds for cross-validation
     #[must_use]
     pub const fn with_number_of_folds(mut self, n: usize) -> Self {
-        self.number_of_folds = n;
+        self.supervised = self.supervised.with_number_of_folds(n);
         self
     }
 
     /// Specify whether data should be shuffled
     #[must_use]
     pub const fn shuffle_data(mut self, shuffle: bool) -> Self {
-        self.shuffle = shuffle;
+        self.supervised = self.supervised.shuffle_data(shuffle);
         self
     }
 
     /// Specify whether to be verbose
     #[must_use]
     pub const fn verbose(mut self, verbose: bool) -> Self {
-        self.verbose = verbose;
+        self.supervised = self.supervised.verbose(verbose);
         self
     }
 
     /// Specify what type of preprocessing should be performed
     #[must_use]
     pub const fn with_preprocessing(mut self, pre: PreProcessing) -> Self {
-        self.preprocessing = pre;
+        self.supervised = self.supervised.with_preprocessing(pre);
         self
     }
 
     /// Specify what type of final model to use
     #[must_use]
     pub fn with_final_model(mut self, approach: FinalAlgorithm) -> Self {
-        self.final_model_approach = approach;
+        self.supervised = self.supervised.with_final_model(approach);
         self
     }
 
@@ -175,7 +161,7 @@ where
     /// Adds a specific sorting function to the settings
     #[must_use]
     pub const fn sorted_by(mut self, sort_by: Metric) -> Self {
-        self.sort_by = sort_by;
+        self.supervised = self.supervised.sorted_by(sort_by);
         self
     }
 
@@ -244,6 +230,10 @@ where
     OutputArray: Array1<OUTPUT>,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Regression settings: sorted by {}", self.sort_by)
+        write!(
+            f,
+            "Regression settings: sorted by {}",
+            self.supervised.sort_by
+        )
     }
 }
