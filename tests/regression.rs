@@ -2,6 +2,7 @@
 mod regression_data;
 
 use automl::algorithms::RegressionAlgorithm;
+use automl::settings::{Distance, KNNParameters};
 use automl::{DenseMatrix, RegressionSettings, SupervisedModel};
 use regression_data::regression_testing_data;
 
@@ -13,9 +14,17 @@ fn test_default_regression() {
 
 #[test]
 fn test_knn_only_regression() {
-    let settings =
-        RegressionSettings::default().only(&RegressionAlgorithm::default_knn_regressor());
-    test_from_settings(settings);
+    for distance in [
+        Distance::Euclidean,
+        Distance::Manhattan,
+        Distance::Minkowski(3),
+        Distance::Hamming,
+    ] {
+        let settings = RegressionSettings::default()
+            .with_knn_regressor_settings(KNNParameters::default().with_distance(distance))
+            .only(&RegressionAlgorithm::default_knn_regressor());
+        test_from_settings(settings);
+    }
 }
 
 fn test_from_settings(settings: RegressionSettings<f64, f64, DenseMatrix<f64>, Vec<f64>>) {

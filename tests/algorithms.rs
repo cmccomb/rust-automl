@@ -16,18 +16,28 @@ fn all_algorithms_contains_linear() {
 }
 
 #[test]
-fn all_algorithms_respects_knn_distance() {
+fn all_algorithms_includes_knn_for_supported_distances() {
+    for distance in [
+        Distance::Euclidean,
+        Distance::Manhattan,
+        Distance::Minkowski(3),
+        Distance::Hamming,
+    ] {
+        let settings = RegressionSettings::default()
+            .with_knn_regressor_settings(KNNParameters::default().with_distance(distance));
+        let algorithms = Alg::all_algorithms(&settings);
+        assert!(algorithms.iter().any(|a| matches!(a, Alg::KNNRegressor(_))));
+    }
+}
+
+#[test]
+fn all_algorithms_skips_knn_for_mahalanobis() {
     let settings = RegressionSettings::default()
-        .with_knn_regressor_settings(KNNParameters::default().with_distance(Distance::Manhattan));
+        .with_knn_regressor_settings(KNNParameters::default().with_distance(Distance::Mahalanobis));
     let algorithms = Alg::all_algorithms(&settings);
     assert!(
         algorithms
             .iter()
-            .any(|a| matches!(a, Alg::KNNRegressorManhattan(_)))
-    );
-    assert!(
-        algorithms
-            .iter()
-            .all(|a| !matches!(a, Alg::KNNRegressorEuclidian(_)))
+            .all(|a| !matches!(a, Alg::KNNRegressor(_)))
     );
 }
