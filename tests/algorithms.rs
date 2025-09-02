@@ -1,5 +1,6 @@
 use automl::algorithms::RegressionAlgorithm;
-use automl::settings::{Distance, KNNParameters};
+use automl::settings::{Distance, KNNAlgorithmName, KNNParameters, KNNWeightFunction};
+use automl::utils::distance::KNNRegressorDistance;
 use automl::{DenseMatrix, RegressionSettings};
 
 type Alg = RegressionAlgorithm<f64, f64, DenseMatrix<f64>, Vec<f64>>;
@@ -40,4 +41,64 @@ fn all_algorithms_skips_knn_for_mahalanobis() {
             .iter()
             .all(|a| !matches!(a, Alg::KNNRegressor(_)))
     );
+}
+
+#[test]
+fn knn_param_conversion_matches_for_classifier_and_regressor() {
+    for distance in [
+        Distance::Euclidean,
+        Distance::Manhattan,
+        Distance::Minkowski(3),
+        Distance::Hamming,
+    ] {
+        let params = KNNParameters::default()
+            .with_k(7)
+            .with_weight(KNNWeightFunction::Distance)
+            .with_algorithm(KNNAlgorithmName::LinearSearch)
+            .with_distance(distance);
+        let classifier = params.to_classifier_params::<f64>();
+        let regressor = params.to_regressor_params::<f64>();
+
+        assert_eq!(classifier.k, regressor.k);
+        assert_eq!(
+            format!("{:?}", classifier.weight),
+            format!("{:?}", regressor.weight)
+        );
+        assert_eq!(
+            format!("{:?}", classifier.algorithm),
+            format!("{:?}", regressor.algorithm)
+        );
+
+        match distance {
+            Distance::Euclidean => {
+                assert!(matches!(
+                    classifier.distance,
+                    KNNRegressorDistance::Euclidean(_)
+                ));
+                assert!(format!("{regressor:?}").contains("Euclidian"));
+            }
+            Distance::Manhattan => {
+                assert!(matches!(
+                    classifier.distance,
+                    KNNRegressorDistance::Manhattan(_)
+                ));
+                assert!(format!("{regressor:?}").contains("Manhattan"));
+            }
+            Distance::Minkowski(_) => {
+                assert!(matches!(
+                    classifier.distance,
+                    KNNRegressorDistance::Minkowski(_)
+                ));
+                assert!(format!("{regressor:?}").contains("Minkowski"));
+            }
+            Distance::Hamming => {
+                assert!(matches!(
+                    classifier.distance,
+                    KNNRegressorDistance::Hamming(_)
+                ));
+                assert!(format!("{regressor:?}").contains("Hamming"));
+            }
+            Distance::Mahalanobis => unreachable!(),
+        }
+    }
 }

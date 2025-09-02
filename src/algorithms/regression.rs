@@ -87,18 +87,6 @@ where
     ),
 }
 
-fn build_knn_regressor_params<INPUT: RealNumber + FloatNumber>(
-    settings: &KNNParameters,
-    distance: Distance,
-) -> smartcore::neighbors::knn_regressor::KNNRegressorParameters<INPUT, KNNRegressorDistance<INPUT>>
-{
-    smartcore::neighbors::knn_regressor::KNNRegressorParameters::default()
-        .with_k(settings.k)
-        .with_algorithm(settings.algorithm.clone())
-        .with_weight(settings.weight.clone())
-        .with_distance(KNNRegressorDistance::from(distance))
-}
-
 impl<INPUT, OUTPUT, InputArray, OutputArray>
     SupervisedTrain<
         INPUT,
@@ -178,8 +166,7 @@ where
             ),
             Self::KNNRegressor(_) => {
                 let knn_settings = settings.knn_regressor_settings.as_ref().unwrap();
-                let params =
-                    build_knn_regressor_params::<INPUT>(knn_settings, knn_settings.distance);
+                let params = knn_settings.to_regressor_params::<INPUT>();
                 Self::KNNRegressor(smartcore::neighbors::knn_regressor::KNNRegressor::fit(
                     x, y, params,
                 )?)
@@ -266,8 +253,7 @@ where
             ),
             RegressionAlgorithm::KNNRegressor(_) => {
                 let knn_settings = settings.knn_regressor_settings.as_ref().unwrap();
-                let params =
-                    build_knn_regressor_params::<INPUT>(knn_settings, knn_settings.distance);
+                let params = knn_settings.to_regressor_params::<INPUT>();
                 Self::cross_validate_with(
                     self,
                     smartcore::neighbors::knn_regressor::KNNRegressor::new(),
