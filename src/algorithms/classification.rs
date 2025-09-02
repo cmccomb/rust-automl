@@ -148,17 +148,28 @@ where
                         settings
                             .logistic_regression_settings
                             .as_ref()
+                            .unwrap()
+                            .solver
+                            .clone(),
+                        alpha: {
+                            let alpha = INPUT::from(
+                                settings
+                                    .logistic_regression_settings
+                                    .as_ref()
+                                    .unwrap()
+                                    .alpha,
+                            )
                             .ok_or_else(|| {
-                                Failed::because(
-                                    FailedError::ParametersError,
-                                    "logistic regression settings not provided",
-                                )
+                                Failed::input("alpha value cannot be represented as input type")
                             })?;
-                    LogisticRegressionParameters {
-                        solver: lr_settings.solver.clone(),
-                        alpha: INPUT::from(lr_settings.alpha).unwrap(),
-                    }
-                })?,
+                            // Reject non-finite regularization parameters.
+                            if !alpha.is_finite() {
+                                return Err(Failed::input("alpha value must be finite"));
+                            }
+                            alpha
+                        },
+                    },
+                )?,
             ),
         })
     }
@@ -231,21 +242,30 @@ where
             Self::LogisticRegression(_) => Self::cross_validate_with(
                 self,
                 smartcore::linear::logistic_regression::LogisticRegression::new(),
-                {
-                    let lr_settings =
-                        settings
-                            .logistic_regression_settings
-                            .as_ref()
-                            .ok_or_else(|| {
-                                Failed::because(
-                                    FailedError::ParametersError,
-                                    "logistic regression settings not provided",
-                                )
-                            })?;
-                    LogisticRegressionParameters {
-                        solver: lr_settings.solver.clone(),
-                        alpha: INPUT::from(lr_settings.alpha).unwrap(),
-                    }
+                LogisticRegressionParameters {
+                    solver: settings
+                        .logistic_regression_settings
+                        .as_ref()
+                        .unwrap()
+                        .solver
+                        .clone(),
+                    alpha: {
+                        let alpha = INPUT::from(
+                            settings
+                                .logistic_regression_settings
+                                .as_ref()
+                                .unwrap()
+                                .alpha,
+                        )
+                        .ok_or_else(|| {
+                            Failed::input("alpha value cannot be represented as input type")
+                        })?;
+                        // Reject non-finite regularization parameters.
+                        if !alpha.is_finite() {
+                            return Err(Failed::input("alpha value must be finite"));
+                        }
+                        alpha
+                    },
                 },
                 x,
                 y,
