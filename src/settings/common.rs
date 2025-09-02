@@ -149,7 +149,7 @@ pub trait WithSupervisedSettings {
         self
     }
 
-    /// Delegate to [`SupervisedSettings::get_kfolds`].
+    /// Delegate to `SupervisedSettings::get_kfolds`.
     fn get_kfolds(&self) -> KFold {
         self.supervised().get_kfolds()
     }

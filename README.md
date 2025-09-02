@@ -99,13 +99,13 @@ println!("{model}");
 let _clusters: Vec<u8> = model.predict(&x).expect("prediction");
 ```
 
-Additional runnable examples are available in the [`examples/` directory](examples),
-including [`minimal_classification.rs`](examples/minimal_classification.rs),
-[`maximal_classification.rs`](examples/maximal_classification.rs),
-[`minimal_regression.rs`](examples/minimal_regression.rs),
-[`maximal_regression.rs`](examples/maximal_regression.rs),
-[`minimal_clustering.rs`](examples/minimal_clustering.rs), and
-[`maximal_clustering.rs`](examples/maximal_clustering.rs).
+Additional runnable examples are available in the [examples/ directory](https://github.com/cmccomb/rust-automl/tree/main/examples),
+including [minimal_classification.rs](https://github.com/cmccomb/rust-automl/blob/main/examples/minimal_classification.rs),
+[maximal_classification.rs](https://github.com/cmccomb/rust-automl/blob/main/examples/maximal_classification.rs),
+[minimal_regression.rs](https://github.com/cmccomb/rust-automl/blob/main/examples/minimal_regression.rs),
+[maximal_regression.rs](https://github.com/cmccomb/rust-automl/blob/main/examples/maximal_regression.rs),
+[minimal_clustering.rs](https://github.com/cmccomb/rust-automl/blob/main/examples/minimal_clustering.rs), and
+[maximal_clustering.rs](https://github.com/cmccomb/rust-automl/blob/main/examples/maximal_clustering.rs).
 
 Model comparison:
 
