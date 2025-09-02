@@ -32,7 +32,6 @@ where
         + QRDecomposable<INPUT>
         + SVDDecomposable<INPUT>
         + EVDDecomposable<INPUT>
-        + EVDDecomposable<INPUT>
         + CholeskyDecomposable<INPUT>,
     OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
 {
