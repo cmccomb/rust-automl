@@ -141,14 +141,23 @@ where
                             .unwrap()
                             .solver
                             .clone(),
-                        alpha: INPUT::from(
-                            settings
-                                .logistic_regression_settings
-                                .as_ref()
-                                .unwrap()
-                                .alpha,
-                        )
-                        .unwrap(),
+                        alpha: {
+                            let alpha = INPUT::from(
+                                settings
+                                    .logistic_regression_settings
+                                    .as_ref()
+                                    .unwrap()
+                                    .alpha,
+                            )
+                            .ok_or_else(|| {
+                                Failed::input("alpha value cannot be represented as input type")
+                            })?;
+                            // Reject non-finite regularization parameters.
+                            if !alpha.is_finite() {
+                                return Err(Failed::input("alpha value must be finite"));
+                            }
+                            alpha
+                        },
                     },
                 )?,
             ),
@@ -217,14 +226,23 @@ where
                         .unwrap()
                         .solver
                         .clone(),
-                    alpha: INPUT::from(
-                        settings
-                            .logistic_regression_settings
-                            .as_ref()
-                            .unwrap()
-                            .alpha,
-                    )
-                    .unwrap(),
+                    alpha: {
+                        let alpha = INPUT::from(
+                            settings
+                                .logistic_regression_settings
+                                .as_ref()
+                                .unwrap()
+                                .alpha,
+                        )
+                        .ok_or_else(|| {
+                            Failed::input("alpha value cannot be represented as input type")
+                        })?;
+                        // Reject non-finite regularization parameters.
+                        if !alpha.is_finite() {
+                            return Err(Failed::input("alpha value must be finite"));
+                        }
+                        alpha
+                    },
                 },
                 x,
                 y,

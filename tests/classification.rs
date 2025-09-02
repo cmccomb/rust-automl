@@ -2,11 +2,14 @@
 mod classification_data;
 
 use automl::algorithms::ClassificationAlgorithm;
+use automl::algorithms::supervised_train::SupervisedTrain;
 use automl::settings::{
     ClassificationSettings, RandomForestClassifierParameters, WithSupervisedSettings,
 };
 use automl::{DenseMatrix, ModelError, SupervisedModel};
 use classification_data::classification_testing_data;
+use smartcore::api::SupervisedEstimator;
+use smartcore::linear::logistic_regression::LogisticRegressionParameters;
 
 #[test]
 fn test_default_classification() {
@@ -67,4 +70,49 @@ fn predict_requires_training() {
     let model: Model = SupervisedModel::new(x, y, ClassificationSettings::default());
     let res = model.predict(DenseMatrix::from_2d_array(&[&[0.0, 0.0], &[1.0, 1.0]]).unwrap());
     assert!(matches!(res, Err(ModelError::NotTrained)));
+}
+
+#[test]
+fn invalid_alpha_returns_error() {
+    // Arrange
+    let x = DenseMatrix::from_2d_array(&[
+        &[0.0_f32, 0.0_f32],
+        &[0.1_f32, 0.0_f32],
+        &[0.0_f32, 0.1_f32],
+        &[0.1_f32, 0.1_f32],
+        &[0.9_f32, 0.9_f32],
+        &[1.0_f32, 0.9_f32],
+        &[0.9_f32, 1.0_f32],
+        &[1.0_f32, 1.0_f32],
+        &[0.0_f32, 0.2_f32],
+        &[0.2_f32, 0.0_f32],
+        &[0.0_f32, 0.3_f32],
+        &[0.3_f32, 0.0_f32],
+        &[0.8_f32, 0.7_f32],
+        &[0.7_f32, 0.8_f32],
+        &[0.8_f32, 0.8_f32],
+        &[0.7_f32, 0.7_f32],
+    ])
+    .unwrap();
+    let y = vec![0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1];
+    let settings = ClassificationSettings::default().with_logistic_regression_settings(
+        LogisticRegressionParameters::default().with_alpha(f64::NAN),
+    );
+    let algorithm = ClassificationAlgorithm::LogisticRegression(
+        smartcore::linear::logistic_regression::LogisticRegression::new(),
+    );
+
+    // Act
+    let result = algorithm.fit(&x, &y, &settings);
+
+    // Assert
+    assert!(result.is_err());
+    let message = match result {
+        Ok(_) => panic!("expected training to fail"),
+        Err(err) => err.to_string(),
+    };
+    assert!(
+        message.contains("alpha value must be finite"),
+        "Unexpected error message: {message}"
+    );
 }
