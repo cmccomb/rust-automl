@@ -116,6 +116,8 @@ pub use smartcore::linear::logistic_regression::LogisticRegressionSolverName;
 /// Parameters for decision tree classification (re-export from [Smartcore](https://docs.rs/smartcore/))
 pub use smartcore::tree::decision_tree_classifier::DecisionTreeClassifierParameters;
 
+pub(crate) mod macros;
+
 mod knn_parameters;
 pub use knn_parameters::KNNParameters;
 /// Backwards compatibility alias for KNN parameters used in regression

@@ -6,7 +6,8 @@ use std::time::Instant;
 
 use super::supervised_train::SupervisedTrain;
 use crate::model::{ComparisonEntry, supervised::Algorithm};
-use crate::settings::{RegressionSettings, WithSupervisedSettings};
+use crate::settings::WithSupervisedSettings;
+use crate::settings::{KNNParameters, RegressionSettings};
 use crate::utils::distance::{Distance, KNNRegressorDistance};
 use smartcore::api::SupervisedEstimator;
 use smartcore::error::Failed;
