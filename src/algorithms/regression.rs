@@ -10,7 +10,7 @@ use crate::settings::RegressionSettings;
 use crate::settings::WithSupervisedSettings;
 use crate::utils::distance::{Distance, KNNRegressorDistance};
 use smartcore::api::SupervisedEstimator;
-use smartcore::error::Failed;
+use smartcore::error::{Failed, FailedError};
 use smartcore::linalg::basic::arrays::{Array1, Array2, MutArrayView1, MutArrayView2};
 use smartcore::linalg::traits::cholesky::CholeskyDecomposable;
 use smartcore::linalg::traits::evd::EVDDecomposable;
@@ -120,26 +120,46 @@ where
                 Self::Linear(smartcore::linear::linear_regression::LinearRegression::fit(
                     x,
                     y,
-                    settings.linear_settings.as_ref().unwrap().clone(),
+                    settings.linear_settings.clone().ok_or_else(|| {
+                        Failed::because(
+                            FailedError::ParametersError,
+                            "linear regression settings not provided",
+                        )
+                    })?,
                 )?)
             }
             Self::Lasso(_) => Self::Lasso(smartcore::linear::lasso::Lasso::fit(
                 x,
                 y,
-                settings.lasso_settings.as_ref().unwrap().clone(),
+                settings.lasso_settings.clone().ok_or_else(|| {
+                    Failed::because(
+                        FailedError::ParametersError,
+                        "lasso regression settings not provided",
+                    )
+                })?,
             )?),
             Self::Ridge(_) => {
                 Self::Ridge(smartcore::linear::ridge_regression::RidgeRegression::fit(
                     x,
                     y,
-                    settings.ridge_settings.as_ref().unwrap().clone(),
+                    settings.ridge_settings.clone().ok_or_else(|| {
+                        Failed::because(
+                            FailedError::ParametersError,
+                            "ridge regression settings not provided",
+                        )
+                    })?,
                 )?)
             }
             Self::ElasticNet(_) => {
                 Self::ElasticNet(smartcore::linear::elastic_net::ElasticNet::fit(
                     x,
                     y,
-                    settings.elastic_net_settings.as_ref().unwrap().clone(),
+                    settings.elastic_net_settings.clone().ok_or_else(|| {
+                        Failed::because(
+                            FailedError::ParametersError,
+                            "elastic net regression settings not provided",
+                        )
+                    })?,
                 )?)
             }
             Self::RandomForestRegressor(_) => Self::RandomForestRegressor(
@@ -148,9 +168,13 @@ where
                     y,
                     settings
                         .random_forest_regressor_settings
-                        .as_ref()
-                        .unwrap()
-                        .clone(),
+                        .clone()
+                        .ok_or_else(|| {
+                            Failed::because(
+                                FailedError::ParametersError,
+                                "random forest regressor settings not provided",
+                            )
+                        })?,
                 )?,
             ),
             Self::DecisionTreeRegressor(_) => Self::DecisionTreeRegressor(
@@ -159,13 +183,22 @@ where
                     y,
                     settings
                         .decision_tree_regressor_settings
-                        .as_ref()
-                        .unwrap()
-                        .clone(),
+                        .clone()
+                        .ok_or_else(|| {
+                            Failed::because(
+                                FailedError::ParametersError,
+                                "decision tree regressor settings not provided",
+                            )
+                        })?,
                 )?,
             ),
             Self::KNNRegressor(_) => {
-                let knn_settings = settings.knn_regressor_settings.as_ref().unwrap();
+                let knn_settings = settings.knn_regressor_settings.as_ref().ok_or_else(|| {
+                    Failed::because(
+                        FailedError::ParametersError,
+                        "KNN regressor settings not provided",
+                    )
+                })?;
                 let params = knn_settings.to_regressor_params::<INPUT>();
                 Self::KNNRegressor(smartcore::neighbors::knn_regressor::KNNRegressor::fit(
                     x, y, params,
@@ -186,7 +219,12 @@ where
             RegressionAlgorithm::Linear(_) => Self::cross_validate_with(
                 self,
                 smartcore::linear::linear_regression::LinearRegression::new(),
-                settings.linear_settings.as_ref().unwrap().clone(),
+                settings.linear_settings.clone().ok_or_else(|| {
+                    Failed::because(
+                        FailedError::ParametersError,
+                        "linear regression settings not provided",
+                    )
+                })?,
                 x,
                 y,
                 settings,
@@ -196,7 +234,12 @@ where
             RegressionAlgorithm::Ridge(_) => Self::cross_validate_with(
                 self,
                 smartcore::linear::ridge_regression::RidgeRegression::new(),
-                settings.ridge_settings.as_ref().unwrap().clone(),
+                settings.ridge_settings.clone().ok_or_else(|| {
+                    Failed::because(
+                        FailedError::ParametersError,
+                        "ridge regression settings not provided",
+                    )
+                })?,
                 x,
                 y,
                 settings,
@@ -206,7 +249,12 @@ where
             RegressionAlgorithm::Lasso(_) => Self::cross_validate_with(
                 self,
                 smartcore::linear::lasso::Lasso::new(),
-                settings.lasso_settings.as_ref().unwrap().clone(),
+                settings.lasso_settings.clone().ok_or_else(|| {
+                    Failed::because(
+                        FailedError::ParametersError,
+                        "lasso regression settings not provided",
+                    )
+                })?,
                 x,
                 y,
                 settings,
@@ -216,7 +264,12 @@ where
             RegressionAlgorithm::ElasticNet(_) => Self::cross_validate_with(
                 self,
                 smartcore::linear::elastic_net::ElasticNet::new(),
-                settings.elastic_net_settings.as_ref().unwrap().clone(),
+                settings.elastic_net_settings.clone().ok_or_else(|| {
+                    Failed::because(
+                        FailedError::ParametersError,
+                        "elastic net regression settings not provided",
+                    )
+                })?,
                 x,
                 y,
                 settings,
@@ -228,9 +281,13 @@ where
                 smartcore::ensemble::random_forest_regressor::RandomForestRegressor::new(),
                 settings
                     .random_forest_regressor_settings
-                    .as_ref()
-                    .unwrap()
-                    .clone(),
+                    .clone()
+                    .ok_or_else(|| {
+                        Failed::because(
+                            FailedError::ParametersError,
+                            "random forest regressor settings not provided",
+                        )
+                    })?,
                 x,
                 y,
                 settings,
@@ -242,9 +299,13 @@ where
                 smartcore::tree::decision_tree_regressor::DecisionTreeRegressor::new(),
                 settings
                     .decision_tree_regressor_settings
-                    .as_ref()
-                    .unwrap()
-                    .clone(),
+                    .clone()
+                    .ok_or_else(|| {
+                        Failed::because(
+                            FailedError::ParametersError,
+                            "decision tree regressor settings not provided",
+                        )
+                    })?,
                 x,
                 y,
                 settings,
@@ -252,7 +313,12 @@ where
                 Self::metric(settings),
             ),
             RegressionAlgorithm::KNNRegressor(_) => {
-                let knn_settings = settings.knn_regressor_settings.as_ref().unwrap();
+                let knn_settings = settings.knn_regressor_settings.as_ref().ok_or_else(|| {
+                    Failed::because(
+                        FailedError::ParametersError,
+                        "KNN regressor settings not provided",
+                    )
+                })?;
                 let params = knn_settings.to_regressor_params::<INPUT>();
                 Self::cross_validate_with(
                     self,
@@ -495,5 +561,30 @@ where
             Self::ElasticNet(_) => write!(f, "Elastic Net Regressor"),
             Self::KNNRegressor(_) => write!(f, "KNN Regressor"),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{RegressionAlgorithm, RegressionSettings};
+    use crate::DenseMatrix;
+    use crate::algorithms::supervised_train::SupervisedTrain;
+    use smartcore::error::FailedError;
+
+    #[test]
+    #[allow(clippy::field_reassign_with_default)]
+    fn knn_regressor_requires_settings() {
+        let x: DenseMatrix<f64> = DenseMatrix::from_2d_array(&[&[0.0_f64], &[1.0_f64]]).unwrap();
+        let y: Vec<f64> = vec![0.0, 1.0];
+        let mut settings: RegressionSettings<f64, f64, DenseMatrix<f64>, Vec<f64>> =
+            RegressionSettings::default();
+        settings.knn_regressor_settings = None;
+        let algo: RegressionAlgorithm<f64, f64, DenseMatrix<f64>, Vec<f64>> =
+            RegressionAlgorithm::default_knn_regressor();
+        let err = algo
+            .fit(&x, &y, &settings)
+            .err()
+            .expect("expected training to fail");
+        assert_eq!(err.error(), FailedError::ParametersError);
     }
 }
