@@ -142,35 +142,35 @@ where
                         })?,
                 )?,
             ),
-            Self::LogisticRegression(_) => Self::LogisticRegression(
-                smartcore::linear::logistic_regression::LogisticRegression::fit(x, y, {
-                    let lr_settings =
-                        settings
-                            .logistic_regression_settings
-                            .as_ref()
-                            .unwrap()
-                            .solver
-                            .clone(),
-                        alpha: {
-                            let alpha = INPUT::from(
-                                settings
-                                    .logistic_regression_settings
-                                    .as_ref()
-                                    .unwrap()
-                                    .alpha,
+            Self::LogisticRegression(_) => {
+                let lr_settings =
+                    settings
+                        .logistic_regression_settings
+                        .as_ref()
+                        .ok_or_else(|| {
+                            Failed::because(
+                                FailedError::ParametersError,
+                                "logistic regression settings not provided",
                             )
-                            .ok_or_else(|| {
-                                Failed::input("alpha value cannot be represented as input type")
-                            })?;
-                            // Reject non-finite regularization parameters.
-                            if !alpha.is_finite() {
-                                return Err(Failed::input("alpha value must be finite"));
-                            }
-                            alpha
-                        },
+                        })?;
+
+                let params = LogisticRegressionParameters {
+                    solver: lr_settings.solver.clone(),
+                    alpha: {
+                        let alpha = INPUT::from(lr_settings.alpha).ok_or_else(|| {
+                            Failed::input("alpha value cannot be represented as input type")
+                        })?;
+                        if !alpha.is_finite() {
+                            return Err(Failed::input("alpha value must be finite"));
+                        }
+                        alpha
                     },
-                )?,
-            ),
+                };
+
+                Self::LogisticRegression(
+                    smartcore::linear::logistic_regression::LogisticRegression::fit(x, y, params)?,
+                )
+            }
         })
     }
 
@@ -239,40 +239,42 @@ where
                 &settings.get_kfolds(),
                 Self::metric(settings),
             ),
-            Self::LogisticRegression(_) => Self::cross_validate_with(
-                self,
-                smartcore::linear::logistic_regression::LogisticRegression::new(),
-                LogisticRegressionParameters {
-                    solver: settings
+            Self::LogisticRegression(_) => {
+                let lr_settings =
+                    settings
                         .logistic_regression_settings
                         .as_ref()
-                        .unwrap()
-                        .solver
-                        .clone(),
-                    alpha: {
-                        let alpha = INPUT::from(
-                            settings
-                                .logistic_regression_settings
-                                .as_ref()
-                                .unwrap()
-                                .alpha,
-                        )
                         .ok_or_else(|| {
+                            Failed::because(
+                                FailedError::ParametersError,
+                                "logistic regression settings not provided",
+                            )
+                        })?;
+
+                let params = LogisticRegressionParameters {
+                    solver: lr_settings.solver.clone(),
+                    alpha: {
+                        let alpha = INPUT::from(lr_settings.alpha).ok_or_else(|| {
                             Failed::input("alpha value cannot be represented as input type")
                         })?;
-                        // Reject non-finite regularization parameters.
                         if !alpha.is_finite() {
                             return Err(Failed::input("alpha value must be finite"));
                         }
                         alpha
                     },
-                },
-                x,
-                y,
-                settings,
-                &settings.get_kfolds(),
-                Self::metric(settings),
-            ),
+                };
+
+                Self::cross_validate_with(
+                    self,
+                    smartcore::linear::logistic_regression::LogisticRegression::new(),
+                    params,
+                    x,
+                    y,
+                    settings,
+                    &settings.get_kfolds(),
+                    Self::metric(settings),
+                )
+            }
         }
     }
 
