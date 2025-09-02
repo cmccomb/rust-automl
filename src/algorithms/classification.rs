@@ -8,7 +8,7 @@ use crate::model::{ComparisonEntry, supervised::Algorithm};
 use crate::settings::{ClassificationSettings, WithSupervisedSettings};
 use crate::utils::distance::KNNRegressorDistance;
 use smartcore::api::SupervisedEstimator;
-use smartcore::error::Failed;
+use smartcore::error::{Failed, FailedError};
 use smartcore::linalg::basic::arrays::{Array1, Array2, MutArrayView1, MutArrayView2};
 use smartcore::linalg::traits::cholesky::CholeskyDecomposable;
 use smartcore::linalg::traits::evd::EVDDecomposable;
@@ -103,16 +103,25 @@ where
                     y,
                     settings
                         .decision_tree_classifier_settings
-                        .as_ref()
-                        .unwrap()
-                        .clone(),
+                        .clone()
+                        .ok_or_else(|| {
+                            Failed::because(
+                                FailedError::ParametersError,
+                                "decision tree classifier settings not provided",
+                            )
+                        })?,
                 )?,
             ),
             Self::KNNClassifier(_) => {
                 let params = settings
                     .knn_classifier_settings
                     .as_ref()
-                    .unwrap()
+                    .ok_or_else(|| {
+                        Failed::because(
+                            FailedError::ParametersError,
+                            "KNN classifier settings not provided",
+                        )
+                    })?
                     .to_classifier_params::<INPUT>();
                 Self::KNNClassifier(smartcore::neighbors::knn_classifier::KNNClassifier::fit(
                     x, y, params,
@@ -124,32 +133,32 @@ where
                     y,
                     settings
                         .random_forest_classifier_settings
-                        .as_ref()
-                        .unwrap()
-                        .clone(),
+                        .clone()
+                        .ok_or_else(|| {
+                            Failed::because(
+                                FailedError::ParametersError,
+                                "random forest classifier settings not provided",
+                            )
+                        })?,
                 )?,
             ),
             Self::LogisticRegression(_) => Self::LogisticRegression(
-                smartcore::linear::logistic_regression::LogisticRegression::fit(
-                    x,
-                    y,
-                    LogisticRegressionParameters {
-                        solver: settings
+                smartcore::linear::logistic_regression::LogisticRegression::fit(x, y, {
+                    let lr_settings =
+                        settings
                             .logistic_regression_settings
                             .as_ref()
-                            .unwrap()
-                            .solver
-                            .clone(),
-                        alpha: INPUT::from(
-                            settings
-                                .logistic_regression_settings
-                                .as_ref()
-                                .unwrap()
-                                .alpha,
-                        )
-                        .unwrap(),
-                    },
-                )?,
+                            .ok_or_else(|| {
+                                Failed::because(
+                                    FailedError::ParametersError,
+                                    "logistic regression settings not provided",
+                                )
+                            })?;
+                    LogisticRegressionParameters {
+                        solver: lr_settings.solver.clone(),
+                        alpha: INPUT::from(lr_settings.alpha).unwrap(),
+                    }
+                })?,
             ),
         })
     }
@@ -166,9 +175,13 @@ where
                 smartcore::tree::decision_tree_classifier::DecisionTreeClassifier::new(),
                 settings
                     .decision_tree_classifier_settings
-                    .as_ref()
-                    .unwrap()
-                    .clone(),
+                    .clone()
+                    .ok_or_else(|| {
+                        Failed::because(
+                            FailedError::ParametersError,
+                            "decision tree classifier settings not provided",
+                        )
+                    })?,
                 x,
                 y,
                 settings,
@@ -179,7 +192,12 @@ where
                 let params = settings
                     .knn_classifier_settings
                     .as_ref()
-                    .unwrap()
+                    .ok_or_else(|| {
+                        Failed::because(
+                            FailedError::ParametersError,
+                            "KNN classifier settings not provided",
+                        )
+                    })?
                     .to_classifier_params::<INPUT>();
                 Self::cross_validate_with(
                     self,
@@ -197,9 +215,13 @@ where
                 smartcore::ensemble::random_forest_classifier::RandomForestClassifier::new(),
                 settings
                     .random_forest_classifier_settings
-                    .as_ref()
-                    .unwrap()
-                    .clone(),
+                    .clone()
+                    .ok_or_else(|| {
+                        Failed::because(
+                            FailedError::ParametersError,
+                            "random forest classifier settings not provided",
+                        )
+                    })?,
                 x,
                 y,
                 settings,
@@ -209,21 +231,21 @@ where
             Self::LogisticRegression(_) => Self::cross_validate_with(
                 self,
                 smartcore::linear::logistic_regression::LogisticRegression::new(),
-                LogisticRegressionParameters {
-                    solver: settings
-                        .logistic_regression_settings
-                        .as_ref()
-                        .unwrap()
-                        .solver
-                        .clone(),
-                    alpha: INPUT::from(
+                {
+                    let lr_settings =
                         settings
                             .logistic_regression_settings
                             .as_ref()
-                            .unwrap()
-                            .alpha,
-                    )
-                    .unwrap(),
+                            .ok_or_else(|| {
+                                Failed::because(
+                                    FailedError::ParametersError,
+                                    "logistic regression settings not provided",
+                                )
+                            })?;
+                    LogisticRegressionParameters {
+                        solver: lr_settings.solver.clone(),
+                        alpha: INPUT::from(lr_settings.alpha).unwrap(),
+                    }
                 },
                 x,
                 y,
@@ -417,5 +439,30 @@ where
             Self::RandomForestClassifier(_) => write!(f, "Random Forest Classifier"),
             Self::LogisticRegression(_) => write!(f, "Logistic Regression"),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ClassificationAlgorithm, ClassificationSettings};
+    use crate::DenseMatrix;
+    use crate::algorithms::supervised_train::SupervisedTrain;
+    use smartcore::error::FailedError;
+
+    #[test]
+    #[allow(clippy::field_reassign_with_default)]
+    fn logistic_regression_requires_settings() {
+        let x: DenseMatrix<f64> =
+            DenseMatrix::from_2d_array(&[&[0.0_f64, 0.0_f64], &[1.0_f64, 1.0_f64]]).unwrap();
+        let y: Vec<i32> = vec![0, 1];
+        let mut settings = ClassificationSettings::default();
+        settings.logistic_regression_settings = None;
+        let algo: ClassificationAlgorithm<f64, i32, DenseMatrix<f64>, Vec<i32>> =
+            ClassificationAlgorithm::default_logistic_regression();
+        let err = algo
+            .fit(&x, &y, &settings)
+            .err()
+            .expect("expected training to fail");
+        assert_eq!(err.error(), FailedError::ParametersError);
     }
 }
