@@ -63,7 +63,7 @@ where
         Ok((result, model))
     }
 
-    /// Convenience wrapper around [`fit_inner`].
+    /// Convenience wrapper around [`Self::fit_inner`].
     #[allow(clippy::missing_errors_doc)]
     fn fit(self, x: &InputArray, y: &OutputArray, settings: &Settings) -> Result<Self, Failed>
     where
