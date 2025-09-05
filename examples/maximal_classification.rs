@@ -18,7 +18,7 @@ mod classification_data;
 use automl::settings::ClassificationSettings;
 use automl::settings::{
     DecisionTreeClassifierParameters, Distance, FinalAlgorithm, KNNAlgorithmName, KNNParameters,
-    KNNWeightFunction, WithSupervisedSettings,
+    KNNWeightFunction,
 };
 use automl::{ClassificationModel, DenseMatrix};
 use classification_data::classification_testing_data;

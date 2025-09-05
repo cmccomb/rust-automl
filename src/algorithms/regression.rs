@@ -7,7 +7,6 @@ use std::time::Instant;
 use super::supervised_train::SupervisedTrain;
 use crate::model::{ComparisonEntry, supervised::Algorithm};
 use crate::settings::RegressionSettings;
-use crate::settings::WithSupervisedSettings;
 use crate::utils::distance::{Distance, KNNRegressorDistance};
 use smartcore::api::SupervisedEstimator;
 use smartcore::error::{Failed, FailedError};
@@ -410,6 +409,48 @@ where
             settings,
         )
     }
+
+    /// Fit the algorithm using the provided settings.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Failed`] if training is not successful.
+    #[allow(clippy::missing_errors_doc)]
+    pub fn fit(
+        self,
+        x: &InputArray,
+        y: &OutputArray,
+        settings: &RegressionSettings<INPUT, OUTPUT, InputArray, OutputArray>,
+    ) -> Result<Self, Failed> {
+        <Self as SupervisedTrain<
+            INPUT,
+            OUTPUT,
+            InputArray,
+            OutputArray,
+            RegressionSettings<INPUT, OUTPUT, InputArray, OutputArray>,
+        >>::fit(self, x, y, settings)
+    }
+
+    /// Perform cross-validation for the algorithm.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Failed`] if cross-validation fails.
+    #[allow(clippy::missing_errors_doc)]
+    pub fn cv(
+        self,
+        x: &InputArray,
+        y: &OutputArray,
+        settings: &RegressionSettings<INPUT, OUTPUT, InputArray, OutputArray>,
+    ) -> Result<(CrossValidationResult, Self), Failed> {
+        <Self as SupervisedTrain<
+            INPUT,
+            OUTPUT,
+            InputArray,
+            OutputArray,
+            RegressionSettings<INPUT, OUTPUT, InputArray, OutputArray>,
+        >>::cv(self, x, y, settings)
+    }
 }
 
 impl<INPUT, OUTPUT, InputArray, OutputArray>
@@ -568,7 +609,6 @@ where
 mod tests {
     use super::{RegressionAlgorithm, RegressionSettings};
     use crate::DenseMatrix;
-    use crate::algorithms::supervised_train::SupervisedTrain;
     use smartcore::error::FailedError;
 
     #[test]

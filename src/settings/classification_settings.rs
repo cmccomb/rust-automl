@@ -1,10 +1,12 @@
 use super::{
-    DecisionTreeClassifierParameters, KNNParameters, LogisticRegressionParameters, Metric,
-    RandomForestClassifierParameters, SupervisedSettings, WithSupervisedSettings,
+    DecisionTreeClassifierParameters, FinalAlgorithm, KNNParameters, LogisticRegressionParameters,
+    Metric, PreProcessing, RandomForestClassifierParameters, SupervisedSettings,
+    WithSupervisedSettings,
 };
 use crate::settings::macros::with_settings_methods;
 use smartcore::linalg::basic::arrays::Array1;
 use smartcore::metrics::accuracy;
+use smartcore::model_selection::KFold;
 use smartcore::numbers::basenum::Number;
 
 /// Settings for classification models
@@ -58,6 +60,95 @@ impl ClassificationSettings {
         with_random_forest_classifier_settings, random_forest_classifier_settings, RandomForestClassifierParameters;
         /// Specify settings for logistic regression classifier
         with_logistic_regression_settings, logistic_regression_settings, LogisticRegressionParameters<f64>;
+    }
+
+    /// Set the number of folds for cross-validation.
+    ///
+    /// # Examples
+    /// ```
+    /// use automl::settings::ClassificationSettings;
+    /// let settings = ClassificationSettings::default().with_number_of_folds(5);
+    /// assert_eq!(settings.get_kfolds().n_splits, 5);
+    /// ```
+    #[must_use]
+    pub fn with_number_of_folds(self, n: usize) -> Self {
+        <Self as WithSupervisedSettings>::with_number_of_folds(self, n)
+    }
+
+    /// Enable or disable shuffling of training data.
+    ///
+    /// # Examples
+    /// ```
+    /// use automl::settings::ClassificationSettings;
+    /// let settings = ClassificationSettings::default().shuffle_data(true);
+    /// assert!(settings.get_kfolds().shuffle);
+    /// ```
+    #[must_use]
+    pub fn shuffle_data(self, shuffle: bool) -> Self {
+        <Self as WithSupervisedSettings>::shuffle_data(self, shuffle)
+    }
+
+    /// Enable or disable verbose logging.
+    ///
+    /// # Examples
+    /// ```
+    /// use automl::settings::ClassificationSettings;
+    /// let settings = ClassificationSettings::default().verbose(true);
+    /// ```
+    #[must_use]
+    pub fn verbose(self, verbose: bool) -> Self {
+        <Self as WithSupervisedSettings>::verbose(self, verbose)
+    }
+
+    /// Specify preprocessing strategy.
+    ///
+    /// # Examples
+    /// ```
+    /// use automl::settings::{ClassificationSettings, PreProcessing};
+    /// let settings = ClassificationSettings::default()
+    ///     .with_preprocessing(PreProcessing::AddInteractions);
+    /// ```
+    #[must_use]
+    pub fn with_preprocessing(self, pre: PreProcessing) -> Self {
+        <Self as WithSupervisedSettings>::with_preprocessing(self, pre)
+    }
+
+    /// Choose the strategy for the final model.
+    ///
+    /// # Examples
+    /// ```
+    /// use automl::settings::{ClassificationSettings, FinalAlgorithm};
+    /// let settings = ClassificationSettings::default()
+    ///     .with_final_model(FinalAlgorithm::Best);
+    /// ```
+    #[must_use]
+    pub fn with_final_model(self, approach: FinalAlgorithm) -> Self {
+        <Self as WithSupervisedSettings>::with_final_model(self, approach)
+    }
+
+    /// Set the metric used for sorting model results.
+    ///
+    /// # Examples
+    /// ```
+    /// use automl::settings::{ClassificationSettings, Metric};
+    /// let settings = ClassificationSettings::default().sorted_by(Metric::Accuracy);
+    /// ```
+    #[must_use]
+    pub fn sorted_by(self, sort_by: Metric) -> Self {
+        <Self as WithSupervisedSettings>::sorted_by(self, sort_by)
+    }
+
+    /// Create a [`KFold`] configuration from these settings.
+    ///
+    /// # Examples
+    /// ```
+    /// use automl::settings::ClassificationSettings;
+    /// let folds = ClassificationSettings::default().get_kfolds();
+    /// assert_eq!(folds.n_splits, 10);
+    /// ```
+    #[must_use]
+    pub fn get_kfolds(&self) -> KFold {
+        <Self as WithSupervisedSettings>::get_kfolds(self)
     }
 }
 

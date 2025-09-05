@@ -2,10 +2,7 @@
 mod classification_data;
 
 use automl::algorithms::ClassificationAlgorithm;
-use automl::algorithms::supervised_train::SupervisedTrain;
-use automl::settings::{
-    ClassificationSettings, RandomForestClassifierParameters, WithSupervisedSettings,
-};
+use automl::settings::{ClassificationSettings, RandomForestClassifierParameters};
 use automl::{DenseMatrix, ModelError, SupervisedModel};
 use classification_data::classification_testing_data;
 use smartcore::api::SupervisedEstimator;

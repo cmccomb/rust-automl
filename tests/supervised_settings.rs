@@ -1,7 +1,5 @@
 use automl::DenseMatrix;
-use automl::settings::{
-    ClassificationSettings, Metric, RegressionSettings, WithSupervisedSettings,
-};
+use automl::settings::{ClassificationSettings, Metric, RegressionSettings};
 
 #[test]
 fn classification_builder_delegates() {

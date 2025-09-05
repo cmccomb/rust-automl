@@ -3,9 +3,10 @@
 #![allow(clippy::struct_field_names)]
 
 use super::{
-    DecisionTreeRegressorParameters, ElasticNetParameters, KNNParameters, LassoParameters,
-    LinearRegressionParameters, Metric, RandomForestRegressorParameters, RidgeRegressionParameters,
-    SupervisedSettings, WithSupervisedSettings,
+    DecisionTreeRegressorParameters, ElasticNetParameters, FinalAlgorithm, KNNParameters,
+    LassoParameters, LinearRegressionParameters, Metric, PreProcessing,
+    RandomForestRegressorParameters, RidgeRegressionParameters, SupervisedSettings,
+    WithSupervisedSettings,
 };
 use crate::algorithms::RegressionAlgorithm;
 use crate::settings::macros::with_settings_methods;
@@ -15,6 +16,7 @@ use smartcore::linalg::traits::{
     cholesky::CholeskyDecomposable, evd::EVDDecomposable, qr::QRDecomposable, svd::SVDDecomposable,
 };
 use smartcore::metrics::{mean_absolute_error, mean_squared_error, r2};
+use smartcore::model_selection::KFold;
 use smartcore::numbers::{basenum::Number, floatnum::FloatNumber, realnum::RealNumber};
 use std::fmt::{Display, Formatter};
 
@@ -140,6 +142,107 @@ where
         with_random_forest_regressor_settings, random_forest_regressor_settings, RandomForestRegressorParameters;
         /// Specify settings for decision tree regressor
         with_decision_tree_regressor_settings, decision_tree_regressor_settings, DecisionTreeRegressorParameters;
+    }
+
+    /// Set the number of folds for cross-validation.
+    ///
+    /// # Examples
+    /// ```
+    /// use automl::settings::RegressionSettings;
+    /// use automl::DenseMatrix;
+    /// let settings = RegressionSettings::<f64, f64, DenseMatrix<f64>, Vec<f64>>::default()
+    ///     .with_number_of_folds(5);
+    /// assert_eq!(settings.get_kfolds().n_splits, 5);
+    /// ```
+    #[must_use]
+    pub fn with_number_of_folds(self, n: usize) -> Self {
+        <Self as WithSupervisedSettings>::with_number_of_folds(self, n)
+    }
+
+    /// Enable or disable shuffling of training data.
+    ///
+    /// # Examples
+    /// ```
+    /// use automl::settings::RegressionSettings;
+    /// use automl::DenseMatrix;
+    /// let settings = RegressionSettings::<f64, f64, DenseMatrix<f64>, Vec<f64>>::default()
+    ///     .shuffle_data(true);
+    /// assert!(settings.get_kfolds().shuffle);
+    /// ```
+    #[must_use]
+    pub fn shuffle_data(self, shuffle: bool) -> Self {
+        <Self as WithSupervisedSettings>::shuffle_data(self, shuffle)
+    }
+
+    /// Enable or disable verbose logging.
+    ///
+    /// # Examples
+    /// ```
+    /// use automl::settings::RegressionSettings;
+    /// use automl::DenseMatrix;
+    /// let settings = RegressionSettings::<f64, f64, DenseMatrix<f64>, Vec<f64>>::default()
+    ///     .verbose(true);
+    /// ```
+    #[must_use]
+    pub fn verbose(self, verbose: bool) -> Self {
+        <Self as WithSupervisedSettings>::verbose(self, verbose)
+    }
+
+    /// Specify preprocessing strategy.
+    ///
+    /// # Examples
+    /// ```
+    /// use automl::settings::{PreProcessing, RegressionSettings};
+    /// use automl::DenseMatrix;
+    /// let settings = RegressionSettings::<f64, f64, DenseMatrix<f64>, Vec<f64>>::default()
+    ///     .with_preprocessing(PreProcessing::AddInteractions);
+    /// ```
+    #[must_use]
+    pub fn with_preprocessing(self, pre: PreProcessing) -> Self {
+        <Self as WithSupervisedSettings>::with_preprocessing(self, pre)
+    }
+
+    /// Choose the strategy for the final model.
+    ///
+    /// # Examples
+    /// ```
+    /// use automl::settings::{FinalAlgorithm, RegressionSettings};
+    /// use automl::DenseMatrix;
+    /// let settings = RegressionSettings::<f64, f64, DenseMatrix<f64>, Vec<f64>>::default()
+    ///     .with_final_model(FinalAlgorithm::Best);
+    /// ```
+    #[must_use]
+    pub fn with_final_model(self, approach: FinalAlgorithm) -> Self {
+        <Self as WithSupervisedSettings>::with_final_model(self, approach)
+    }
+
+    /// Set the metric used for sorting model results.
+    ///
+    /// # Examples
+    /// ```
+    /// use automl::settings::{Metric, RegressionSettings};
+    /// use automl::DenseMatrix;
+    /// let settings = RegressionSettings::<f64, f64, DenseMatrix<f64>, Vec<f64>>::default()
+    ///     .sorted_by(Metric::RSquared);
+    /// ```
+    #[must_use]
+    pub fn sorted_by(self, sort_by: Metric) -> Self {
+        <Self as WithSupervisedSettings>::sorted_by(self, sort_by)
+    }
+
+    /// Create a [`KFold`] configuration from these settings.
+    ///
+    /// # Examples
+    /// ```
+    /// use automl::settings::RegressionSettings;
+    /// use automl::DenseMatrix;
+    /// let folds = RegressionSettings::<f64, f64, DenseMatrix<f64>, Vec<f64>>::default()
+    ///     .get_kfolds();
+    /// assert_eq!(folds.n_splits, 10);
+    /// ```
+    #[must_use]
+    pub fn get_kfolds(&self) -> KFold {
+        <Self as WithSupervisedSettings>::get_kfolds(self)
     }
 }
 
