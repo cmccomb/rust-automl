@@ -6,7 +6,7 @@ use std::time::Instant;
 
 use super::supervised_train::SupervisedTrain;
 use crate::model::{ComparisonEntry, supervised::Algorithm};
-use crate::settings::RegressionSettings;
+use crate::settings::{RegressionSettings, SettingsError};
 use crate::utils::distance::{Distance, KNNRegressorDistance};
 use smartcore::api::SupervisedEstimator;
 use smartcore::error::{Failed, FailedError};
@@ -198,7 +198,9 @@ where
                         "KNN regressor settings not provided",
                     )
                 })?;
-                let params = knn_settings.to_regressor_params::<INPUT>();
+                let params = knn_settings
+                    .to_regressor_params::<INPUT>()
+                    .map_err(|e| Failed::because(FailedError::ParametersError, &e.to_string()))?;
                 Self::KNNRegressor(smartcore::neighbors::knn_regressor::KNNRegressor::fit(
                     x, y, params,
                 )?)
@@ -214,6 +216,8 @@ where
         y: &OutputArray,
         settings: &RegressionSettings<INPUT, OUTPUT, InputArray, OutputArray>,
     ) -> Result<(CrossValidationResult, Self), Failed> {
+        let metric = Self::metric(settings)
+            .map_err(|e| Failed::because(FailedError::ParametersError, &e.to_string()))?;
         match self {
             RegressionAlgorithm::Linear(_) => Self::cross_validate_with(
                 self,
@@ -228,7 +232,7 @@ where
                 y,
                 settings,
                 &settings.get_kfolds(),
-                Self::metric(settings),
+                metric,
             ),
             RegressionAlgorithm::Ridge(_) => Self::cross_validate_with(
                 self,
@@ -243,7 +247,7 @@ where
                 y,
                 settings,
                 &settings.get_kfolds(),
-                Self::metric(settings),
+                metric,
             ),
             RegressionAlgorithm::Lasso(_) => Self::cross_validate_with(
                 self,
@@ -258,7 +262,7 @@ where
                 y,
                 settings,
                 &settings.get_kfolds(),
-                Self::metric(settings),
+                metric,
             ),
             RegressionAlgorithm::ElasticNet(_) => Self::cross_validate_with(
                 self,
@@ -273,7 +277,7 @@ where
                 y,
                 settings,
                 &settings.get_kfolds(),
-                Self::metric(settings),
+                metric,
             ),
             RegressionAlgorithm::RandomForestRegressor(_) => Self::cross_validate_with(
                 self,
@@ -291,7 +295,7 @@ where
                 y,
                 settings,
                 &settings.get_kfolds(),
-                Self::metric(settings),
+                metric,
             ),
             RegressionAlgorithm::DecisionTreeRegressor(_) => Self::cross_validate_with(
                 self,
@@ -309,7 +313,7 @@ where
                 y,
                 settings,
                 &settings.get_kfolds(),
-                Self::metric(settings),
+                metric,
             ),
             RegressionAlgorithm::KNNRegressor(_) => {
                 let knn_settings = settings.knn_regressor_settings.as_ref().ok_or_else(|| {
@@ -318,7 +322,9 @@ where
                         "KNN regressor settings not provided",
                     )
                 })?;
-                let params = knn_settings.to_regressor_params::<INPUT>();
+                let params = knn_settings
+                    .to_regressor_params::<INPUT>()
+                    .map_err(|e| Failed::because(FailedError::ParametersError, &e.to_string()))?;
                 Self::cross_validate_with(
                     self,
                     smartcore::neighbors::knn_regressor::KNNRegressor::new(),
@@ -327,7 +333,7 @@ where
                     y,
                     settings,
                     &settings.get_kfolds(),
-                    Self::metric(settings),
+                    metric,
                 )
             }
         }
@@ -335,7 +341,7 @@ where
 
     fn metric(
         settings: &RegressionSettings<INPUT, OUTPUT, InputArray, OutputArray>,
-    ) -> fn(&OutputArray, &OutputArray) -> f64 {
+    ) -> Result<fn(&OutputArray, &OutputArray) -> f64, SettingsError> {
         settings.get_metric()
     }
 }

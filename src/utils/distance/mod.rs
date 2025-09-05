@@ -1,5 +1,6 @@
 //! Distance metrics supported by the crate.
 
+use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
 
 use smartcore::metrics::distance::{
@@ -7,6 +8,10 @@ use smartcore::metrics::distance::{
     minkowski::Minkowski,
 };
 use smartcore::numbers::basenum::Number;
+
+/// Distance error types.
+pub mod error;
+pub use error::DistanceError;
 
 /// Distance metrics
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -63,16 +68,29 @@ impl<T: Number> SmartcoreDistance<Vec<T>> for KNNRegressorDistance<T> {
     }
 }
 
-impl<T: Number> From<Distance> for KNNRegressorDistance<T> {
-    fn from(distance: Distance) -> Self {
-        match distance {
+impl<T: Number> TryFrom<Distance> for KNNRegressorDistance<T> {
+    type Error = DistanceError;
+
+    fn try_from(distance: Distance) -> Result<Self, Self::Error> {
+        Ok(match distance {
             Distance::Euclidean => Self::Euclidean(Euclidian::new()),
             Distance::Manhattan => Self::Manhattan(Manhattan::new()),
             Distance::Minkowski(p) => Self::Minkowski(Minkowski::new(p)),
             Distance::Hamming => Self::Hamming(Hamming::new()),
             Distance::Mahalanobis => {
-                panic!("Mahalanobis distance is not supported for KNNRegressor")
+                return Err(DistanceError::UnsupportedDistance(distance));
             }
-        }
+        })
+    }
+}
+
+impl<T: Number> KNNRegressorDistance<T> {
+    /// Create a distance wrapper from [`Distance`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DistanceError::UnsupportedDistance`] if the distance is not supported.
+    pub fn from(distance: Distance) -> Result<Self, DistanceError> {
+        Self::try_from(distance)
     }
 }

@@ -3,6 +3,8 @@ use smartcore::error::Failed;
 use smartcore::linalg::basic::arrays::{Array1, Array2};
 use smartcore::model_selection::{CrossValidationResult, KFold};
 
+use crate::settings::SettingsError;
+
 /// Trait encapsulating shared training logic for supervised algorithms.
 pub trait SupervisedTrain<INPUT, OUTPUT, InputArray, OutputArray, Settings>
 where
@@ -38,7 +40,11 @@ where
         Self: Sized;
 
     /// Retrieve the metric function for evaluation.
-    fn metric(settings: &Settings) -> fn(&OutputArray, &OutputArray) -> f64;
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SettingsError`] if no suitable metric is configured.
+    fn metric(settings: &Settings) -> Result<fn(&OutputArray, &OutputArray) -> f64, SettingsError>;
 
     /// Shared implementation of cross-validation and fitting.
     #[allow(clippy::too_many_arguments, clippy::missing_errors_doc)]

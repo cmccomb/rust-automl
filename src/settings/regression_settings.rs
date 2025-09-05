@@ -5,7 +5,7 @@
 use super::{
     DecisionTreeRegressorParameters, ElasticNetParameters, FinalAlgorithm, KNNParameters,
     LassoParameters, LinearRegressionParameters, Metric, PreProcessing,
-    RandomForestRegressorParameters, RidgeRegressionParameters, SupervisedSettings,
+    RandomForestRegressorParameters, RidgeRegressionParameters, SettingsError, SupervisedSettings,
     WithSupervisedSettings,
 };
 use crate::algorithms::RegressionAlgorithm;
@@ -93,14 +93,18 @@ where
         + QRDecomposable<INPUT>,
     OutputArray: Array1<OUTPUT>,
 {
-    /// Get the metric function
-    pub(crate) fn get_metric(&self) -> fn(&OutputArray, &OutputArray) -> f64 {
+    /// Retrieve the metric function for regression tasks.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SettingsError`] if no metric is set or if the metric is unsupported.
+    pub fn get_metric(&self) -> Result<fn(&OutputArray, &OutputArray) -> f64, SettingsError> {
         match self.supervised.sort_by {
-            Metric::RSquared => r2,
-            Metric::MeanAbsoluteError => mean_absolute_error,
-            Metric::MeanSquaredError => mean_squared_error,
-            Metric::Accuracy => panic!("Accuracy metric not supported for regression"),
-            Metric::None => panic!("A metric must be set."),
+            Metric::RSquared => Ok(r2),
+            Metric::MeanAbsoluteError => Ok(mean_absolute_error),
+            Metric::MeanSquaredError => Ok(mean_squared_error),
+            Metric::Accuracy => Err(SettingsError::UnsupportedMetric(Metric::Accuracy)),
+            Metric::None => Err(SettingsError::MetricNotSet),
         }
     }
 

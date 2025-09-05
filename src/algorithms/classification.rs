@@ -5,7 +5,7 @@ use std::time::Instant;
 
 use super::supervised_train::SupervisedTrain;
 use crate::model::{ComparisonEntry, supervised::Algorithm};
-use crate::settings::ClassificationSettings;
+use crate::settings::{ClassificationSettings, SettingsError};
 use crate::utils::distance::KNNRegressorDistance;
 use num_traits::Unsigned;
 use smartcore::api::SupervisedEstimator;
@@ -127,7 +127,8 @@ where
                             "KNN classifier settings not provided",
                         )
                     })?
-                    .to_classifier_params::<INPUT>();
+                    .to_classifier_params::<INPUT>()
+                    .map_err(|e| Failed::because(FailedError::ParametersError, &e.to_string()))?;
                 Self::KNNClassifier(smartcore::neighbors::knn_classifier::KNNClassifier::fit(
                     x, y, params,
                 )?)
@@ -198,6 +199,8 @@ where
         y: &OutputArray,
         settings: &ClassificationSettings,
     ) -> Result<(CrossValidationResult, Self), Failed> {
+        let metric = Self::metric(settings)
+            .map_err(|e| Failed::because(FailedError::ParametersError, &e.to_string()))?;
         match self {
             Self::DecisionTreeClassifier(_) => Self::cross_validate_with(
                 self,
@@ -215,7 +218,7 @@ where
                 y,
                 settings,
                 &settings.get_kfolds(),
-                Self::metric(settings),
+                metric,
             ),
             Self::KNNClassifier(_) => {
                 let params = settings
@@ -227,7 +230,8 @@ where
                             "KNN classifier settings not provided",
                         )
                     })?
-                    .to_classifier_params::<INPUT>();
+                    .to_classifier_params::<INPUT>()
+                    .map_err(|e| Failed::because(FailedError::ParametersError, &e.to_string()))?;
                 Self::cross_validate_with(
                     self,
                     smartcore::neighbors::knn_classifier::KNNClassifier::new(),
@@ -236,7 +240,7 @@ where
                     y,
                     settings,
                     &settings.get_kfolds(),
-                    Self::metric(settings),
+                    metric,
                 )
             }
             Self::RandomForestClassifier(_) => Self::cross_validate_with(
@@ -255,7 +259,7 @@ where
                 y,
                 settings,
                 &settings.get_kfolds(),
-                Self::metric(settings),
+                metric,
             ),
             Self::LogisticRegression(_) => {
                 let lr_settings =
@@ -290,7 +294,7 @@ where
                     y,
                     settings,
                     &settings.get_kfolds(),
-                    Self::metric(settings),
+                    metric,
                 )
             }
             Self::GaussianNB(_) => Self::cross_validate_with(
@@ -306,12 +310,14 @@ where
                 y,
                 settings,
                 &settings.get_kfolds(),
-                Self::metric(settings),
+                metric,
             ),
         }
     }
 
-    fn metric(settings: &ClassificationSettings) -> fn(&OutputArray, &OutputArray) -> f64 {
+    fn metric(
+        settings: &ClassificationSettings,
+    ) -> Result<fn(&OutputArray, &OutputArray) -> f64, SettingsError> {
         settings.get_metric::<OUTPUT, OutputArray>()
     }
 }

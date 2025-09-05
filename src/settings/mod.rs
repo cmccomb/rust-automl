@@ -147,9 +147,13 @@ pub use clustering_settings::{ClusteringAlgorithmName, ClusteringSettings};
 
 use std::fmt::{Display, Formatter};
 
+/// Error types for settings operations.
+pub mod error;
+pub use error::SettingsError;
+
 /// Metrics for evaluating algorithms
 #[non_exhaustive]
-#[derive(PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Metric {
     /// Sort by R^2
     RSquared,
@@ -170,7 +174,7 @@ impl Display for Metric {
             Self::MeanAbsoluteError => write!(f, "MAE"),
             Self::MeanSquaredError => write!(f, "MSE"),
             Self::Accuracy => write!(f, "Accuracy"),
-            Self::None => panic!("A metric must be set."),
+            Self::None => write!(f, "None"),
         }
     }
 }

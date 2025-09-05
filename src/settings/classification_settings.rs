@@ -1,7 +1,7 @@
 use super::{
     DecisionTreeClassifierParameters, FinalAlgorithm, GaussianNBParameters, KNNParameters,
     LogisticRegressionParameters, Metric, PreProcessing, RandomForestClassifierParameters,
-    SupervisedSettings, WithSupervisedSettings,
+    SettingsError, SupervisedSettings, WithSupervisedSettings,
 };
 use crate::settings::macros::with_settings_methods;
 use smartcore::linalg::basic::arrays::Array1;
@@ -42,15 +42,22 @@ impl Default for ClassificationSettings {
 }
 
 impl ClassificationSettings {
-    pub(crate) fn get_metric<OUTPUT, OutputArray>(&self) -> fn(&OutputArray, &OutputArray) -> f64
+    /// Retrieve the metric function for classification tasks.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SettingsError`] if no metric is set or if the metric is unsupported.
+    pub fn get_metric<OUTPUT, OutputArray>(
+        &self,
+    ) -> Result<fn(&OutputArray, &OutputArray) -> f64, SettingsError>
     where
         OUTPUT: Number + Ord,
         OutputArray: Array1<OUTPUT>,
     {
         match self.supervised.sort_by {
-            Metric::Accuracy => accuracy,
-            Metric::None => panic!("A metric must be set."),
-            _ => panic!("Unsupported metric for classification"),
+            Metric::Accuracy => Ok(accuracy),
+            Metric::None => Err(SettingsError::MetricNotSet),
+            m => Err(SettingsError::UnsupportedMetric(m)),
         }
     }
 

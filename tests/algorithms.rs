@@ -56,8 +56,8 @@ fn knn_param_conversion_matches_for_classifier_and_regressor() {
             .with_weight(KNNWeightFunction::Distance)
             .with_algorithm(KNNAlgorithmName::LinearSearch)
             .with_distance(distance);
-        let classifier = params.to_classifier_params::<f64>();
-        let regressor = params.to_regressor_params::<f64>();
+        let classifier = params.to_classifier_params::<f64>().unwrap();
+        let regressor = params.to_regressor_params::<f64>().unwrap();
 
         assert_eq!(classifier.k, regressor.k);
         assert_eq!(
