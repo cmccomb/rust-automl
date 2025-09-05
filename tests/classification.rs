@@ -108,11 +108,7 @@ fn invalid_alpha_returns_error() {
     let result = algorithm.fit(&x, &y, &settings);
 
     // Assert
-    assert!(result.is_err());
-    let message = match result {
-        Ok(_) => panic!("expected training to fail"),
-        Err(err) => err.to_string(),
-    };
+    let message = result.err().unwrap().to_string();
     assert!(
         message.contains("alpha value must be finite"),
         "Unexpected error message: {message}"

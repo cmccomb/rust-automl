@@ -1,6 +1,6 @@
 //! KNN parameters
 
-use crate::utils::distance::{Distance, KNNRegressorDistance};
+use crate::utils::distance::{Distance, DistanceError, KNNRegressorDistance};
 use smartcore::numbers::{floatnum::FloatNumber, realnum::RealNumber};
 pub use smartcore::{algorithm::neighbour::KNNAlgorithmName, neighbors::KNNWeightFunction};
 
@@ -46,34 +46,50 @@ impl KNNParameters {
         self
     }
 
-    /// Convert to smartcore KNN classifier parameters using the configured distance metric
-    #[must_use]
+    /// Convert to smartcore KNN classifier parameters using the configured distance metric.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DistanceError::UnsupportedDistance`] if the configured distance is not supported.
     pub fn to_classifier_params<INPUT: RealNumber + FloatNumber>(
         &self,
-    ) -> smartcore::neighbors::knn_classifier::KNNClassifierParameters<
-        INPUT,
-        KNNRegressorDistance<INPUT>,
+    ) -> Result<
+        smartcore::neighbors::knn_classifier::KNNClassifierParameters<
+            INPUT,
+            KNNRegressorDistance<INPUT>,
+        >,
+        DistanceError,
     > {
-        smartcore::neighbors::knn_classifier::KNNClassifierParameters::default()
-            .with_k(self.k)
-            .with_algorithm(self.algorithm.clone())
-            .with_weight(self.weight.clone())
-            .with_distance(KNNRegressorDistance::from(self.distance))
+        Ok(
+            smartcore::neighbors::knn_classifier::KNNClassifierParameters::default()
+                .with_k(self.k)
+                .with_algorithm(self.algorithm.clone())
+                .with_weight(self.weight.clone())
+                .with_distance(KNNRegressorDistance::from(self.distance)?),
+        )
     }
 
-    /// Convert to smartcore KNN regressor parameters using the configured distance metric
-    #[must_use]
+    /// Convert to smartcore KNN regressor parameters using the configured distance metric.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DistanceError::UnsupportedDistance`] if the configured distance is not supported.
     pub fn to_regressor_params<INPUT: RealNumber + FloatNumber>(
         &self,
-    ) -> smartcore::neighbors::knn_regressor::KNNRegressorParameters<
-        INPUT,
-        KNNRegressorDistance<INPUT>,
+    ) -> Result<
+        smartcore::neighbors::knn_regressor::KNNRegressorParameters<
+            INPUT,
+            KNNRegressorDistance<INPUT>,
+        >,
+        DistanceError,
     > {
-        smartcore::neighbors::knn_regressor::KNNRegressorParameters::default()
-            .with_k(self.k)
-            .with_algorithm(self.algorithm.clone())
-            .with_weight(self.weight.clone())
-            .with_distance(KNNRegressorDistance::from(self.distance))
+        Ok(
+            smartcore::neighbors::knn_regressor::KNNRegressorParameters::default()
+                .with_k(self.k)
+                .with_algorithm(self.algorithm.clone())
+                .with_weight(self.weight.clone())
+                .with_distance(KNNRegressorDistance::from(self.distance)?),
+        )
     }
 }
 
