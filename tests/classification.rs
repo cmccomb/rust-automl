@@ -21,7 +21,7 @@ fn test_default_classification() {
 #[test]
 fn test_all_algorithms_included() {
     let settings = ClassificationSettings::default();
-    let algorithms = <ClassificationAlgorithm<f64, i32, DenseMatrix<f64>, Vec<i32>> as
+    let algorithms = <ClassificationAlgorithm<f64, u32, DenseMatrix<f64>, Vec<u32>> as
         automl::model::Algorithm<ClassificationSettings>>::all_algorithms(&settings);
     assert!(
         algorithms
@@ -33,14 +33,19 @@ fn test_all_algorithms_included() {
             .iter()
             .any(|a| matches!(a, ClassificationAlgorithm::LogisticRegression(_)))
     );
+    assert!(
+        algorithms
+            .iter()
+            .any(|a| matches!(a, ClassificationAlgorithm::GaussianNB(_)))
+    );
 }
 
 fn test_from_settings(settings: ClassificationSettings) {
     type Model = SupervisedModel<
-        ClassificationAlgorithm<f64, i32, DenseMatrix<f64>, Vec<i32>>,
+        ClassificationAlgorithm<f64, u32, DenseMatrix<f64>, Vec<u32>>,
         ClassificationSettings,
         DenseMatrix<f64>,
-        Vec<i32>,
+        Vec<u32>,
     >;
 
     let (x, y) = classification_testing_data();
@@ -58,10 +63,10 @@ fn test_from_settings(settings: ClassificationSettings) {
 #[test]
 fn predict_requires_training() {
     type Model = SupervisedModel<
-        ClassificationAlgorithm<f64, i32, DenseMatrix<f64>, Vec<i32>>,
+        ClassificationAlgorithm<f64, u32, DenseMatrix<f64>, Vec<u32>>,
         ClassificationSettings,
         DenseMatrix<f64>,
-        Vec<i32>,
+        Vec<u32>,
     >;
     let (x, y) = classification_testing_data();
     let model: Model = SupervisedModel::new(x, y, ClassificationSettings::default());
@@ -91,7 +96,7 @@ fn invalid_alpha_returns_error() {
         &[0.7_f32, 0.7_f32],
     ])
     .unwrap();
-    let y = vec![0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1];
+    let y: Vec<u32> = vec![0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1];
     let settings = ClassificationSettings::default().with_logistic_regression_settings(
         LogisticRegressionParameters::default().with_alpha(f64::NAN),
     );

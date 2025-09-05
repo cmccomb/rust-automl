@@ -5,7 +5,7 @@ use smartcore::linalg::basic::matrix::DenseMatrix;
 /// # Returns
 ///
 /// * `(x, y)` - Feature matrix and target vector.
-pub fn classification_testing_data() -> (DenseMatrix<f64>, Vec<i32>) {
+pub fn classification_testing_data() -> (DenseMatrix<f64>, Vec<u32>) {
     let x = DenseMatrix::from_2d_array(&[
         &[0.0, 0.0],
         &[0.1, 0.0],

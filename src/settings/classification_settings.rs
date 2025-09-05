@@ -1,7 +1,7 @@
 use super::{
-    DecisionTreeClassifierParameters, FinalAlgorithm, KNNParameters, LogisticRegressionParameters,
-    Metric, PreProcessing, RandomForestClassifierParameters, SupervisedSettings,
-    WithSupervisedSettings,
+    DecisionTreeClassifierParameters, FinalAlgorithm, GaussianNBParameters, KNNParameters,
+    LogisticRegressionParameters, Metric, PreProcessing, RandomForestClassifierParameters,
+    SupervisedSettings, WithSupervisedSettings,
 };
 use crate::settings::macros::with_settings_methods;
 use smartcore::linalg::basic::arrays::Array1;
@@ -21,6 +21,8 @@ pub struct ClassificationSettings {
     pub(crate) random_forest_classifier_settings: Option<RandomForestClassifierParameters>,
     /// Optional settings for logistic regression classifier
     pub(crate) logistic_regression_settings: Option<LogisticRegressionParameters<f64>>,
+    /// Optional settings for Gaussian naive Bayes classifier
+    pub(crate) gaussian_nb_settings: Option<GaussianNBParameters>,
 }
 
 impl Default for ClassificationSettings {
@@ -34,6 +36,7 @@ impl Default for ClassificationSettings {
             decision_tree_classifier_settings: Some(DecisionTreeClassifierParameters::default()),
             random_forest_classifier_settings: Some(RandomForestClassifierParameters::default()),
             logistic_regression_settings: Some(LogisticRegressionParameters::default()),
+            gaussian_nb_settings: Some(GaussianNBParameters::default()),
         }
     }
 }
@@ -60,6 +63,13 @@ impl ClassificationSettings {
         with_random_forest_classifier_settings, random_forest_classifier_settings, RandomForestClassifierParameters;
         /// Specify settings for logistic regression classifier
         with_logistic_regression_settings, logistic_regression_settings, LogisticRegressionParameters<f64>;
+    }
+
+    /// Specify settings for Gaussian naive Bayes classifier
+    #[must_use]
+    pub fn with_gaussian_nb_settings(mut self, settings: GaussianNBParameters) -> Self {
+        self.gaussian_nb_settings = Some(settings);
+        self
     }
 
     /// Set the number of folds for cross-validation.
