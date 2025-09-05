@@ -7,6 +7,7 @@ use super::supervised_train::SupervisedTrain;
 use crate::model::{ComparisonEntry, supervised::Algorithm};
 use crate::settings::ClassificationSettings;
 use crate::utils::distance::KNNRegressorDistance;
+use num_traits::Unsigned;
 use smartcore::api::SupervisedEstimator;
 use smartcore::error::{Failed, FailedError};
 use smartcore::linalg::basic::arrays::{Array1, Array2, MutArrayView1, MutArrayView2};
@@ -24,7 +25,7 @@ use smartcore::numbers::realnum::RealNumber;
 pub enum ClassificationAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
 where
     INPUT: RealNumber + FloatNumber,
-    OUTPUT: Number + Ord,
+    OUTPUT: Number + Ord + Unsigned,
     InputArray: MutArrayView2<INPUT>
         + Sized
         + Clone
@@ -72,6 +73,10 @@ where
             OutputArray,
         >,
     ),
+    /// Gaussian naive Bayes classifier
+    GaussianNB(
+        smartcore::naive_bayes::gaussian::GaussianNB<INPUT, OUTPUT, InputArray, OutputArray>,
+    ),
 }
 
 impl<INPUT, OUTPUT, InputArray, OutputArray>
@@ -79,7 +84,7 @@ impl<INPUT, OUTPUT, InputArray, OutputArray>
     for ClassificationAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
 where
     INPUT: RealNumber + FloatNumber,
-    OUTPUT: Number + Ord,
+    OUTPUT: Number + Ord + Unsigned,
     InputArray: MutArrayView2<INPUT>
         + Sized
         + Clone
@@ -171,9 +176,22 @@ where
                     smartcore::linear::logistic_regression::LogisticRegression::fit(x, y, params)?,
                 )
             }
+            Self::GaussianNB(_) => {
+                Self::GaussianNB(smartcore::naive_bayes::gaussian::GaussianNB::fit(
+                    x,
+                    y,
+                    settings.gaussian_nb_settings.clone().ok_or_else(|| {
+                        Failed::because(
+                            FailedError::ParametersError,
+                            "Gaussian NB settings not provided",
+                        )
+                    })?,
+                )?)
+            }
         })
     }
 
+    #[allow(clippy::too_many_lines)]
     fn cv(
         self,
         x: &InputArray,
@@ -275,6 +293,21 @@ where
                     Self::metric(settings),
                 )
             }
+            Self::GaussianNB(_) => Self::cross_validate_with(
+                self,
+                smartcore::naive_bayes::gaussian::GaussianNB::new(),
+                settings.gaussian_nb_settings.clone().ok_or_else(|| {
+                    Failed::because(
+                        FailedError::ParametersError,
+                        "Gaussian NB settings not provided",
+                    )
+                })?,
+                x,
+                y,
+                settings,
+                &settings.get_kfolds(),
+                Self::metric(settings),
+            ),
         }
     }
 
@@ -287,7 +320,7 @@ impl<INPUT, OUTPUT, InputArray, OutputArray>
     ClassificationAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
 where
     INPUT: RealNumber + FloatNumber,
-    OUTPUT: Number + Ord,
+    OUTPUT: Number + Ord + Unsigned,
     InputArray: MutArrayView2<INPUT>
         + Sized
         + Clone
@@ -324,6 +357,12 @@ where
     #[must_use]
     pub fn default_logistic_regression() -> Self {
         Self::LogisticRegression(smartcore::linear::logistic_regression::LogisticRegression::new())
+    }
+
+    /// Default Gaussian naive Bayes classifier algorithm
+    #[must_use]
+    pub fn default_gaussian_nb() -> Self {
+        Self::GaussianNB(smartcore::naive_bayes::gaussian::GaussianNB::new())
     }
 
     /// Get a vector of all possible algorithms
@@ -379,7 +418,7 @@ impl<INPUT, OUTPUT, InputArray, OutputArray> Algorithm<ClassificationSettings>
     for ClassificationAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
 where
     INPUT: RealNumber + FloatNumber,
-    OUTPUT: Number + Ord,
+    OUTPUT: Number + Ord + Unsigned,
     InputArray: MutArrayView2<INPUT>
         + Sized
         + Clone
@@ -401,6 +440,7 @@ where
             Self::KNNClassifier(model) => model.predict(x),
             Self::RandomForestClassifier(model) => model.predict(x),
             Self::LogisticRegression(model) => model.predict(x),
+            Self::GaussianNB(model) => model.predict(x),
         }
     }
 
@@ -431,6 +471,9 @@ where
         if settings.logistic_regression_settings.is_some() {
             algorithms.push(Self::default_logistic_regression());
         }
+        if settings.gaussian_nb_settings.is_some() {
+            algorithms.push(Self::default_gaussian_nb());
+        }
         algorithms
     }
 }
@@ -439,7 +482,7 @@ impl<INPUT, OUTPUT, InputArray, OutputArray> PartialEq
     for ClassificationAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
 where
     INPUT: RealNumber + FloatNumber,
-    OUTPUT: Number + Ord,
+    OUTPUT: Number + Ord + Unsigned,
     InputArray: MutArrayView2<INPUT>
         + Sized
         + Clone
@@ -458,6 +501,7 @@ where
                 && matches!(other, Self::RandomForestClassifier(_))
             || matches!(self, Self::LogisticRegression(_))
                 && matches!(other, Self::LogisticRegression(_))
+            || matches!(self, Self::GaussianNB(_)) && matches!(other, Self::GaussianNB(_))
     }
 }
 
@@ -465,7 +509,7 @@ impl<INPUT, OUTPUT, InputArray, OutputArray> Default
     for ClassificationAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
 where
     INPUT: RealNumber + FloatNumber,
-    OUTPUT: Number + Ord,
+    OUTPUT: Number + Ord + Unsigned,
     InputArray: MutArrayView2<INPUT>
         + Sized
         + Clone
@@ -485,7 +529,7 @@ impl<INPUT, OUTPUT, InputArray, OutputArray> Display
     for ClassificationAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
 where
     INPUT: RealNumber + FloatNumber,
-    OUTPUT: Number + Ord,
+    OUTPUT: Number + Ord + Unsigned,
     InputArray: MutArrayView2<INPUT>
         + Sized
         + Clone
@@ -502,6 +546,7 @@ where
             Self::KNNClassifier(_) => write!(f, "KNN Classifier"),
             Self::RandomForestClassifier(_) => write!(f, "Random Forest Classifier"),
             Self::LogisticRegression(_) => write!(f, "Logistic Regression"),
+            Self::GaussianNB(_) => write!(f, "Gaussian NB"),
         }
     }
 }
@@ -517,11 +562,28 @@ mod tests {
     fn logistic_regression_requires_settings() {
         let x: DenseMatrix<f64> =
             DenseMatrix::from_2d_array(&[&[0.0_f64, 0.0_f64], &[1.0_f64, 1.0_f64]]).unwrap();
-        let y: Vec<i32> = vec![0, 1];
+        let y: Vec<u32> = vec![0, 1];
         let mut settings = ClassificationSettings::default();
         settings.logistic_regression_settings = None;
-        let algo: ClassificationAlgorithm<f64, i32, DenseMatrix<f64>, Vec<i32>> =
+        let algo: ClassificationAlgorithm<f64, u32, DenseMatrix<f64>, Vec<u32>> =
             ClassificationAlgorithm::default_logistic_regression();
+        let err = algo
+            .fit(&x, &y, &settings)
+            .err()
+            .expect("expected training to fail");
+        assert_eq!(err.error(), FailedError::ParametersError);
+    }
+
+    #[test]
+    #[allow(clippy::field_reassign_with_default)]
+    fn gaussian_nb_requires_settings() {
+        let x: DenseMatrix<f64> =
+            DenseMatrix::from_2d_array(&[&[0.0_f64, 0.0_f64], &[1.0_f64, 1.0_f64]]).unwrap();
+        let y: Vec<u32> = vec![0, 1];
+        let mut settings = ClassificationSettings::default();
+        settings.gaussian_nb_settings = None;
+        let algo: ClassificationAlgorithm<f64, u32, DenseMatrix<f64>, Vec<u32>> =
+            ClassificationAlgorithm::default_gaussian_nb();
         let err = algo
             .fit(&x, &y, &settings)
             .err()

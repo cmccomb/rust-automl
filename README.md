@@ -71,7 +71,7 @@ let x = DenseMatrix::from_2d_vec(&vec![
     vec![1.0, 0.0],
     vec![0.0, 1.0],
 ]).unwrap();
-let y = vec![0_i32, 1, 1, 0];
+let y = vec![0_u32, 1, 1, 0];
 let settings = ClassificationSettings::default()
     .with_random_forest_classifier_settings(
         RandomForestClassifierParameters::default().with_n_trees(10),
@@ -124,7 +124,7 @@ Model comparison:
 ## Capabilities
 - Feature Engineering: PCA, SVD, interaction terms, polynomial terms
 - Regression: Decision Tree, KNN, Random Forest, Linear, Ridge, LASSO, Elastic Net, Support Vector Regression
-- Classification: Random Forest, Decision Tree, KNN, Logistic Regression
+- Classification: Random Forest, Decision Tree, KNN, Logistic Regression, Gaussian Naive Bayes
 - Clustering: K-Means, Agglomerative, DBSCAN
 - Meta-learning: Blending (experimental)
 - Persistence: Save/load settings and models
