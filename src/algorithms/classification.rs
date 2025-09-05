@@ -5,7 +5,7 @@ use std::time::Instant;
 
 use super::supervised_train::SupervisedTrain;
 use crate::model::{ComparisonEntry, supervised::Algorithm};
-use crate::settings::{ClassificationSettings, WithSupervisedSettings};
+use crate::settings::ClassificationSettings;
 use crate::utils::distance::KNNRegressorDistance;
 use smartcore::api::SupervisedEstimator;
 use smartcore::error::{Failed, FailedError};
@@ -331,6 +331,48 @@ where
     pub fn all_algorithms(settings: &ClassificationSettings) -> Vec<Self> {
         <Self as Algorithm<ClassificationSettings>>::all_algorithms(settings)
     }
+
+    /// Fit the algorithm using the provided settings.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Failed`] if training is not successful.
+    #[allow(clippy::missing_errors_doc)]
+    pub fn fit(
+        self,
+        x: &InputArray,
+        y: &OutputArray,
+        settings: &ClassificationSettings,
+    ) -> Result<Self, Failed> {
+        <Self as SupervisedTrain<
+            INPUT,
+            OUTPUT,
+            InputArray,
+            OutputArray,
+            ClassificationSettings,
+        >>::fit(self, x, y, settings)
+    }
+
+    /// Perform cross-validation for the algorithm.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Failed`] if cross-validation fails.
+    #[allow(clippy::missing_errors_doc)]
+    pub fn cv(
+        self,
+        x: &InputArray,
+        y: &OutputArray,
+        settings: &ClassificationSettings,
+    ) -> Result<(CrossValidationResult, Self), Failed> {
+        <Self as SupervisedTrain<
+            INPUT,
+            OUTPUT,
+            InputArray,
+            OutputArray,
+            ClassificationSettings,
+        >>::cv(self, x, y, settings)
+    }
 }
 
 impl<INPUT, OUTPUT, InputArray, OutputArray> Algorithm<ClassificationSettings>
@@ -468,7 +510,6 @@ where
 mod tests {
     use super::{ClassificationAlgorithm, ClassificationSettings};
     use crate::DenseMatrix;
-    use crate::algorithms::supervised_train::SupervisedTrain;
     use smartcore::error::FailedError;
 
     #[test]

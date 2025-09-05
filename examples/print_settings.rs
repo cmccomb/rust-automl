@@ -3,7 +3,6 @@ use automl::settings::{
     KNNParameters, KNNWeightFunction, LassoParameters, LinearRegressionParameters,
     LinearRegressionSolverName, Metric, PreProcessing, RandomForestRegressorParameters,
     RegressionSettings, RidgeRegressionParameters, RidgeRegressionSolverName,
-    WithSupervisedSettings,
 };
 use smartcore::linalg::basic::matrix::DenseMatrix;
 

@@ -2,7 +2,7 @@ use automl::algorithms::RegressionAlgorithm;
 use automl::settings::{
     ClassificationSettings, DecisionTreeClassifierParameters, KNNParameters,
     LinearRegressionParameters, LogisticRegressionParameters, RandomForestClassifierParameters,
-    RandomForestRegressorParameters, WithSupervisedSettings,
+    RandomForestRegressorParameters,
 };
 use automl::{DenseMatrix, RegressionSettings};
 
