@@ -2,7 +2,9 @@
 mod classification_data;
 
 use automl::algorithms::ClassificationAlgorithm;
-use automl::settings::{ClassificationSettings, RandomForestClassifierParameters};
+use automl::settings::{
+    CategoricalNBParameters, ClassificationSettings, RandomForestClassifierParameters,
+};
 use automl::{DenseMatrix, ModelError, SupervisedModel};
 use classification_data::classification_testing_data;
 use smartcore::api::SupervisedEstimator;
@@ -37,6 +39,19 @@ fn test_all_algorithms_included() {
         algorithms
             .iter()
             .any(|a| matches!(a, ClassificationAlgorithm::GaussianNB(_)))
+    );
+}
+
+#[test]
+fn categorical_nb_algorithm_available_when_enabled() {
+    let settings = ClassificationSettings::default()
+        .with_categorical_nb_settings(CategoricalNBParameters::default());
+    let algorithms = <ClassificationAlgorithm<f64, u32, DenseMatrix<f64>, Vec<u32>> as
+        automl::model::Algorithm<ClassificationSettings>>::all_algorithms(&settings);
+    assert!(
+        algorithms
+            .iter()
+            .any(|a| matches!(a, ClassificationAlgorithm::CategoricalNB(_)))
     );
 }
 
