@@ -124,7 +124,7 @@ Model comparison:
 ## Capabilities
 - Feature Engineering: PCA, SVD, interaction terms, polynomial terms
 - Regression: Decision Tree, KNN, Random Forest, Linear, Ridge, LASSO, Elastic Net, Support Vector Regression
-- Classification: Random Forest, Decision Tree, KNN, Logistic Regression, Gaussian Naive Bayes
+- Classification: Random Forest, Decision Tree, KNN, Logistic Regression, Gaussian Naive Bayes, Categorical Naive Bayes
 - Clustering: K-Means, Agglomerative, DBSCAN
 - Meta-learning: Blending (experimental)
 - Persistence: Save/load settings and models

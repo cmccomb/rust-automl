@@ -11,15 +11,99 @@ use num_traits::Unsigned;
 use smartcore::api::SupervisedEstimator;
 use smartcore::error::{Failed, FailedError};
 use smartcore::linalg::basic::arrays::{Array1, Array2, MutArrayView1, MutArrayView2};
+use smartcore::linalg::basic::matrix::DenseMatrix;
 use smartcore::linalg::traits::cholesky::CholeskyDecomposable;
 use smartcore::linalg::traits::evd::EVDDecomposable;
 use smartcore::linalg::traits::qr::QRDecomposable;
 use smartcore::linalg::traits::svd::SVDDecomposable;
 use smartcore::linear::logistic_regression::LogisticRegressionParameters;
-use smartcore::model_selection::CrossValidationResult;
+use smartcore::model_selection::{BaseKFold, CrossValidationResult};
+use smartcore::naive_bayes::categorical::CategoricalNB;
 use smartcore::numbers::basenum::Number;
 use smartcore::numbers::floatnum::FloatNumber;
 use smartcore::numbers::realnum::RealNumber;
+
+type DenseCategoricalNB<OUTPUT, OutputArray> =
+    CategoricalNB<OUTPUT, DenseMatrix<OUTPUT>, OutputArray>;
+
+fn convert_to_categorical_dense_matrix<INPUT, OUTPUT, InputArray>(
+    x: &InputArray,
+) -> Result<DenseMatrix<OUTPUT>, Failed>
+where
+    INPUT: RealNumber + FloatNumber,
+    OUTPUT: Number + Ord + Unsigned,
+    InputArray: Array2<INPUT>,
+{
+    let (rows, cols) = x.shape();
+    let mut data: Vec<Vec<OUTPUT>> = Vec::with_capacity(rows);
+    for row in 0..rows {
+        let mut row_values: Vec<OUTPUT> = Vec::with_capacity(cols);
+        for col in 0..cols {
+            let value = *x.get((row, col));
+            row_values.push(convert_feature_value(value, row, col)?);
+        }
+        data.push(row_values);
+    }
+    DenseMatrix::from_2d_vec(&data)
+}
+
+fn convert_feature_value<INPUT, OUTPUT>(
+    value: INPUT,
+    row: usize,
+    col: usize,
+) -> Result<OUTPUT, Failed>
+where
+    INPUT: RealNumber + FloatNumber,
+    OUTPUT: Number + Ord + Unsigned,
+{
+    if !value.is_finite() {
+        return Err(Failed::because(
+            FailedError::ParametersError,
+            &format!(
+                "categorical naive Bayes requires finite feature values (row {row}, column {col})"
+            ),
+        ));
+    }
+
+    let as_f64 = value
+        .to_f64()
+        .ok_or_else(|| {
+            Failed::because(
+                FailedError::ParametersError,
+                &format!(
+                    "categorical naive Bayes could not convert feature value {value} at row {row}, column {col}"
+                ),
+            )
+        })?;
+
+    if (as_f64 - as_f64.round()).abs() > f64::EPSILON {
+        return Err(Failed::because(
+            FailedError::ParametersError,
+            &format!(
+                "categorical naive Bayes requires integer-valued features (row {row}, column {col}, value {value})"
+            ),
+        ));
+    }
+
+    if as_f64 < 0.0 {
+        return Err(Failed::because(
+            FailedError::ParametersError,
+            &format!(
+                "categorical naive Bayes requires non-negative feature values (row {row}, column {col}, value {value})"
+            ),
+        ));
+    }
+
+    let rounded = as_f64.round();
+    OUTPUT::from_f64(rounded).ok_or_else(|| {
+        Failed::because(
+            FailedError::ParametersError,
+            &format!(
+                "categorical naive Bayes feature value {value} at row {row}, column {col} exceeds supported range"
+            ),
+        )
+    })
+}
 
 /// Supported classification algorithms.
 pub enum ClassificationAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
@@ -77,6 +161,8 @@ where
     GaussianNB(
         smartcore::naive_bayes::gaussian::GaussianNB<INPUT, OUTPUT, InputArray, OutputArray>,
     ),
+    /// Categorical naive Bayes classifier
+    CategoricalNB(DenseCategoricalNB<OUTPUT, OutputArray>),
 }
 
 impl<INPUT, OUTPUT, InputArray, OutputArray>
@@ -188,6 +274,16 @@ where
                         )
                     })?,
                 )?)
+            }
+            Self::CategoricalNB(_) => {
+                let params = settings.categorical_nb_settings.clone().ok_or_else(|| {
+                    Failed::because(
+                        FailedError::ParametersError,
+                        "Categorical NB settings not provided",
+                    )
+                })?;
+                let converted = convert_to_categorical_dense_matrix::<INPUT, OUTPUT, _>(x)?;
+                Self::CategoricalNB(CategoricalNB::fit(&converted, y, params)?)
             }
         })
     }
@@ -312,6 +408,35 @@ where
                 &settings.get_kfolds(),
                 metric,
             ),
+            Self::CategoricalNB(_) => {
+                let params = settings.categorical_nb_settings.clone().ok_or_else(|| {
+                    Failed::because(
+                        FailedError::ParametersError,
+                        "Categorical NB settings not provided",
+                    )
+                })?;
+                let converted = convert_to_categorical_dense_matrix::<INPUT, OUTPUT, _>(x)?;
+                let kfold = settings.get_kfolds();
+                let mut test_scores: Vec<f64> = Vec::with_capacity(kfold.n_splits);
+                let mut train_scores: Vec<f64> = Vec::with_capacity(kfold.n_splits);
+                for (train_idx, test_idx) in kfold.split(&converted) {
+                    let train_x = converted.take(&train_idx, 0);
+                    let train_y = y.take(&train_idx);
+                    let test_x = converted.take(&test_idx, 0);
+                    let test_y = y.take(&test_idx);
+                    let fold_model = CategoricalNB::fit(&train_x, &train_y, params.clone())?;
+                    let train_pred = fold_model.predict(&train_x)?;
+                    let test_pred = fold_model.predict(&test_x)?;
+                    train_scores.push(metric(&train_y, &train_pred));
+                    test_scores.push(metric(&test_y, &test_pred));
+                }
+                let result = CrossValidationResult {
+                    test_score: test_scores,
+                    train_score: train_scores,
+                };
+                let model = CategoricalNB::fit(&converted, y, params)?;
+                Ok((result, Self::CategoricalNB(model)))
+            }
         }
     }
 
@@ -369,6 +494,12 @@ where
     #[must_use]
     pub fn default_gaussian_nb() -> Self {
         Self::GaussianNB(smartcore::naive_bayes::gaussian::GaussianNB::new())
+    }
+
+    /// Default categorical naive Bayes classifier algorithm
+    #[must_use]
+    pub fn default_categorical_nb() -> Self {
+        Self::CategoricalNB(DenseCategoricalNB::<OUTPUT, OutputArray>::new())
     }
 
     /// Get a vector of all possible algorithms
@@ -447,6 +578,10 @@ where
             Self::RandomForestClassifier(model) => model.predict(x),
             Self::LogisticRegression(model) => model.predict(x),
             Self::GaussianNB(model) => model.predict(x),
+            Self::CategoricalNB(model) => {
+                let converted = convert_to_categorical_dense_matrix::<INPUT, OUTPUT, _>(x)?;
+                model.predict(&converted)
+            }
         }
     }
 
@@ -480,6 +615,9 @@ where
         if settings.gaussian_nb_settings.is_some() {
             algorithms.push(Self::default_gaussian_nb());
         }
+        if settings.categorical_nb_settings.is_some() {
+            algorithms.push(Self::default_categorical_nb());
+        }
         algorithms
     }
 }
@@ -508,6 +646,7 @@ where
             || matches!(self, Self::LogisticRegression(_))
                 && matches!(other, Self::LogisticRegression(_))
             || matches!(self, Self::GaussianNB(_)) && matches!(other, Self::GaussianNB(_))
+            || matches!(self, Self::CategoricalNB(_)) && matches!(other, Self::CategoricalNB(_))
     }
 }
 
@@ -553,6 +692,7 @@ where
             Self::RandomForestClassifier(_) => write!(f, "Random Forest Classifier"),
             Self::LogisticRegression(_) => write!(f, "Logistic Regression"),
             Self::GaussianNB(_) => write!(f, "Gaussian NB"),
+            Self::CategoricalNB(_) => write!(f, "Categorical NB"),
         }
     }
 }
@@ -561,6 +701,7 @@ where
 mod tests {
     use super::{ClassificationAlgorithm, ClassificationSettings};
     use crate::DenseMatrix;
+    use crate::settings::CategoricalNBParameters;
     use smartcore::error::FailedError;
 
     #[test]
@@ -595,5 +736,54 @@ mod tests {
             .err()
             .expect("expected training to fail");
         assert_eq!(err.error(), FailedError::ParametersError);
+    }
+
+    #[test]
+    #[allow(clippy::field_reassign_with_default)]
+    fn categorical_nb_requires_settings() {
+        let x: DenseMatrix<f64> =
+            DenseMatrix::from_2d_array(&[&[0.0_f64, 0.0_f64], &[1.0_f64, 1.0_f64]]).unwrap();
+        let y: Vec<u32> = vec![0, 1];
+        let mut settings = ClassificationSettings::default();
+        settings.categorical_nb_settings = None;
+        let algo: ClassificationAlgorithm<f64, u32, DenseMatrix<f64>, Vec<u32>> =
+            ClassificationAlgorithm::default_categorical_nb();
+        let err = algo
+            .fit(&x, &y, &settings)
+            .err()
+            .expect("expected training to fail");
+        assert_eq!(err.error(), FailedError::ParametersError);
+    }
+
+    #[test]
+    fn categorical_nb_rejects_fractional_features() {
+        let x: DenseMatrix<f64> =
+            DenseMatrix::from_2d_array(&[&[0.5_f64, 0.0_f64], &[1.0_f64, 1.5_f64]]).unwrap();
+        let y: Vec<u32> = vec![0, 1];
+        let settings = ClassificationSettings::default()
+            .with_categorical_nb_settings(CategoricalNBParameters::default());
+        let algo: ClassificationAlgorithm<f64, u32, DenseMatrix<f64>, Vec<u32>> =
+            ClassificationAlgorithm::default_categorical_nb();
+        let err = algo
+            .fit(&x, &y, &settings)
+            .err()
+            .expect("expected training to fail");
+        assert_eq!(err.error(), FailedError::ParametersError);
+        assert!(
+            err.to_string()
+                .contains("categorical naive Bayes requires integer-valued features")
+        );
+    }
+
+    #[test]
+    fn categorical_nb_trains_on_integer_features() {
+        let x: DenseMatrix<f64> =
+            DenseMatrix::from_2d_array(&[&[0.0_f64, 1.0_f64], &[1.0_f64, 0.0_f64]]).unwrap();
+        let y: Vec<u32> = vec![0, 1];
+        let settings = ClassificationSettings::default()
+            .with_categorical_nb_settings(CategoricalNBParameters::default());
+        let algo: ClassificationAlgorithm<f64, u32, DenseMatrix<f64>, Vec<u32>> =
+            ClassificationAlgorithm::default_categorical_nb();
+        assert!(algo.fit(&x, &y, &settings).is_ok());
     }
 }

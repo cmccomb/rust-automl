@@ -1,7 +1,7 @@
 use super::{
-    DecisionTreeClassifierParameters, FinalAlgorithm, GaussianNBParameters, KNNParameters,
-    LogisticRegressionParameters, Metric, PreProcessing, RandomForestClassifierParameters,
-    SettingsError, SupervisedSettings, WithSupervisedSettings,
+    CategoricalNBParameters, DecisionTreeClassifierParameters, FinalAlgorithm,
+    GaussianNBParameters, KNNParameters, LogisticRegressionParameters, Metric, PreProcessing,
+    RandomForestClassifierParameters, SettingsError, SupervisedSettings, WithSupervisedSettings,
 };
 use crate::settings::macros::with_settings_methods;
 use smartcore::linalg::basic::arrays::Array1;
@@ -23,6 +23,8 @@ pub struct ClassificationSettings {
     pub(crate) logistic_regression_settings: Option<LogisticRegressionParameters<f64>>,
     /// Optional settings for Gaussian naive Bayes classifier
     pub(crate) gaussian_nb_settings: Option<GaussianNBParameters>,
+    /// Optional settings for categorical naive Bayes classifier
+    pub(crate) categorical_nb_settings: Option<CategoricalNBParameters>,
 }
 
 impl Default for ClassificationSettings {
@@ -37,6 +39,7 @@ impl Default for ClassificationSettings {
             random_forest_classifier_settings: Some(RandomForestClassifierParameters::default()),
             logistic_regression_settings: Some(LogisticRegressionParameters::default()),
             gaussian_nb_settings: Some(GaussianNBParameters::default()),
+            categorical_nb_settings: None,
         }
     }
 }
@@ -76,6 +79,13 @@ impl ClassificationSettings {
     #[must_use]
     pub fn with_gaussian_nb_settings(mut self, settings: GaussianNBParameters) -> Self {
         self.gaussian_nb_settings = Some(settings);
+        self
+    }
+
+    /// Specify settings for categorical naive Bayes classifier
+    #[must_use]
+    pub fn with_categorical_nb_settings(mut self, settings: CategoricalNBParameters) -> Self {
+        self.categorical_nb_settings = Some(settings);
         self
     }
 
