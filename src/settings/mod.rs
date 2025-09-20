@@ -84,6 +84,9 @@ pub use smartcore::algorithm::neighbour::KNNAlgorithmName;
 /// Parameters for random forest regression (re-export from [Smartcore](https://docs.rs/smartcore/))
 pub use smartcore::ensemble::random_forest_regressor::RandomForestRegressorParameters;
 
+/// Gradient boosting regression utilities (re-export from [Smartcore](https://docs.rs/smartcore/))
+pub use smartcore::xgboost::xgb_regressor::{Objective, XGRegressor, XGRegressorParameters};
+
 /// Parameters for decision tree regression (re-export from [Smartcore](https://docs.rs/smartcore/))
 pub use smartcore::tree::decision_tree_regressor::DecisionTreeRegressorParameters;
 

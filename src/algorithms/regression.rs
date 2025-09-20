@@ -8,7 +8,7 @@ use std::time::Instant;
 
 use super::supervised_train::SupervisedTrain;
 use crate::model::{ComparisonEntry, supervised::Algorithm};
-use crate::settings::{RegressionSettings, SVRParameters, SettingsError};
+use crate::settings::{RegressionSettings, SVRParameters, SettingsError, XGRegressorParameters};
 use crate::utils::distance::{Distance, KNNRegressorDistance};
 use crate::utils::kernels::SmartcoreKernel;
 use smartcore::api::SupervisedEstimator;
@@ -22,6 +22,9 @@ use smartcore::model_selection::{BaseKFold, CrossValidationResult};
 use smartcore::numbers::floatnum::FloatNumber;
 use smartcore::numbers::realnum::RealNumber;
 use smartcore::svm::svr::{SVR as SmartcoreSVR, SVRParameters as SmartcoreSVRParameters};
+use smartcore::xgboost::xgb_regressor::{
+    XGRegressor as SmartcoreXGRegressor, XGRegressorParameters as SmartcoreXGRegressorParameters,
+};
 
 #[derive(Clone)]
 struct PreparedSVRParameters<INPUT>
@@ -265,6 +268,94 @@ where
     })
 }
 
+fn sanitize_xgboost_parameters(
+    params: &XGRegressorParameters,
+) -> Result<SmartcoreXGRegressorParameters, Failed> {
+    let sanitized: SmartcoreXGRegressorParameters = params.clone();
+
+    if sanitized.n_estimators == 0 {
+        return Err(Failed::because(
+            FailedError::ParametersError,
+            "xgboost number of estimators must be positive",
+        ));
+    }
+
+    if sanitized.max_depth == 0 {
+        return Err(Failed::because(
+            FailedError::ParametersError,
+            "xgboost maximum depth must be positive",
+        ));
+    }
+
+    if !sanitized.learning_rate.is_finite() {
+        return Err(Failed::because(
+            FailedError::ParametersError,
+            "xgboost learning rate must be finite",
+        ));
+    }
+    if sanitized.learning_rate <= 0.0 {
+        return Err(Failed::because(
+            FailedError::ParametersError,
+            "xgboost learning rate must be greater than zero",
+        ));
+    }
+
+    if sanitized.min_child_weight == 0 {
+        return Err(Failed::because(
+            FailedError::ParametersError,
+            "xgboost minimum child weight must be positive",
+        ));
+    }
+
+    if !sanitized.lambda.is_finite() {
+        return Err(Failed::because(
+            FailedError::ParametersError,
+            "xgboost lambda must be finite",
+        ));
+    }
+    if sanitized.lambda < 0.0 {
+        return Err(Failed::because(
+            FailedError::ParametersError,
+            "xgboost lambda must be non-negative",
+        ));
+    }
+
+    if !sanitized.gamma.is_finite() {
+        return Err(Failed::because(
+            FailedError::ParametersError,
+            "xgboost gamma must be finite",
+        ));
+    }
+    if sanitized.gamma < 0.0 {
+        return Err(Failed::because(
+            FailedError::ParametersError,
+            "xgboost gamma must be non-negative",
+        ));
+    }
+
+    if !sanitized.base_score.is_finite() {
+        return Err(Failed::because(
+            FailedError::ParametersError,
+            "xgboost base score must be finite",
+        ));
+    }
+
+    if !sanitized.subsample.is_finite() {
+        return Err(Failed::because(
+            FailedError::ParametersError,
+            "xgboost subsample ratio must be finite",
+        ));
+    }
+    if !(0.0 < sanitized.subsample && sanitized.subsample <= 1.0) {
+        return Err(Failed::because(
+            FailedError::ParametersError,
+            "xgboost subsample ratio must be in (0, 1]",
+        ));
+    }
+
+    Ok(sanitized)
+}
+
 /// `RegressionAlgorithm` options
 pub enum RegressionAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
 where
@@ -335,6 +426,8 @@ where
     SupportVectorRegressor(
         Option<OwnedSupportVectorRegressor<INPUT, OUTPUT, InputArray, OutputArray>>,
     ),
+    /// Gradient boosting regressor (`XGBoost`)
+    XGBoostRegressor(Option<SmartcoreXGRegressor<INPUT, OUTPUT, InputArray, OutputArray>>),
 }
 
 impl<INPUT, OUTPUT, InputArray, OutputArray>
@@ -469,6 +562,17 @@ where
                 let targets = convert_targets_to_input::<INPUT, OUTPUT, OutputArray>(y)?;
                 let model = OwnedSupportVectorRegressor::fit_with_parameters(x, &targets, params)?;
                 Self::SupportVectorRegressor(Some(model))
+            }
+            Self::XGBoostRegressor(_) => {
+                let params = settings.xgboost_settings.as_ref().ok_or_else(|| {
+                    Failed::because(
+                        FailedError::ParametersError,
+                        "xgboost regressor settings not provided",
+                    )
+                })?;
+                let sanitized = sanitize_xgboost_parameters(params)?;
+                let model = SmartcoreXGRegressor::fit(x, y, sanitized)?;
+                Self::XGBoostRegressor(Some(model))
             }
         })
     }
@@ -643,6 +747,42 @@ where
                 )?;
                 Ok((result, Self::SupportVectorRegressor(Some(final_model))))
             }
+            RegressionAlgorithm::XGBoostRegressor(_) => {
+                let params = settings.xgboost_settings.as_ref().ok_or_else(|| {
+                    Failed::because(
+                        FailedError::ParametersError,
+                        "xgboost regressor settings not provided",
+                    )
+                })?;
+                let sanitized = sanitize_xgboost_parameters(params)?;
+                let kfold = settings.get_kfolds();
+                let mut test_scores: Vec<f64> = Vec::with_capacity(kfold.n_splits);
+                let mut train_scores: Vec<f64> = Vec::with_capacity(kfold.n_splits);
+                for (train_idx, test_idx) in kfold.split(x) {
+                    let train_x = x.take(&train_idx, 0);
+                    let train_y = y.take(&train_idx);
+                    let test_x = x.take(&test_idx, 0);
+                    let test_y = y.take(&test_idx);
+                    let fold_model =
+                        SmartcoreXGRegressor::fit(&train_x, &train_y, sanitized.clone())?;
+                    let train_pred =
+                        convert_input_predictions_to_output_array::<INPUT, OUTPUT, OutputArray>(
+                            fold_model.predict(&train_x)?,
+                        )?;
+                    let test_pred =
+                        convert_input_predictions_to_output_array::<INPUT, OUTPUT, OutputArray>(
+                            fold_model.predict(&test_x)?,
+                        )?;
+                    train_scores.push(metric(&train_y, &train_pred));
+                    test_scores.push(metric(&test_y, &test_pred));
+                }
+                let result = CrossValidationResult {
+                    test_score: test_scores,
+                    train_score: train_scores,
+                };
+                let final_model = SmartcoreXGRegressor::fit(x, y, sanitized)?;
+                Ok((result, Self::XGBoostRegressor(Some(final_model))))
+            }
         }
     }
 
@@ -719,6 +859,12 @@ where
     #[must_use]
     pub fn default_support_vector_regressor() -> Self {
         Self::SupportVectorRegressor(None)
+    }
+
+    /// Default gradient boosting regression algorithm
+    #[must_use]
+    pub fn default_xgboost_regressor() -> Self {
+        Self::XGBoostRegressor(None)
     }
 
     /// Get a vector of all possible algorithms
@@ -810,6 +956,14 @@ where
                     .ok_or_else(|| Failed::predict("support vector regressor is not trained"))?;
                 model.predict_array(x)
             }
+            Self::XGBoostRegressor(model) => {
+                let model = model
+                    .as_ref()
+                    .ok_or_else(|| Failed::predict("xgboost regressor is not trained"))?;
+                convert_input_predictions_to_output_array::<INPUT, OUTPUT, OutputArray>(
+                    model.predict(x)?,
+                )
+            }
         }
     }
 
@@ -849,6 +1003,10 @@ where
 
         if settings.svr_settings.is_some() {
             algorithms.push(Self::default_support_vector_regressor());
+        }
+
+        if settings.xgboost_settings.is_some() {
+            algorithms.push(Self::default_xgboost_regressor());
         }
 
         algorithms
@@ -892,6 +1050,7 @@ where
                     Self::SupportVectorRegressor(_),
                     Self::SupportVectorRegressor(_)
                 )
+                | (Self::XGBoostRegressor(_), Self::XGBoostRegressor(_))
         )
     }
 }
@@ -942,6 +1101,7 @@ where
             Self::ElasticNet(_) => write!(f, "Elastic Net Regressor"),
             Self::KNNRegressor(_) => write!(f, "KNN Regressor"),
             Self::SupportVectorRegressor(_) => write!(f, "Support Vector Regressor"),
+            Self::XGBoostRegressor(_) => write!(f, "XGBoost Regressor"),
         }
     }
 }

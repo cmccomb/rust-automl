@@ -23,7 +23,7 @@ use automl::{
         KNNAlgorithmName, KNNParameters, KNNWeightFunction, Kernel, LassoParameters,
         LinearRegressionParameters, LinearRegressionSolverName, Metric,
         RandomForestRegressorParameters, RidgeRegressionParameters, RidgeRegressionSolverName,
-        SVRParameters,
+        SVRParameters, XGRegressorParameters,
     },
 };
 use regression_data::regression_testing_data;
@@ -93,6 +93,13 @@ fn main() -> Result<(), Failed> {
                 .with_min_samples_split(2)
                 .with_max_depth(15)
                 .with_min_samples_leaf(1),
+        )
+        .with_xgboost_settings(
+            XGRegressorParameters::default()
+                .with_n_estimators(50)
+                .with_learning_rate(0.2)
+                .with_max_depth(4)
+                .with_subsample(0.85),
         );
 
     // Load a dataset from smartcore and add it to the regressor along with the customized settings

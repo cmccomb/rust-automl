@@ -51,6 +51,23 @@ let settings: RegressionSettings<f64, f64, DenseMatrix<f64>, Vec<f64>> =
 );
 ```
 
+Gradient boosting via Smartcore's `XGBoost` implementation is also available, giving access to
+learning-rate, depth, and subsampling knobs:
+
+```rust
+use automl::settings::XGRegressorParameters;
+use automl::{DenseMatrix, RegressionSettings};
+
+let settings: RegressionSettings<f64, f64, DenseMatrix<f64>, Vec<f64>> =
+    RegressionSettings::default().with_xgboost_settings(
+    XGRegressorParameters::default()
+        .with_n_estimators(75)
+        .with_learning_rate(0.15)
+        .with_max_depth(4)
+        .with_subsample(0.9),
+);
+```
+
 ### Loading data from CSV
 
 Use `load_labeled_csv` to read a dataset and separate the target column:
@@ -155,7 +172,7 @@ Model comparison:
 
 ## Capabilities
 - Feature Engineering: PCA, SVD, interaction terms, polynomial terms
-- Regression: Decision Tree, KNN, Random Forest, Linear, Ridge, LASSO, Elastic Net, Support Vector Regression
+- Regression: Decision Tree, KNN, Random Forest, Linear, Ridge, LASSO, Elastic Net, Support Vector Regression, `XGBoost` Gradient Boosting
 - Classification: Random Forest, Decision Tree, KNN, Logistic Regression, Support Vector Classifier, Gaussian Naive Bayes, Categorical Naive Bayes, Multinomial Naive Bayes (non-negative integer features)
 - Clustering: K-Means, Agglomerative, DBSCAN
 - Meta-learning: Blending (experimental)
