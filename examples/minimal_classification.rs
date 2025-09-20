@@ -6,6 +6,10 @@
 //! fixture, builds default classification settings, trains all configured
 //! algorithms using cross-validation.
 //!
+//! If your features are non-negative integer counts you can opt into
+//! Multinomial Naive Bayes with
+//! `ClassificationSettings::default().with_multinomial_nb_settings(...)`.
+//!
 //! Run with:
 //!
 //! ```bash

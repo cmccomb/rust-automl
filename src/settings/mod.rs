@@ -103,6 +103,8 @@ pub use smartcore::naive_bayes::gaussian::GaussianNBParameters;
 
 /// Parameters for categorical naive bayes (re-export from [Smartcore](https://docs.rs/smartcore/))
 pub use smartcore::naive_bayes::categorical::CategoricalNBParameters;
+/// Parameters for multinomial naive bayes (re-export from [Smartcore](https://docs.rs/smartcore/))
+pub use smartcore::naive_bayes::multinomial::MultinomialNBParameters;
 
 /// Parameters for random forest classification (re-export from [Smartcore](https://docs.rs/smartcore/))
 pub use smartcore::ensemble::random_forest_classifier::RandomForestClassifierParameters;
@@ -223,6 +225,7 @@ impl Display for PreProcessing {
 }
 
 /// Final model approach
+#[derive(serde::Serialize, serde::Deserialize)]
 pub enum FinalAlgorithm {
     /// Do not train a final model
     None,

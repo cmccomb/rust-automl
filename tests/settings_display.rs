@@ -1,8 +1,8 @@
 use automl::algorithms::RegressionAlgorithm;
 use automl::settings::{
     ClassificationSettings, DecisionTreeClassifierParameters, KNNParameters,
-    LinearRegressionParameters, LogisticRegressionParameters, RandomForestClassifierParameters,
-    RandomForestRegressorParameters,
+    LinearRegressionParameters, LogisticRegressionParameters, MultinomialNBParameters,
+    RandomForestClassifierParameters, RandomForestRegressorParameters,
 };
 use automl::{DenseMatrix, RegressionSettings};
 
@@ -30,6 +30,7 @@ fn classification_builder_methods_chain() {
         .with_decision_tree_classifier_settings(DecisionTreeClassifierParameters::default())
         .with_random_forest_classifier_settings(RandomForestClassifierParameters::default())
         .with_logistic_regression_settings(LogisticRegressionParameters::default())
+        .with_multinomial_nb_settings(MultinomialNBParameters::default())
         .with_number_of_folds(2);
     let folds = settings.get_kfolds();
     assert_eq!(folds.n_splits, 2);
