@@ -2,12 +2,15 @@
 //! `RegressionAlgorithm` definitions and helpers
 
 use std::fmt::{Display, Formatter};
+use std::marker::PhantomData;
+use std::mem;
 use std::time::Instant;
 
 use super::supervised_train::SupervisedTrain;
 use crate::model::{ComparisonEntry, supervised::Algorithm};
-use crate::settings::{RegressionSettings, SettingsError};
+use crate::settings::{RegressionSettings, SVRParameters, SettingsError};
 use crate::utils::distance::{Distance, KNNRegressorDistance};
+use crate::utils::kernels::SmartcoreKernel;
 use smartcore::api::SupervisedEstimator;
 use smartcore::error::{Failed, FailedError};
 use smartcore::linalg::basic::arrays::{Array1, Array2, MutArrayView1, MutArrayView2};
@@ -15,15 +18,56 @@ use smartcore::linalg::traits::cholesky::CholeskyDecomposable;
 use smartcore::linalg::traits::evd::EVDDecomposable;
 use smartcore::linalg::traits::qr::QRDecomposable;
 use smartcore::linalg::traits::svd::SVDDecomposable;
-use smartcore::model_selection::CrossValidationResult;
+use smartcore::model_selection::{BaseKFold, CrossValidationResult};
 use smartcore::numbers::floatnum::FloatNumber;
 use smartcore::numbers::realnum::RealNumber;
+use smartcore::svm::svr::{SVR as SmartcoreSVR, SVRParameters as SmartcoreSVRParameters};
 
-/// `RegressionAlgorithm` options
-pub enum RegressionAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
+#[derive(Clone)]
+struct PreparedSVRParameters<INPUT>
 where
     INPUT: RealNumber + FloatNumber,
-    OUTPUT: FloatNumber,
+{
+    eps: INPUT,
+    c: INPUT,
+    tol: INPUT,
+    kernel_template: smartcore::svm::Kernels,
+}
+
+impl<INPUT> PreparedSVRParameters<INPUT>
+where
+    INPUT: RealNumber + FloatNumber,
+{
+    fn new(settings: &SVRParameters) -> Result<Self, Failed> {
+        let SmartcoreKernel { kernel, .. } = settings.kernel.to_smartcore()?;
+        let eps =
+            convert_nonnegative_scalar::<INPUT>(settings.eps, "support vector regressor epsilon")?;
+        let c = convert_positive_scalar::<INPUT>(settings.c, "support vector regressor C")?;
+        let tol =
+            convert_positive_scalar::<INPUT>(settings.tol, "support vector regressor tolerance")?;
+        Ok(Self {
+            eps,
+            c,
+            tol,
+            kernel_template: kernel,
+        })
+    }
+
+    fn to_parameters(&self) -> SmartcoreSVRParameters<INPUT> {
+        SmartcoreSVRParameters {
+            eps: self.eps,
+            c: self.c,
+            tol: self.tol,
+            kernel: Some(self.kernel_template.clone()),
+        }
+    }
+}
+
+/// Support vector regressor wrapper holding owned kernel parameters.
+pub struct OwnedSupportVectorRegressor<INPUT, OUTPUT, InputArray, OutputArray>
+where
+    INPUT: RealNumber + FloatNumber + 'static,
+    OUTPUT: FloatNumber + 'static,
     InputArray: MutArrayView2<INPUT>
         + Sized
         + Clone
@@ -31,8 +75,211 @@ where
         + QRDecomposable<INPUT>
         + SVDDecomposable<INPUT>
         + EVDDecomposable<INPUT>
-        + CholeskyDecomposable<INPUT>,
-    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
+        + CholeskyDecomposable<INPUT>
+        + 'static,
+    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT> + 'static,
+{
+    _parameters: Box<SmartcoreSVRParameters<INPUT>>,
+    model: SmartcoreSVR<'static, INPUT, InputArray, Vec<INPUT>>,
+    _marker: PhantomData<(OUTPUT, OutputArray)>,
+}
+
+impl<INPUT, OUTPUT, InputArray, OutputArray>
+    OwnedSupportVectorRegressor<INPUT, OUTPUT, InputArray, OutputArray>
+where
+    INPUT: RealNumber + FloatNumber + 'static,
+    OUTPUT: FloatNumber + 'static,
+    InputArray: MutArrayView2<INPUT>
+        + Sized
+        + Clone
+        + Array2<INPUT>
+        + QRDecomposable<INPUT>
+        + SVDDecomposable<INPUT>
+        + EVDDecomposable<INPUT>
+        + CholeskyDecomposable<INPUT>
+        + 'static,
+    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT> + 'static,
+{
+    fn fit_with_parameters(
+        x: &InputArray,
+        targets: &Vec<INPUT>,
+        params: SmartcoreSVRParameters<INPUT>,
+    ) -> Result<Self, Failed> {
+        let boxed_params = Box::new(params);
+        let params_ref: &SmartcoreSVRParameters<INPUT> = boxed_params.as_ref();
+        let model = SmartcoreSVR::fit(x, targets, params_ref)?;
+        let model = unsafe {
+            mem::transmute::<
+                SmartcoreSVR<'_, INPUT, InputArray, Vec<INPUT>>,
+                SmartcoreSVR<'static, INPUT, InputArray, Vec<INPUT>>,
+            >(model)
+        };
+        Ok(Self {
+            _parameters: boxed_params,
+            model,
+            _marker: PhantomData,
+        })
+    }
+
+    fn predict_array(&self, x: &InputArray) -> Result<OutputArray, Failed> {
+        let predictions = self.model.predict(x)?;
+        convert_input_predictions_to_output_array::<INPUT, OUTPUT, OutputArray>(predictions)
+    }
+}
+
+fn convert_nonnegative_scalar<INPUT>(value: f32, name: &str) -> Result<INPUT, Failed>
+where
+    INPUT: RealNumber + FloatNumber,
+{
+    let as_f64 = f64::from(value);
+    if !as_f64.is_finite() {
+        return Err(Failed::because(
+            FailedError::ParametersError,
+            &format!("{name} must be finite"),
+        ));
+    }
+    if as_f64 < 0.0 {
+        return Err(Failed::because(
+            FailedError::ParametersError,
+            &format!("{name} must be non-negative"),
+        ));
+    }
+    INPUT::from_f64(as_f64).ok_or_else(|| {
+        Failed::because(
+            FailedError::ParametersError,
+            &format!("{name} value {as_f64} cannot be represented by the input type"),
+        )
+    })
+}
+
+fn convert_positive_scalar<INPUT>(value: f32, name: &str) -> Result<INPUT, Failed>
+where
+    INPUT: RealNumber + FloatNumber,
+{
+    let as_f64 = f64::from(value);
+    if !as_f64.is_finite() {
+        return Err(Failed::because(
+            FailedError::ParametersError,
+            &format!("{name} must be finite"),
+        ));
+    }
+    if as_f64 <= 0.0 {
+        return Err(Failed::because(
+            FailedError::ParametersError,
+            &format!("{name} must be positive"),
+        ));
+    }
+    INPUT::from_f64(as_f64).ok_or_else(|| {
+        Failed::because(
+            FailedError::ParametersError,
+            &format!("{name} value {as_f64} cannot be represented by the input type"),
+        )
+    })
+}
+
+fn convert_targets_to_input<INPUT, OUTPUT, OutputArray>(
+    targets: &OutputArray,
+) -> Result<Vec<INPUT>, Failed>
+where
+    INPUT: RealNumber + FloatNumber,
+    OUTPUT: FloatNumber,
+    OutputArray: Array1<OUTPUT>,
+{
+    let mut converted = Vec::with_capacity(targets.shape());
+    for value in targets.iterator(0) {
+        converted.push(convert_output_value_to_input::<INPUT, OUTPUT>(*value)?);
+    }
+    Ok(converted)
+}
+
+fn convert_output_value_to_input<INPUT, OUTPUT>(value: OUTPUT) -> Result<INPUT, Failed>
+where
+    INPUT: RealNumber + FloatNumber,
+    OUTPUT: FloatNumber,
+{
+    let as_f64 = value.to_f64().ok_or_else(|| {
+        Failed::because(
+            FailedError::ParametersError,
+            "target value not representable as f64",
+        )
+    })?;
+    if !as_f64.is_finite() {
+        return Err(Failed::because(
+            FailedError::ParametersError,
+            "target value must be finite",
+        ));
+    }
+    INPUT::from_f64(as_f64).ok_or_else(|| {
+        Failed::because(
+            FailedError::ParametersError,
+            &format!(
+                "support vector regressor target {as_f64} cannot be represented by the input type"
+            ),
+        )
+    })
+}
+
+fn convert_input_predictions_to_output_array<INPUT, OUTPUT, OutputArray>(
+    predictions: Vec<INPUT>,
+) -> Result<OutputArray, Failed>
+where
+    INPUT: RealNumber + FloatNumber,
+    OUTPUT: FloatNumber,
+    OutputArray: Array1<OUTPUT>,
+{
+    let converted = convert_input_predictions_to_output_vec::<INPUT, OUTPUT>(predictions)?;
+    Ok(<OutputArray as Array1<OUTPUT>>::from_vec_slice(&converted))
+}
+
+fn convert_input_predictions_to_output_vec<INPUT, OUTPUT>(
+    predictions: Vec<INPUT>,
+) -> Result<Vec<OUTPUT>, Failed>
+where
+    INPUT: RealNumber + FloatNumber,
+    OUTPUT: FloatNumber,
+{
+    let mut converted = Vec::with_capacity(predictions.len());
+    for value in predictions {
+        converted.push(convert_input_value_to_output::<INPUT, OUTPUT>(value)?);
+    }
+    Ok(converted)
+}
+
+fn convert_input_value_to_output<INPUT, OUTPUT>(value: INPUT) -> Result<OUTPUT, Failed>
+where
+    INPUT: RealNumber + FloatNumber,
+    OUTPUT: FloatNumber,
+{
+    let as_f64 = value
+        .to_f64()
+        .ok_or_else(|| Failed::predict("prediction value not representable as f64"))?;
+    if !as_f64.is_finite() {
+        return Err(Failed::predict(
+            "support vector regressor produced a non-finite prediction",
+        ));
+    }
+    OUTPUT::from_f64(as_f64).ok_or_else(|| {
+        Failed::predict(&format!(
+            "support vector regressor prediction {as_f64} cannot be represented in the output type"
+        ))
+    })
+}
+
+/// `RegressionAlgorithm` options
+pub enum RegressionAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
+where
+    INPUT: RealNumber + FloatNumber + 'static,
+    OUTPUT: FloatNumber + 'static,
+    InputArray: MutArrayView2<INPUT>
+        + Sized
+        + Clone
+        + Array2<INPUT>
+        + QRDecomposable<INPUT>
+        + SVDDecomposable<INPUT>
+        + EVDDecomposable<INPUT>
+        + CholeskyDecomposable<INPUT>
+        + 'static,
+    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT> + 'static,
 {
     /// Decision tree regressor
     DecisionTreeRegressor(
@@ -84,6 +331,10 @@ where
             KNNRegressorDistance<INPUT>,
         >,
     ),
+    /// Support vector regressor
+    SupportVectorRegressor(
+        Option<OwnedSupportVectorRegressor<INPUT, OUTPUT, InputArray, OutputArray>>,
+    ),
 }
 
 impl<INPUT, OUTPUT, InputArray, OutputArray>
@@ -95,8 +346,8 @@ impl<INPUT, OUTPUT, InputArray, OutputArray>
         RegressionSettings<INPUT, OUTPUT, InputArray, OutputArray>,
     > for RegressionAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
 where
-    INPUT: RealNumber + FloatNumber,
-    OUTPUT: FloatNumber,
+    INPUT: RealNumber + FloatNumber + 'static,
+    OUTPUT: FloatNumber + 'static,
     InputArray: MutArrayView2<INPUT>
         + Sized
         + Clone
@@ -104,8 +355,9 @@ where
         + QRDecomposable<INPUT>
         + SVDDecomposable<INPUT>
         + EVDDecomposable<INPUT>
-        + CholeskyDecomposable<INPUT>,
-    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
+        + CholeskyDecomposable<INPUT>
+        + 'static,
+    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT> + 'static,
 {
     #[allow(clippy::too_many_lines)]
     fn fit_inner(
@@ -204,6 +456,19 @@ where
                 Self::KNNRegressor(smartcore::neighbors::knn_regressor::KNNRegressor::fit(
                     x, y, params,
                 )?)
+            }
+            Self::SupportVectorRegressor(_) => {
+                let svr_settings = settings.svr_settings.as_ref().ok_or_else(|| {
+                    Failed::because(
+                        FailedError::ParametersError,
+                        "support vector regressor settings not provided",
+                    )
+                })?;
+                let prepared = PreparedSVRParameters::<INPUT>::new(svr_settings)?;
+                let params = prepared.to_parameters();
+                let targets = convert_targets_to_input::<INPUT, OUTPUT, OutputArray>(y)?;
+                let model = OwnedSupportVectorRegressor::fit_with_parameters(x, &targets, params)?;
+                Self::SupportVectorRegressor(Some(model))
             }
         })
     }
@@ -336,6 +601,48 @@ where
                     metric,
                 )
             }
+            RegressionAlgorithm::SupportVectorRegressor(_) => {
+                let svr_settings = settings.svr_settings.as_ref().ok_or_else(|| {
+                    Failed::because(
+                        FailedError::ParametersError,
+                        "support vector regressor settings not provided",
+                    )
+                })?;
+                let prepared = PreparedSVRParameters::<INPUT>::new(svr_settings)?;
+                let kfold = settings.get_kfolds();
+                let mut test_scores: Vec<f64> = Vec::with_capacity(kfold.n_splits);
+                let mut train_scores: Vec<f64> = Vec::with_capacity(kfold.n_splits);
+                for (train_idx, test_idx) in kfold.split(x) {
+                    let train_x = x.take(&train_idx, 0);
+                    let train_y = y.take(&train_idx);
+                    let test_x = x.take(&test_idx, 0);
+                    let test_y = y.take(&test_idx);
+                    let train_targets =
+                        convert_targets_to_input::<INPUT, OUTPUT, OutputArray>(&train_y)?;
+                    let params = prepared.to_parameters();
+                    let fold_model = OwnedSupportVectorRegressor::fit_with_parameters(
+                        &train_x,
+                        &train_targets,
+                        params,
+                    )?;
+                    let train_pred = fold_model.predict_array(&train_x)?;
+                    let test_pred = fold_model.predict_array(&test_x)?;
+                    train_scores.push(metric(&train_y, &train_pred));
+                    test_scores.push(metric(&test_y, &test_pred));
+                }
+                let result = CrossValidationResult {
+                    test_score: test_scores,
+                    train_score: train_scores,
+                };
+                let final_params = prepared.to_parameters();
+                let final_targets = convert_targets_to_input::<INPUT, OUTPUT, OutputArray>(y)?;
+                let final_model = OwnedSupportVectorRegressor::fit_with_parameters(
+                    x,
+                    &final_targets,
+                    final_params,
+                )?;
+                Ok((result, Self::SupportVectorRegressor(Some(final_model))))
+            }
         }
     }
 
@@ -349,8 +656,8 @@ where
 impl<INPUT, OUTPUT, InputArray, OutputArray>
     RegressionAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
 where
-    INPUT: RealNumber + FloatNumber,
-    OUTPUT: FloatNumber,
+    INPUT: RealNumber + FloatNumber + 'static,
+    OUTPUT: FloatNumber + 'static,
     InputArray: MutArrayView2<INPUT>
         + Sized
         + Clone
@@ -358,8 +665,9 @@ where
         + QRDecomposable<INPUT>
         + SVDDecomposable<INPUT>
         + EVDDecomposable<INPUT>
-        + CholeskyDecomposable<INPUT>,
-    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
+        + CholeskyDecomposable<INPUT>
+        + 'static,
+    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT> + 'static,
 {
     /// Default linear regression algorithm
     #[must_use]
@@ -405,6 +713,12 @@ where
     #[must_use]
     pub fn default_knn_regressor() -> Self {
         Self::KNNRegressor(smartcore::neighbors::knn_regressor::KNNRegressor::new())
+    }
+
+    /// Default support vector regression algorithm
+    #[must_use]
+    pub fn default_support_vector_regressor() -> Self {
+        Self::SupportVectorRegressor(None)
     }
 
     /// Get a vector of all possible algorithms
@@ -463,8 +777,8 @@ impl<INPUT, OUTPUT, InputArray, OutputArray>
     Algorithm<RegressionSettings<INPUT, OUTPUT, InputArray, OutputArray>>
     for RegressionAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
 where
-    INPUT: RealNumber + FloatNumber,
-    OUTPUT: FloatNumber,
+    INPUT: RealNumber + FloatNumber + 'static,
+    OUTPUT: FloatNumber + 'static,
     InputArray: MutArrayView2<INPUT>
         + Sized
         + Clone
@@ -472,8 +786,9 @@ where
         + QRDecomposable<INPUT>
         + SVDDecomposable<INPUT>
         + EVDDecomposable<INPUT>
-        + CholeskyDecomposable<INPUT>,
-    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
+        + CholeskyDecomposable<INPUT>
+        + 'static,
+    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT> + 'static,
 {
     type Input = INPUT;
     type Output = OUTPUT;
@@ -489,6 +804,12 @@ where
             Self::Lasso(model) => model.predict(x),
             Self::ElasticNet(model) => model.predict(x),
             Self::KNNRegressor(model) => model.predict(x),
+            Self::SupportVectorRegressor(model) => {
+                let model = model
+                    .as_ref()
+                    .ok_or_else(|| Failed::predict("support vector regressor is not trained"))?;
+                model.predict_array(x)
+            }
         }
     }
 
@@ -526,6 +847,13 @@ where
             algorithms.push(Self::default_knn_regressor());
         }
 
+        if settings.svr_settings.is_some() {
+            algorithms.push(Self::default_support_vector_regressor());
+        }
+
+        algorithms
+            .retain(|algorithm| !settings.skiplist.iter().any(|skipped| skipped == algorithm));
+
         algorithms
     }
 }
@@ -533,8 +861,8 @@ where
 impl<INPUT, OUTPUT, InputArray, OutputArray> PartialEq
     for RegressionAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
 where
-    INPUT: RealNumber + FloatNumber,
-    OUTPUT: FloatNumber,
+    INPUT: RealNumber + FloatNumber + 'static,
+    OUTPUT: FloatNumber + 'static,
     InputArray: MutArrayView2<INPUT>
         + Sized
         + Clone
@@ -542,8 +870,9 @@ where
         + QRDecomposable<INPUT>
         + SVDDecomposable<INPUT>
         + EVDDecomposable<INPUT>
-        + CholeskyDecomposable<INPUT>,
-    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
+        + CholeskyDecomposable<INPUT>
+        + 'static,
+    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT> + 'static,
 {
     fn eq(&self, other: &Self) -> bool {
         matches!(
@@ -559,6 +888,10 @@ where
                 | (Self::Lasso(_), Self::Lasso(_))
                 | (Self::ElasticNet(_), Self::ElasticNet(_))
                 | (Self::KNNRegressor(_), Self::KNNRegressor(_))
+                | (
+                    Self::SupportVectorRegressor(_),
+                    Self::SupportVectorRegressor(_)
+                )
         )
     }
 }
@@ -566,8 +899,8 @@ where
 impl<INPUT, OUTPUT, InputArray, OutputArray> Default
     for RegressionAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
 where
-    INPUT: RealNumber + FloatNumber,
-    OUTPUT: FloatNumber,
+    INPUT: RealNumber + FloatNumber + 'static,
+    OUTPUT: FloatNumber + 'static,
     InputArray: MutArrayView2<INPUT>
         + Sized
         + Clone
@@ -575,8 +908,9 @@ where
         + QRDecomposable<INPUT>
         + SVDDecomposable<INPUT>
         + EVDDecomposable<INPUT>
-        + CholeskyDecomposable<INPUT>,
-    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
+        + CholeskyDecomposable<INPUT>
+        + 'static,
+    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT> + 'static,
 {
     fn default() -> Self {
         RegressionAlgorithm::Linear(smartcore::linear::linear_regression::LinearRegression::new())
@@ -607,6 +941,7 @@ where
             Self::Lasso(_) => write!(f, "LASSO Regressor"),
             Self::ElasticNet(_) => write!(f, "Elastic Net Regressor"),
             Self::KNNRegressor(_) => write!(f, "KNN Regressor"),
+            Self::SupportVectorRegressor(_) => write!(f, "Support Vector Regressor"),
         }
     }
 }

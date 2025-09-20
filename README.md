@@ -33,6 +33,24 @@ let y = vec![1.0_f64, 2.0, 3.0];
 let _model = RegressionModel::new(x, y, RegressionSettings::default());
 ```
 
+Support Vector Regression can be enabled alongside the default algorithms and tuned with a
+kernel-specific configuration:
+
+```rust
+use automl::settings::{Kernel, SVRParameters};
+use automl::RegressionSettings;
+use smartcore::linalg::basic::matrix::DenseMatrix;
+
+let settings: RegressionSettings<f64, f64, DenseMatrix<f64>, Vec<f64>> =
+    RegressionSettings::default().with_svr_settings(
+    SVRParameters::default()
+        .with_eps(0.2)
+        .with_tol(1e-4)
+        .with_c(2.0)
+        .with_kernel(Kernel::RBF(0.4)),
+);
+```
+
 ### Loading data from CSV
 
 Use `load_labeled_csv` to read a dataset and separate the target column:
