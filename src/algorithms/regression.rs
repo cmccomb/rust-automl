@@ -390,6 +390,15 @@ where
             OutputArray,
         >,
     ),
+    /// Extra trees regressor
+    ExtraTreesRegressor(
+        smartcore::ensemble::extra_trees_regressor::ExtraTreesRegressor<
+            INPUT,
+            OUTPUT,
+            InputArray,
+            OutputArray,
+        >,
+    ),
     /// Linear regressor
     Linear(
         smartcore::linear::linear_regression::LinearRegression<
@@ -519,6 +528,18 @@ where
                                 "random forest regressor settings not provided",
                             )
                         })?,
+                )?,
+            ),
+            Self::ExtraTreesRegressor(_) => Self::ExtraTreesRegressor(
+                smartcore::ensemble::extra_trees_regressor::ExtraTreesRegressor::fit(
+                    x,
+                    y,
+                    settings.extra_trees_settings.clone().ok_or_else(|| {
+                        Failed::because(
+                            FailedError::ParametersError,
+                            "extra trees regressor settings not provided",
+                        )
+                    })?,
                 )?,
             ),
             Self::DecisionTreeRegressor(_) => Self::DecisionTreeRegressor(
@@ -660,6 +681,21 @@ where
                             "random forest regressor settings not provided",
                         )
                     })?,
+                x,
+                y,
+                settings,
+                &settings.get_kfolds(),
+                metric,
+            ),
+            RegressionAlgorithm::ExtraTreesRegressor(_) => Self::cross_validate_with(
+                self,
+                smartcore::ensemble::extra_trees_regressor::ExtraTreesRegressor::new(),
+                settings.extra_trees_settings.clone().ok_or_else(|| {
+                    Failed::because(
+                        FailedError::ParametersError,
+                        "extra trees regressor settings not provided",
+                    )
+                })?,
                 x,
                 y,
                 settings,
@@ -841,6 +877,14 @@ where
         )
     }
 
+    /// Default extra trees regression algorithm
+    #[must_use]
+    pub fn default_extra_trees_regressor() -> Self {
+        Self::ExtraTreesRegressor(
+            smartcore::ensemble::extra_trees_regressor::ExtraTreesRegressor::new(),
+        )
+    }
+
     /// Default decision tree regression algorithm
     #[must_use]
     pub fn default_decision_tree() -> Self {
@@ -945,6 +989,7 @@ where
         match self {
             Self::DecisionTreeRegressor(model) => model.predict(x),
             Self::RandomForestRegressor(model) => model.predict(x),
+            Self::ExtraTreesRegressor(model) => model.predict(x),
             Self::Linear(model) => model.predict(x),
             Self::Ridge(model) => model.predict(x),
             Self::Lasso(model) => model.predict(x),
@@ -994,6 +1039,10 @@ where
             Self::default_random_forest(),
             Self::default_decision_tree(),
         ];
+
+        if settings.extra_trees_settings.is_some() {
+            algorithms.push(Self::default_extra_trees_regressor());
+        }
 
         if let Some(knn) = &settings.knn_regressor_settings
             && !matches!(knn.distance, Distance::Mahalanobis)
@@ -1045,6 +1094,7 @@ where
                 | (Self::Ridge(_), Self::Ridge(_))
                 | (Self::Lasso(_), Self::Lasso(_))
                 | (Self::ElasticNet(_), Self::ElasticNet(_))
+                | (Self::ExtraTreesRegressor(_), Self::ExtraTreesRegressor(_))
                 | (Self::KNNRegressor(_), Self::KNNRegressor(_))
                 | (
                     Self::SupportVectorRegressor(_),
@@ -1095,6 +1145,7 @@ where
         match self {
             Self::DecisionTreeRegressor(_) => write!(f, "Decision Tree Regressor"),
             Self::RandomForestRegressor(_) => write!(f, "Random Forest Regressor"),
+            Self::ExtraTreesRegressor(_) => write!(f, "Extra Trees Regressor"),
             Self::Linear(_) => write!(f, "Linear Regressor"),
             Self::Ridge(_) => write!(f, "Ridge Regressor"),
             Self::Lasso(_) => write!(f, "LASSO Regressor"),
