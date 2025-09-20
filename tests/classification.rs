@@ -5,7 +5,7 @@ use automl::algorithms::ClassificationAlgorithm;
 use automl::model::Algorithm;
 use automl::settings::{
     CategoricalNBParameters, ClassificationSettings, MultinomialNBParameters,
-    RandomForestClassifierParameters,
+    RandomForestClassifierParameters, SVCParameters,
 };
 use automl::{DenseMatrix, ModelError, SupervisedModel};
 use classification_data::classification_testing_data;
@@ -45,6 +45,11 @@ fn test_all_algorithms_included() {
     assert!(
         algorithms
             .iter()
+            .all(|a| !matches!(a, ClassificationAlgorithm::SupportVectorClassifier(_)))
+    );
+    assert!(
+        algorithms
+            .iter()
             .all(|a| !matches!(a, ClassificationAlgorithm::MultinomialNB(_)))
     );
 }
@@ -72,6 +77,18 @@ fn multinomial_nb_algorithm_available_when_enabled() {
         algorithms
             .iter()
             .any(|a| matches!(a, ClassificationAlgorithm::MultinomialNB(_)))
+    );
+}
+
+#[test]
+fn support_vector_classifier_algorithm_available_when_enabled() {
+    let settings = ClassificationSettings::default().with_svc_settings(SVCParameters::default());
+    let algorithms = <ClassificationAlgorithm<f64, u32, DenseMatrix<f64>, Vec<u32>> as
+        automl::model::Algorithm<ClassificationSettings>>::all_algorithms(&settings);
+    assert!(
+        algorithms
+            .iter()
+            .any(|a| matches!(a, ClassificationAlgorithm::SupportVectorClassifier(_)))
     );
 }
 
@@ -107,6 +124,19 @@ fn predict_requires_training() {
     let model: Model = SupervisedModel::new(x, y, ClassificationSettings::default());
     let res = model.predict(DenseMatrix::from_2d_array(&[&[0.0, 0.0], &[1.0, 1.0]]).unwrap());
     assert!(matches!(res, Err(ModelError::NotTrained)));
+}
+
+#[test]
+fn support_vector_classifier_trains_and_predicts() {
+    let (x, y) = classification_testing_data();
+    let settings = ClassificationSettings::default().with_svc_settings(SVCParameters::default());
+    let algorithm: ClassificationAlgorithm<f64, u32, DenseMatrix<f64>, Vec<u32>> =
+        ClassificationAlgorithm::default_support_vector_classifier();
+    let trained = algorithm
+        .fit(&x, &y, &settings)
+        .expect("SVC training should succeed");
+    let predictions = trained.predict(&x).expect("SVC prediction should succeed");
+    assert_eq!(predictions.len(), y.len());
 }
 
 #[test]
@@ -146,6 +176,25 @@ fn invalid_alpha_returns_error() {
     let message = result.err().unwrap().to_string();
     assert!(
         message.contains("alpha value must be finite"),
+        "Unexpected error message: {message}"
+    );
+}
+
+#[test]
+fn support_vector_classifier_requires_settings() {
+    let x = DenseMatrix::from_2d_array(&[&[0.0_f64, 0.0_f64], &[1.0_f64, 1.0_f64]]).unwrap();
+    let y: Vec<u32> = vec![0, 1];
+    let settings = ClassificationSettings::default();
+    let algorithm: ClassificationAlgorithm<f64, u32, DenseMatrix<f64>, Vec<u32>> =
+        ClassificationAlgorithm::default_support_vector_classifier();
+
+    let error = algorithm
+        .fit(&x, &y, &settings)
+        .err()
+        .expect("SVC training should fail without settings");
+    let message = error.to_string();
+    assert!(
+        message.contains("support vector classifier settings not provided"),
         "Unexpected error message: {message}"
     );
 }

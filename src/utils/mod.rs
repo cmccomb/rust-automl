@@ -13,5 +13,5 @@ pub use self::display::{
 pub use self::distance::Distance;
 pub use self::features::{FeatureError, interaction_features, polynomial_features};
 pub use self::io::{CsvError, load_csv_features, load_labeled_csv};
-pub use self::kernels::Kernel;
+pub use self::kernels::{Kernel, SmartcoreKernel};
 pub use self::math::elementwise_multiply;
