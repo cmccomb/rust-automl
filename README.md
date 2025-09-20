@@ -68,6 +68,31 @@ let settings: RegressionSettings<f64, f64, DenseMatrix<f64>, Vec<f64>> =
 );
 ```
 
+Extremely randomized trees offer another ensemble option that leans into randomness for lower
+variance models:
+
+```rust
+use automl::settings::ExtraTreesRegressorParameters;
+use automl::{DenseMatrix, RegressionSettings};
+
+let settings: RegressionSettings<f64, f64, DenseMatrix<f64>, Vec<f64>> =
+    RegressionSettings::default().with_extra_trees_settings(
+    ExtraTreesRegressorParameters::default()
+        .with_n_trees(50)
+        .with_min_samples_leaf(2)
+        .with_keep_samples(true)
+        .with_seed(7),
+);
+```
+
+Unlike the random forest regressor, the Extra Trees variant grows each tree on the full training
+set and samples split thresholds uniformly rather than optimizing them. The parameter
+`with_keep_samples(true)` is particularly useful here: because there is no bootstrapping, enabling
+it stores the original observations so that out-of-bag style diagnostics remain possible. You can
+also adjust `with_m(...)` to change how many random features are considered at each split—doing so
+directly influences the amount of randomness introduced by the split selection compared with the
+random forest estimator.
+
 ### Loading data from CSV
 
 Use `load_labeled_csv` to read a dataset and separate the target column:
@@ -128,6 +153,23 @@ let settings = ClassificationSettings::default()
 If the feature matrix includes fractional or negative values, the Multinomial NB variant will
 emit a descriptive error explaining the constraint.
 
+Bernoulli Naive Bayes supports binary features and can also binarize continuous inputs when you
+provide a threshold. Set `binarize` to `None` to require pre-binarized inputs, or configure the
+threshold to map values above it to `1` and the rest to `0` during training and prediction:
+
+```rust
+use automl::settings::{BernoulliNBParameters, ClassificationSettings};
+
+let mut params = BernoulliNBParameters::default();
+params.binarize = None; // ensure features are already 0/1 encoded
+let settings = ClassificationSettings::default().with_bernoulli_nb_settings(params);
+
+// alternatively, binarize values greater than 0.5
+let thresholded = ClassificationSettings::default().with_bernoulli_nb_settings(
+    BernoulliNBParameters::default().with_binarize(0.5),
+);
+```
+
 ### Clustering
 ```rust
 use automl::ClusteringModel;
@@ -172,8 +214,8 @@ Model comparison:
 
 ## Capabilities
 - Feature Engineering: PCA, SVD, interaction terms, polynomial terms
-- Regression: Decision Tree, KNN, Random Forest, Linear, Ridge, LASSO, Elastic Net, Support Vector Regression, `XGBoost` Gradient Boosting
-- Classification: Random Forest, Decision Tree, KNN, Logistic Regression, Support Vector Classifier, Gaussian Naive Bayes, Categorical Naive Bayes, Multinomial Naive Bayes (non-negative integer features)
+- Regression: Decision Tree, KNN, Random Forest, Extra Trees, Linear, Ridge, LASSO, Elastic Net, Support Vector Regression, `XGBoost` Gradient Boosting
+- Classification: Random Forest, Decision Tree, KNN, Logistic Regression, Support Vector Classifier, Gaussian Naive Bayes, Bernoulli Naive Bayes (binary features or configurable thresholding), Categorical Naive Bayes, Multinomial Naive Bayes (non-negative integer features)
 - Clustering: K-Means, Agglomerative, DBSCAN
 - Meta-learning: Blending (experimental)
 - Persistence: Save/load settings and models

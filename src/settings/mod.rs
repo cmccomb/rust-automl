@@ -81,6 +81,8 @@ pub use smartcore::neighbors::KNNWeightFunction;
 
 /// Search algorithms for k-nearest neighbor (KNN) regression (re-export from [Smartcore](https://docs.rs/smartcore/))
 pub use smartcore::algorithm::neighbour::KNNAlgorithmName;
+/// Parameters for extra trees regression (re-export from [Smartcore](https://docs.rs/smartcore/))
+pub use smartcore::ensemble::extra_trees_regressor::ExtraTreesRegressorParameters;
 /// Parameters for random forest regression (re-export from [Smartcore](https://docs.rs/smartcore/))
 pub use smartcore::ensemble::random_forest_regressor::RandomForestRegressorParameters;
 
@@ -107,6 +109,9 @@ pub use smartcore::linear::ridge_regression::RidgeRegressionParameters;
 
 /// Solvers for ridge regression (re-export from [Smartcore](https://docs.rs/smartcore/))
 pub use smartcore::linear::ridge_regression::RidgeRegressionSolverName;
+
+/// Parameters for Bernoulli naive bayes (re-export from [Smartcore](https://docs.rs/smartcore/))
+pub use smartcore::naive_bayes::bernoulli::BernoulliNBParameters;
 
 /// Parameters for Gaussian naive bayes (re-export from [Smartcore](https://docs.rs/smartcore/))
 pub use smartcore::naive_bayes::gaussian::GaussianNBParameters;

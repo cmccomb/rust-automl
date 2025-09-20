@@ -6,7 +6,9 @@ use std::time::Instant;
 
 use super::supervised_train::SupervisedTrain;
 use crate::model::{ComparisonEntry, supervised::Algorithm};
-use crate::settings::{ClassificationSettings, SVCParameters, SettingsError};
+use crate::settings::{
+    BernoulliNBParameters, ClassificationSettings, SVCParameters, SettingsError,
+};
 use crate::utils::distance::KNNRegressorDistance;
 use crate::utils::kernels::SmartcoreKernel;
 use num_traits::Unsigned;
@@ -21,7 +23,12 @@ use smartcore::linalg::traits::svd::SVDDecomposable;
 use smartcore::linear::logistic_regression::LogisticRegressionParameters;
 use smartcore::model_selection::{BaseKFold, CrossValidationResult};
 use smartcore::naive_bayes::{
-    categorical::CategoricalNB, multinomial::MultinomialNB as SmartcoreMultinomialNB,
+    bernoulli::{
+        BernoulliNB as SmartcoreBernoulliNB,
+        BernoulliNBParameters as SmartcoreBernoulliNBParameters,
+    },
+    categorical::CategoricalNB,
+    multinomial::MultinomialNB as SmartcoreMultinomialNB,
 };
 use smartcore::numbers::basenum::Number;
 use smartcore::numbers::floatnum::FloatNumber;
@@ -32,9 +39,12 @@ type DenseCategoricalNB<OUTPUT, OutputArray> =
     CategoricalNB<OUTPUT, DenseMatrix<OUTPUT>, OutputArray>;
 type DenseMultinomialNB<OUTPUT, OutputArray> =
     SmartcoreMultinomialNB<OUTPUT, OUTPUT, DenseMatrix<OUTPUT>, OutputArray>;
+type DenseBernoulliNB<INPUT, OUTPUT, OutputArray> =
+    SmartcoreBernoulliNB<INPUT, OUTPUT, DenseMatrix<INPUT>, OutputArray>;
 
 const CATEGORICAL_NB_ALGORITHM_NAME: &str = "categorical naive Bayes";
 const MULTINOMIAL_NB_ALGORITHM_NAME: &str = "multinomial naive Bayes";
+const BERNOULLI_NB_ALGORITHM_NAME: &str = "Bernoulli naive Bayes";
 
 fn convert_to_nonnegative_integer_dense_matrix<INPUT, OUTPUT, InputArray>(
     x: &InputArray,
@@ -135,6 +145,116 @@ where
     InputArray: Array2<INPUT>,
 {
     convert_to_nonnegative_integer_dense_matrix(x, MULTINOMIAL_NB_ALGORITHM_NAME)
+}
+
+fn prepare_bernoulli_dense_matrix<INPUT, InputArray>(
+    x: &InputArray,
+    threshold: Option<INPUT>,
+) -> Result<DenseMatrix<INPUT>, Failed>
+where
+    INPUT: RealNumber + FloatNumber,
+    InputArray: Array2<INPUT>,
+{
+    let (rows, cols) = x.shape();
+    let mut data: Vec<Vec<INPUT>> = Vec::with_capacity(rows);
+    if let Some(threshold_value) = threshold {
+        for row in 0..rows {
+            let mut row_values: Vec<INPUT> = Vec::with_capacity(cols);
+            for col in 0..cols {
+                let value = *x.get((row, col));
+                if !value.is_finite() {
+                    return Err(Failed::because(
+                        FailedError::ParametersError,
+                        &format!(
+                            "{BERNOULLI_NB_ALGORITHM_NAME} requires finite feature values (row {row}, column {col})"
+                        ),
+                    ));
+                }
+                if value > threshold_value {
+                    row_values.push(INPUT::one());
+                } else {
+                    row_values.push(INPUT::zero());
+                }
+            }
+            data.push(row_values);
+        }
+    } else {
+        let zero = INPUT::zero();
+        let one = INPUT::one();
+        for row in 0..rows {
+            let mut row_values: Vec<INPUT> = Vec::with_capacity(cols);
+            for col in 0..cols {
+                let value = *x.get((row, col));
+                if !value.is_finite() {
+                    return Err(Failed::because(
+                        FailedError::ParametersError,
+                        &format!(
+                            "{BERNOULLI_NB_ALGORITHM_NAME} requires finite feature values (row {row}, column {col})"
+                        ),
+                    ));
+                }
+                if value == zero {
+                    row_values.push(zero);
+                } else if value == one {
+                    row_values.push(one);
+                } else {
+                    return Err(Failed::because(
+                        FailedError::ParametersError,
+                        &format!(
+                            "{BERNOULLI_NB_ALGORITHM_NAME} requires binary features (row {row}, column {col}, value {value})"
+                        ),
+                    ));
+                }
+            }
+            data.push(row_values);
+        }
+    }
+
+    DenseMatrix::from_2d_vec(&data).map_err(|err| {
+        Failed::because(
+            FailedError::ParametersError,
+            &format!(
+                "{BERNOULLI_NB_ALGORITHM_NAME} could not construct a binary feature matrix: {err}"
+            ),
+        )
+    })
+}
+
+fn convert_bernoulli_parameters<INPUT>(
+    params: &BernoulliNBParameters<f64>,
+) -> Result<SmartcoreBernoulliNBParameters<INPUT>, Failed>
+where
+    INPUT: RealNumber + FloatNumber,
+{
+    let binarize = match params.binarize {
+        Some(value) => {
+            if !value.is_finite() {
+                return Err(Failed::because(
+                    FailedError::ParametersError,
+                    &format!(
+                        "{BERNOULLI_NB_ALGORITHM_NAME} binarize threshold must be finite (value {value})"
+                    ),
+                ));
+            }
+            Some(
+                INPUT::from_f64(value).ok_or_else(|| {
+                    Failed::because(
+                        FailedError::ParametersError,
+                        &format!(
+                            "{BERNOULLI_NB_ALGORITHM_NAME} binarize threshold {value} cannot be represented by the input type"
+                        ),
+                    )
+                })?,
+            )
+        }
+        None => None,
+    };
+
+    Ok(SmartcoreBernoulliNBParameters {
+        alpha: params.alpha,
+        priors: params.priors.clone(),
+        binarize,
+    })
 }
 
 #[derive(Clone)]
@@ -321,6 +441,60 @@ where
     })
 }
 
+/// Wrapper around Smartcore's Bernoulli naive Bayes implementation that stores the
+/// optional binarization threshold used during training.
+///
+/// # Examples
+/// ```ignore
+/// use automl::algorithms::classification::BernoulliNBModel;
+/// let model = BernoulliNBModel::<f64, u32, Vec<u32>>::untrained();
+/// assert!(matches!(model.binarize(), None));
+/// ```
+pub struct BernoulliNBModel<INPUT, OUTPUT, OutputArray>
+where
+    INPUT: RealNumber + FloatNumber,
+    OUTPUT: Number + Ord + Unsigned,
+    OutputArray: Array1<OUTPUT>,
+{
+    model: DenseBernoulliNB<INPUT, OUTPUT, OutputArray>,
+    binarize: Option<INPUT>,
+}
+
+impl<INPUT, OUTPUT, OutputArray> BernoulliNBModel<INPUT, OUTPUT, OutputArray>
+where
+    INPUT: RealNumber + FloatNumber,
+    OUTPUT: Number + Ord + Unsigned,
+    OutputArray: Array1<OUTPUT>,
+{
+    fn untrained() -> Self {
+        Self {
+            model: DenseBernoulliNB::<INPUT, OUTPUT, OutputArray>::new(),
+            binarize: None,
+        }
+    }
+
+    fn trained(
+        model: DenseBernoulliNB<INPUT, OUTPUT, OutputArray>,
+        binarize: Option<INPUT>,
+    ) -> Self {
+        Self { model, binarize }
+    }
+
+    /// Return the binarization threshold recorded during training.
+    #[must_use]
+    pub fn binarize(&self) -> Option<INPUT> {
+        self.binarize
+    }
+
+    fn predict<InputArray>(&self, x: &InputArray) -> Result<OutputArray, Failed>
+    where
+        InputArray: Array2<INPUT>,
+    {
+        let converted = prepare_bernoulli_dense_matrix(x, self.binarize)?;
+        self.model.predict(&converted)
+    }
+}
+
 /// Supported classification algorithms.
 pub enum ClassificationAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
 where
@@ -378,6 +552,8 @@ where
     SupportVectorClassifier(
         Option<OwnedSupportVectorClassifier<INPUT, OUTPUT, InputArray, OutputArray>>,
     ),
+    /// Bernoulli naive Bayes classifier
+    BernoulliNB(BernoulliNBModel<INPUT, OUTPUT, OutputArray>),
     /// Gaussian naive Bayes classifier
     GaussianNB(
         smartcore::naive_bayes::gaussian::GaussianNB<INPUT, OUTPUT, InputArray, OutputArray>,
@@ -500,6 +676,21 @@ where
                     prepared.boxed_params::<OUTPUT, InputArray, OutputArray>(initial_kernel);
                 let model = OwnedSupportVectorClassifier::fit_with_parameters(x, y, params)?;
                 Self::SupportVectorClassifier(Some(model))
+            }
+            Self::BernoulliNB(_) => {
+                let params = settings.bernoulli_nb_settings.clone().ok_or_else(|| {
+                    Failed::because(
+                        FailedError::ParametersError,
+                        "Bernoulli NB settings not provided",
+                    )
+                })?;
+                let typed_params = convert_bernoulli_parameters::<INPUT>(&params)?;
+                let threshold = typed_params.binarize;
+                let converted = prepare_bernoulli_dense_matrix::<INPUT, _>(x, threshold)?;
+                let mut fit_params = typed_params.clone();
+                fit_params.binarize = None;
+                let model = SmartcoreBernoulliNB::fit(&converted, y, fit_params)?;
+                Self::BernoulliNB(BernoulliNBModel::trained(model, threshold))
             }
             Self::GaussianNB(_) => {
                 Self::GaussianNB(smartcore::naive_bayes::gaussian::GaussianNB::fit(
@@ -683,6 +874,43 @@ where
                     OwnedSupportVectorClassifier::fit_with_parameters(x, y, final_params)?;
                 Ok((result, Self::SupportVectorClassifier(Some(final_model))))
             }
+            Self::BernoulliNB(_) => {
+                let params = settings.bernoulli_nb_settings.clone().ok_or_else(|| {
+                    Failed::because(
+                        FailedError::ParametersError,
+                        "Bernoulli NB settings not provided",
+                    )
+                })?;
+                let typed_params = convert_bernoulli_parameters::<INPUT>(&params)?;
+                let threshold = typed_params.binarize;
+                let converted = prepare_bernoulli_dense_matrix::<INPUT, _>(x, threshold)?;
+                let mut params_for_fit = typed_params.clone();
+                params_for_fit.binarize = None;
+                let kfold = settings.get_kfolds();
+                let mut test_scores: Vec<f64> = Vec::with_capacity(kfold.n_splits);
+                let mut train_scores: Vec<f64> = Vec::with_capacity(kfold.n_splits);
+                for (train_idx, test_idx) in kfold.split(&converted) {
+                    let train_x = converted.take(&train_idx, 0);
+                    let train_y = y.take(&train_idx);
+                    let test_x = converted.take(&test_idx, 0);
+                    let test_y = y.take(&test_idx);
+                    let fold_model =
+                        SmartcoreBernoulliNB::fit(&train_x, &train_y, params_for_fit.clone())?;
+                    let train_pred = fold_model.predict(&train_x)?;
+                    let test_pred = fold_model.predict(&test_x)?;
+                    train_scores.push(metric(&train_y, &train_pred));
+                    test_scores.push(metric(&test_y, &test_pred));
+                }
+                let result = CrossValidationResult {
+                    test_score: test_scores,
+                    train_score: train_scores,
+                };
+                let model = SmartcoreBernoulliNB::fit(&converted, y, params_for_fit)?;
+                Ok((
+                    result,
+                    Self::BernoulliNB(BernoulliNBModel::trained(model, threshold)),
+                ))
+            }
             Self::GaussianNB(_) => Self::cross_validate_with(
                 self,
                 smartcore::naive_bayes::gaussian::GaussianNB::new(),
@@ -817,6 +1045,12 @@ where
         Self::SupportVectorClassifier(None)
     }
 
+    /// Default Bernoulli naive Bayes classifier algorithm
+    #[must_use]
+    pub fn default_bernoulli_nb() -> Self {
+        Self::BernoulliNB(BernoulliNBModel::untrained())
+    }
+
     /// Default Gaussian naive Bayes classifier algorithm
     #[must_use]
     pub fn default_gaussian_nb() -> Self {
@@ -917,6 +1151,7 @@ where
                     .ok_or_else(|| Failed::predict("support vector classifier is not trained"))?;
                 model.predict_array(x)
             }
+            Self::BernoulliNB(model) => model.predict(x),
             Self::GaussianNB(model) => model.predict(x),
             Self::CategoricalNB(model) => {
                 let converted = convert_to_categorical_dense_matrix::<INPUT, OUTPUT, _>(x)?;
@@ -959,6 +1194,9 @@ where
         if settings.svc_settings.is_some() {
             algorithms.push(Self::default_support_vector_classifier());
         }
+        if settings.bernoulli_nb_settings.is_some() {
+            algorithms.push(Self::default_bernoulli_nb());
+        }
         if settings.gaussian_nb_settings.is_some() {
             algorithms.push(Self::default_gaussian_nb());
         }
@@ -998,6 +1236,7 @@ where
                 && matches!(other, Self::LogisticRegression(_))
             || matches!(self, Self::SupportVectorClassifier(_))
                 && matches!(other, Self::SupportVectorClassifier(_))
+            || matches!(self, Self::BernoulliNB(_)) && matches!(other, Self::BernoulliNB(_))
             || matches!(self, Self::GaussianNB(_)) && matches!(other, Self::GaussianNB(_))
             || matches!(self, Self::CategoricalNB(_)) && matches!(other, Self::CategoricalNB(_))
             || matches!(self, Self::MultinomialNB(_)) && matches!(other, Self::MultinomialNB(_))
@@ -1048,6 +1287,7 @@ where
             Self::RandomForestClassifier(_) => write!(f, "Random Forest Classifier"),
             Self::LogisticRegression(_) => write!(f, "Logistic Regression"),
             Self::SupportVectorClassifier(_) => write!(f, "Support Vector Classifier"),
+            Self::BernoulliNB(_) => write!(f, "Bernoulli NB"),
             Self::GaussianNB(_) => write!(f, "Gaussian NB"),
             Self::CategoricalNB(_) => write!(f, "Categorical NB"),
             Self::MultinomialNB(_) => write!(f, "Multinomial NB"),
@@ -1089,6 +1329,23 @@ mod tests {
         settings.gaussian_nb_settings = None;
         let algo: ClassificationAlgorithm<f64, u32, DenseMatrix<f64>, Vec<u32>> =
             ClassificationAlgorithm::default_gaussian_nb();
+        let err = algo
+            .fit(&x, &y, &settings)
+            .err()
+            .expect("expected training to fail");
+        assert_eq!(err.error(), FailedError::ParametersError);
+    }
+
+    #[test]
+    #[allow(clippy::field_reassign_with_default)]
+    fn bernoulli_nb_requires_settings() {
+        let x: DenseMatrix<f64> =
+            DenseMatrix::from_2d_array(&[&[0.0_f64, 0.0_f64], &[1.0_f64, 1.0_f64]]).unwrap();
+        let y: Vec<u32> = vec![0, 1];
+        let mut settings = ClassificationSettings::default();
+        settings.bernoulli_nb_settings = None;
+        let algo: ClassificationAlgorithm<f64, u32, DenseMatrix<f64>, Vec<u32>> =
+            ClassificationAlgorithm::default_bernoulli_nb();
         let err = algo
             .fit(&x, &y, &settings)
             .err()

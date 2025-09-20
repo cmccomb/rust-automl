@@ -3,7 +3,10 @@ mod regression_data;
 
 use automl::algorithms::RegressionAlgorithm;
 use automl::model::Algorithm;
-use automl::settings::{Distance, KNNParameters, Kernel, SVRParameters, XGRegressorParameters};
+use automl::settings::{
+    Distance, ExtraTreesRegressorParameters, KNNParameters, Kernel, SVRParameters,
+    XGRegressorParameters,
+};
 use automl::{DenseMatrix, RegressionSettings, SupervisedModel};
 use regression_data::regression_testing_data;
 use smartcore::error::FailedError;
@@ -49,6 +52,72 @@ fn test_svr_regression_multiple_kernels() {
             .only(&RegressionAlgorithm::default_support_vector_regressor());
         test_from_settings(settings);
     }
+}
+
+#[test]
+fn test_extra_trees_regression_trains_successfully() {
+    let (x, y) = regression_testing_data();
+    let settings: RegressionSettings<f64, f64, DenseMatrix<f64>, Vec<f64>> =
+        RegressionSettings::default()
+            .with_extra_trees_settings(
+                ExtraTreesRegressorParameters::default()
+                    .with_n_trees(25)
+                    .with_min_samples_leaf(2)
+                    .with_seed(42)
+                    .with_keep_samples(true),
+            )
+            .only(&RegressionAlgorithm::default_extra_trees_regressor());
+    let algo = RegressionAlgorithm::default_extra_trees_regressor();
+    let trained = algo
+        .fit(&x, &y, &settings)
+        .expect("extra trees should train successfully");
+    let predictions = trained
+        .predict(&x)
+        .expect("extra trees predictions should succeed");
+    assert_eq!(predictions.len(), y.len());
+    RegressionAlgorithm::default_extra_trees_regressor()
+        .cv(&x, &y, &settings)
+        .expect("extra trees cross-validation should succeed");
+}
+
+#[test]
+fn test_extra_trees_skiplist_controls_algorithms() {
+    let settings: RegressionSettings<f64, f64, DenseMatrix<f64>, Vec<f64>> =
+        RegressionSettings::default().skip(RegressionAlgorithm::default_extra_trees_regressor());
+    let algorithms = RegressionAlgorithm::all_algorithms(&settings);
+    assert!(
+        algorithms
+            .iter()
+            .all(|algo| !matches!(algo, RegressionAlgorithm::ExtraTreesRegressor(_)))
+    );
+
+    let settings: RegressionSettings<f64, f64, DenseMatrix<f64>, Vec<f64>> =
+        RegressionSettings::default().only(&RegressionAlgorithm::default_extra_trees_regressor());
+    let algorithms = RegressionAlgorithm::all_algorithms(&settings);
+    assert_eq!(algorithms.len(), 1);
+    assert!(matches!(
+        algorithms[0],
+        RegressionAlgorithm::ExtraTreesRegressor(_)
+    ));
+}
+
+#[test]
+fn test_extra_trees_missing_settings_error() {
+    let (x, y) = regression_testing_data();
+    let settings: RegressionSettings<f64, f64, DenseMatrix<f64>, Vec<f64>> =
+        RegressionSettings::default().without_extra_trees_settings();
+    let algo = RegressionAlgorithm::default_extra_trees_regressor();
+    let err = algo
+        .fit(&x, &y, &settings)
+        .err()
+        .expect("expected missing extra trees settings to error");
+    assert_eq!(err.error(), FailedError::ParametersError);
+
+    let cv_err = RegressionAlgorithm::default_extra_trees_regressor()
+        .cv(&x, &y, &settings)
+        .err()
+        .expect("expected missing extra trees settings to error during CV");
+    assert_eq!(cv_err.error(), FailedError::ParametersError);
 }
 
 #[test]
