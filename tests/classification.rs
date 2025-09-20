@@ -2,8 +2,10 @@
 mod classification_data;
 
 use automl::algorithms::ClassificationAlgorithm;
+use automl::model::Algorithm;
 use automl::settings::{
-    CategoricalNBParameters, ClassificationSettings, RandomForestClassifierParameters,
+    CategoricalNBParameters, ClassificationSettings, MultinomialNBParameters,
+    RandomForestClassifierParameters,
 };
 use automl::{DenseMatrix, ModelError, SupervisedModel};
 use classification_data::classification_testing_data;
@@ -40,6 +42,11 @@ fn test_all_algorithms_included() {
             .iter()
             .any(|a| matches!(a, ClassificationAlgorithm::GaussianNB(_)))
     );
+    assert!(
+        algorithms
+            .iter()
+            .all(|a| !matches!(a, ClassificationAlgorithm::MultinomialNB(_)))
+    );
 }
 
 #[test]
@@ -52,6 +59,19 @@ fn categorical_nb_algorithm_available_when_enabled() {
         algorithms
             .iter()
             .any(|a| matches!(a, ClassificationAlgorithm::CategoricalNB(_)))
+    );
+}
+
+#[test]
+fn multinomial_nb_algorithm_available_when_enabled() {
+    let settings = ClassificationSettings::default()
+        .with_multinomial_nb_settings(MultinomialNBParameters::default());
+    let algorithms = <ClassificationAlgorithm<f64, u32, DenseMatrix<f64>, Vec<u32>> as
+        automl::model::Algorithm<ClassificationSettings>>::all_algorithms(&settings);
+    assert!(
+        algorithms
+            .iter()
+            .any(|a| matches!(a, ClassificationAlgorithm::MultinomialNB(_)))
     );
 }
 
@@ -126,6 +146,68 @@ fn invalid_alpha_returns_error() {
     let message = result.err().unwrap().to_string();
     assert!(
         message.contains("alpha value must be finite"),
+        "Unexpected error message: {message}"
+    );
+}
+
+#[test]
+fn multinomial_nb_trains_and_predicts_with_non_negative_integers() {
+    let x = DenseMatrix::from_2d_array(&[
+        &[1.0_f64, 0.0_f64, 2.0_f64],
+        &[0.0_f64, 1.0_f64, 0.0_f64],
+        &[3.0_f64, 0.0_f64, 1.0_f64],
+        &[0.0_f64, 0.0_f64, 0.0_f64],
+    ])
+    .unwrap();
+    let y: Vec<u32> = vec![0, 0, 1, 1];
+    let settings = ClassificationSettings::default()
+        .with_multinomial_nb_settings(MultinomialNBParameters::default());
+    let algorithm: ClassificationAlgorithm<f64, u32, DenseMatrix<f64>, Vec<u32>> =
+        ClassificationAlgorithm::default_multinomial_nb();
+
+    let trained = algorithm
+        .fit(&x, &y, &settings)
+        .expect("training should succeed");
+    let predictions = trained.predict(&x).expect("prediction should succeed");
+    assert_eq!(predictions.len(), y.len());
+}
+
+#[test]
+fn multinomial_nb_rejects_fractional_features() {
+    let x = DenseMatrix::from_2d_array(&[&[0.5_f64, 1.0_f64], &[1.0_f64, 2.0_f64]]).unwrap();
+    let y: Vec<u32> = vec![0, 1];
+    let settings = ClassificationSettings::default()
+        .with_multinomial_nb_settings(MultinomialNBParameters::default());
+    let algorithm: ClassificationAlgorithm<f64, u32, DenseMatrix<f64>, Vec<u32>> =
+        ClassificationAlgorithm::default_multinomial_nb();
+
+    let error = algorithm
+        .fit(&x, &y, &settings)
+        .err()
+        .expect("training should fail for fractional counts");
+    let message = error.to_string();
+    assert!(
+        message.contains("requires integer-valued features"),
+        "Unexpected error message: {message}"
+    );
+}
+
+#[test]
+fn multinomial_nb_rejects_negative_features() {
+    let x = DenseMatrix::from_2d_array(&[&[1.0_f64, -1.0_f64], &[2.0_f64, 0.0_f64]]).unwrap();
+    let y: Vec<u32> = vec![0, 1];
+    let settings = ClassificationSettings::default()
+        .with_multinomial_nb_settings(MultinomialNBParameters::default());
+    let algorithm: ClassificationAlgorithm<f64, u32, DenseMatrix<f64>, Vec<u32>> =
+        ClassificationAlgorithm::default_multinomial_nb();
+
+    let error = algorithm
+        .fit(&x, &y, &settings)
+        .err()
+        .expect("training should fail for negative counts");
+    let message = error.to_string();
+    assert!(
+        message.contains("requires non-negative feature values"),
         "Unexpected error message: {message}"
     );
 }

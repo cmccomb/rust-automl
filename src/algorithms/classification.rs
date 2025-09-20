@@ -18,16 +18,24 @@ use smartcore::linalg::traits::qr::QRDecomposable;
 use smartcore::linalg::traits::svd::SVDDecomposable;
 use smartcore::linear::logistic_regression::LogisticRegressionParameters;
 use smartcore::model_selection::{BaseKFold, CrossValidationResult};
-use smartcore::naive_bayes::categorical::CategoricalNB;
+use smartcore::naive_bayes::{
+    categorical::CategoricalNB, multinomial::MultinomialNB as SmartcoreMultinomialNB,
+};
 use smartcore::numbers::basenum::Number;
 use smartcore::numbers::floatnum::FloatNumber;
 use smartcore::numbers::realnum::RealNumber;
 
 type DenseCategoricalNB<OUTPUT, OutputArray> =
     CategoricalNB<OUTPUT, DenseMatrix<OUTPUT>, OutputArray>;
+type DenseMultinomialNB<OUTPUT, OutputArray> =
+    SmartcoreMultinomialNB<OUTPUT, OUTPUT, DenseMatrix<OUTPUT>, OutputArray>;
 
-fn convert_to_categorical_dense_matrix<INPUT, OUTPUT, InputArray>(
+const CATEGORICAL_NB_ALGORITHM_NAME: &str = "categorical naive Bayes";
+const MULTINOMIAL_NB_ALGORITHM_NAME: &str = "multinomial naive Bayes";
+
+fn convert_to_nonnegative_integer_dense_matrix<INPUT, OUTPUT, InputArray>(
     x: &InputArray,
+    algorithm_name: &'static str,
 ) -> Result<DenseMatrix<OUTPUT>, Failed>
 where
     INPUT: RealNumber + FloatNumber,
@@ -40,7 +48,7 @@ where
         let mut row_values: Vec<OUTPUT> = Vec::with_capacity(cols);
         for col in 0..cols {
             let value = *x.get((row, col));
-            row_values.push(convert_feature_value(value, row, col)?);
+            row_values.push(convert_feature_value(value, row, col, algorithm_name)?);
         }
         data.push(row_values);
     }
@@ -51,6 +59,7 @@ fn convert_feature_value<INPUT, OUTPUT>(
     value: INPUT,
     row: usize,
     col: usize,
+    algorithm_name: &'static str,
 ) -> Result<OUTPUT, Failed>
 where
     INPUT: RealNumber + FloatNumber,
@@ -59,9 +68,7 @@ where
     if !value.is_finite() {
         return Err(Failed::because(
             FailedError::ParametersError,
-            &format!(
-                "categorical naive Bayes requires finite feature values (row {row}, column {col})"
-            ),
+            &format!("{algorithm_name} requires finite feature values (row {row}, column {col})"),
         ));
     }
 
@@ -71,7 +78,7 @@ where
             Failed::because(
                 FailedError::ParametersError,
                 &format!(
-                    "categorical naive Bayes could not convert feature value {value} at row {row}, column {col}"
+                    "{algorithm_name} could not convert feature value {value} at row {row}, column {col}"
                 ),
             )
         })?;
@@ -80,7 +87,7 @@ where
         return Err(Failed::because(
             FailedError::ParametersError,
             &format!(
-                "categorical naive Bayes requires integer-valued features (row {row}, column {col}, value {value})"
+                "{algorithm_name} requires integer-valued features (row {row}, column {col}, value {value})"
             ),
         ));
     }
@@ -89,7 +96,7 @@ where
         return Err(Failed::because(
             FailedError::ParametersError,
             &format!(
-                "categorical naive Bayes requires non-negative feature values (row {row}, column {col}, value {value})"
+                "{algorithm_name} requires non-negative feature values (row {row}, column {col}, value {value})"
             ),
         ));
     }
@@ -99,10 +106,32 @@ where
         Failed::because(
             FailedError::ParametersError,
             &format!(
-                "categorical naive Bayes feature value {value} at row {row}, column {col} exceeds supported range"
+                "{algorithm_name} feature value {value} at row {row}, column {col} exceeds supported range"
             ),
         )
     })
+}
+
+fn convert_to_categorical_dense_matrix<INPUT, OUTPUT, InputArray>(
+    x: &InputArray,
+) -> Result<DenseMatrix<OUTPUT>, Failed>
+where
+    INPUT: RealNumber + FloatNumber,
+    OUTPUT: Number + Ord + Unsigned,
+    InputArray: Array2<INPUT>,
+{
+    convert_to_nonnegative_integer_dense_matrix(x, CATEGORICAL_NB_ALGORITHM_NAME)
+}
+
+fn convert_to_multinomial_dense_matrix<INPUT, OUTPUT, InputArray>(
+    x: &InputArray,
+) -> Result<DenseMatrix<OUTPUT>, Failed>
+where
+    INPUT: RealNumber + FloatNumber,
+    OUTPUT: Number + Ord + Unsigned,
+    InputArray: Array2<INPUT>,
+{
+    convert_to_nonnegative_integer_dense_matrix(x, MULTINOMIAL_NB_ALGORITHM_NAME)
 }
 
 /// Supported classification algorithms.
@@ -163,6 +192,8 @@ where
     ),
     /// Categorical naive Bayes classifier
     CategoricalNB(DenseCategoricalNB<OUTPUT, OutputArray>),
+    /// Multinomial naive Bayes classifier
+    MultinomialNB(DenseMultinomialNB<OUTPUT, OutputArray>),
 }
 
 impl<INPUT, OUTPUT, InputArray, OutputArray>
@@ -181,6 +212,7 @@ where
         + CholeskyDecomposable<INPUT>,
     OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
 {
+    #[allow(clippy::too_many_lines)]
     fn fit_inner(
         self,
         x: &InputArray,
@@ -284,6 +316,16 @@ where
                 })?;
                 let converted = convert_to_categorical_dense_matrix::<INPUT, OUTPUT, _>(x)?;
                 Self::CategoricalNB(CategoricalNB::fit(&converted, y, params)?)
+            }
+            Self::MultinomialNB(_) => {
+                let params = settings.multinomial_nb_settings.clone().ok_or_else(|| {
+                    Failed::because(
+                        FailedError::ParametersError,
+                        "Multinomial NB settings not provided",
+                    )
+                })?;
+                let converted = convert_to_multinomial_dense_matrix::<INPUT, OUTPUT, _>(x)?;
+                Self::MultinomialNB(SmartcoreMultinomialNB::fit(&converted, y, params)?)
             }
         })
     }
@@ -437,6 +479,36 @@ where
                 let model = CategoricalNB::fit(&converted, y, params)?;
                 Ok((result, Self::CategoricalNB(model)))
             }
+            Self::MultinomialNB(_) => {
+                let params = settings.multinomial_nb_settings.clone().ok_or_else(|| {
+                    Failed::because(
+                        FailedError::ParametersError,
+                        "Multinomial NB settings not provided",
+                    )
+                })?;
+                let converted = convert_to_multinomial_dense_matrix::<INPUT, OUTPUT, _>(x)?;
+                let kfold = settings.get_kfolds();
+                let mut test_scores: Vec<f64> = Vec::with_capacity(kfold.n_splits);
+                let mut train_scores: Vec<f64> = Vec::with_capacity(kfold.n_splits);
+                for (train_idx, test_idx) in kfold.split(&converted) {
+                    let train_x = converted.take(&train_idx, 0);
+                    let train_y = y.take(&train_idx);
+                    let test_x = converted.take(&test_idx, 0);
+                    let test_y = y.take(&test_idx);
+                    let fold_model =
+                        SmartcoreMultinomialNB::fit(&train_x, &train_y, params.clone())?;
+                    let train_pred = fold_model.predict(&train_x)?;
+                    let test_pred = fold_model.predict(&test_x)?;
+                    train_scores.push(metric(&train_y, &train_pred));
+                    test_scores.push(metric(&test_y, &test_pred));
+                }
+                let result = CrossValidationResult {
+                    test_score: test_scores,
+                    train_score: train_scores,
+                };
+                let model = SmartcoreMultinomialNB::fit(&converted, y, params)?;
+                Ok((result, Self::MultinomialNB(model)))
+            }
         }
     }
 
@@ -500,6 +572,12 @@ where
     #[must_use]
     pub fn default_categorical_nb() -> Self {
         Self::CategoricalNB(DenseCategoricalNB::<OUTPUT, OutputArray>::new())
+    }
+
+    /// Default multinomial naive Bayes classifier algorithm
+    #[must_use]
+    pub fn default_multinomial_nb() -> Self {
+        Self::MultinomialNB(DenseMultinomialNB::<OUTPUT, OutputArray>::new())
     }
 
     /// Get a vector of all possible algorithms
@@ -582,6 +660,10 @@ where
                 let converted = convert_to_categorical_dense_matrix::<INPUT, OUTPUT, _>(x)?;
                 model.predict(&converted)
             }
+            Self::MultinomialNB(model) => {
+                let converted = convert_to_multinomial_dense_matrix::<INPUT, OUTPUT, _>(x)?;
+                model.predict(&converted)
+            }
         }
     }
 
@@ -618,6 +700,9 @@ where
         if settings.categorical_nb_settings.is_some() {
             algorithms.push(Self::default_categorical_nb());
         }
+        if settings.multinomial_nb_settings.is_some() {
+            algorithms.push(Self::default_multinomial_nb());
+        }
         algorithms
     }
 }
@@ -647,6 +732,7 @@ where
                 && matches!(other, Self::LogisticRegression(_))
             || matches!(self, Self::GaussianNB(_)) && matches!(other, Self::GaussianNB(_))
             || matches!(self, Self::CategoricalNB(_)) && matches!(other, Self::CategoricalNB(_))
+            || matches!(self, Self::MultinomialNB(_)) && matches!(other, Self::MultinomialNB(_))
     }
 }
 
@@ -693,6 +779,7 @@ where
             Self::LogisticRegression(_) => write!(f, "Logistic Regression"),
             Self::GaussianNB(_) => write!(f, "Gaussian NB"),
             Self::CategoricalNB(_) => write!(f, "Categorical NB"),
+            Self::MultinomialNB(_) => write!(f, "Multinomial NB"),
         }
     }
 }
@@ -748,6 +835,23 @@ mod tests {
         settings.categorical_nb_settings = None;
         let algo: ClassificationAlgorithm<f64, u32, DenseMatrix<f64>, Vec<u32>> =
             ClassificationAlgorithm::default_categorical_nb();
+        let err = algo
+            .fit(&x, &y, &settings)
+            .err()
+            .expect("expected training to fail");
+        assert_eq!(err.error(), FailedError::ParametersError);
+    }
+
+    #[test]
+    #[allow(clippy::field_reassign_with_default)]
+    fn multinomial_nb_requires_settings() {
+        let x: DenseMatrix<f64> =
+            DenseMatrix::from_2d_array(&[&[0.0_f64, 0.0_f64], &[1.0_f64, 1.0_f64]]).unwrap();
+        let y: Vec<u32> = vec![0, 1];
+        let mut settings = ClassificationSettings::default();
+        settings.multinomial_nb_settings = None;
+        let algo: ClassificationAlgorithm<f64, u32, DenseMatrix<f64>, Vec<u32>> =
+            ClassificationAlgorithm::default_multinomial_nb();
         let err = algo
             .fit(&x, &y, &settings)
             .err()

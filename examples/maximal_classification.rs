@@ -6,6 +6,10 @@
 //! fixture, builds custom classification settings, trains all configured
 //! algorithms using cross-validation, and prints a comparison table.
 //!
+//! Supply non-negative integer count features and call
+//! `with_multinomial_nb_settings` to include the Multinomial Naive Bayes
+//! classifier in the comparison.
+//!
 //! Run with:
 //!
 //! ```bash

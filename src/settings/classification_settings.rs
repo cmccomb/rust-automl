@@ -1,7 +1,8 @@
 use super::{
     CategoricalNBParameters, DecisionTreeClassifierParameters, FinalAlgorithm,
-    GaussianNBParameters, KNNParameters, LogisticRegressionParameters, Metric, PreProcessing,
-    RandomForestClassifierParameters, SettingsError, SupervisedSettings, WithSupervisedSettings,
+    GaussianNBParameters, KNNParameters, LogisticRegressionParameters, Metric,
+    MultinomialNBParameters, PreProcessing, RandomForestClassifierParameters, SettingsError,
+    SupervisedSettings, WithSupervisedSettings,
 };
 use crate::settings::macros::with_settings_methods;
 use smartcore::linalg::basic::arrays::Array1;
@@ -25,6 +26,8 @@ pub struct ClassificationSettings {
     pub(crate) gaussian_nb_settings: Option<GaussianNBParameters>,
     /// Optional settings for categorical naive Bayes classifier
     pub(crate) categorical_nb_settings: Option<CategoricalNBParameters>,
+    /// Optional settings for multinomial naive Bayes classifier
+    pub(crate) multinomial_nb_settings: Option<MultinomialNBParameters>,
 }
 
 impl Default for ClassificationSettings {
@@ -40,6 +43,7 @@ impl Default for ClassificationSettings {
             logistic_regression_settings: Some(LogisticRegressionParameters::default()),
             gaussian_nb_settings: Some(GaussianNBParameters::default()),
             categorical_nb_settings: None,
+            multinomial_nb_settings: None,
         }
     }
 }
@@ -86,6 +90,13 @@ impl ClassificationSettings {
     #[must_use]
     pub fn with_categorical_nb_settings(mut self, settings: CategoricalNBParameters) -> Self {
         self.categorical_nb_settings = Some(settings);
+        self
+    }
+
+    /// Specify settings for multinomial naive Bayes classifier
+    #[must_use]
+    pub fn with_multinomial_nb_settings(mut self, settings: MultinomialNBParameters) -> Self {
+        self.multinomial_nb_settings = Some(settings);
         self
     }
 
@@ -186,5 +197,247 @@ impl WithSupervisedSettings for ClassificationSettings {
 
     fn supervised_mut(&mut self) -> &mut SupervisedSettings {
         &mut self.supervised
+    }
+}
+
+mod serde_impls {
+    use super::{
+        CategoricalNBParameters, ClassificationSettings, DecisionTreeClassifierParameters,
+        GaussianNBParameters, KNNParameters, LogisticRegressionParameters, MultinomialNBParameters,
+        RandomForestClassifierParameters, SupervisedSettings,
+    };
+    use serde::de::{self, MapAccess, Visitor};
+    use serde::ser::SerializeStruct;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use std::fmt;
+
+    impl Serialize for ClassificationSettings {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            let mut state = serializer.serialize_struct("ClassificationSettings", 8)?;
+            state.serialize_field("supervised", &self.supervised)?;
+            state.serialize_field("knn_classifier_settings", &self.knn_classifier_settings)?;
+            state.serialize_field(
+                "decision_tree_classifier_settings",
+                &self.decision_tree_classifier_settings,
+            )?;
+            state.serialize_field(
+                "random_forest_classifier_settings",
+                &self.random_forest_classifier_settings,
+            )?;
+            state.serialize_field(
+                "logistic_regression_settings",
+                &self.logistic_regression_settings,
+            )?;
+            state.serialize_field("gaussian_nb_settings", &self.gaussian_nb_settings)?;
+            state.serialize_field("categorical_nb_settings", &self.categorical_nb_settings)?;
+            state.serialize_field("multinomial_nb_settings", &self.multinomial_nb_settings)?;
+            state.end()
+        }
+    }
+
+    #[allow(clippy::too_many_lines)]
+    impl<'de> Deserialize<'de> for ClassificationSettings {
+        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            enum Field {
+                Supervised,
+                KnnClassifierSettings,
+                DecisionTreeClassifierSettings,
+                RandomForestClassifierSettings,
+                LogisticRegressionSettings,
+                GaussianNbSettings,
+                CategoricalNbSettings,
+                MultinomialNbSettings,
+            }
+
+            impl<'de> Deserialize<'de> for Field {
+                fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+                where
+                    D: Deserializer<'de>,
+                {
+                    struct FieldVisitor;
+
+                    #[allow(clippy::elidable_lifetime_names)]
+                    impl<'de> Visitor<'de> for FieldVisitor {
+                        type Value = Field;
+
+                        fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                            formatter.write_str("a valid field name for ClassificationSettings")
+                        }
+
+                        fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+                        where
+                            E: de::Error,
+                        {
+                            match value {
+                                "supervised" => Ok(Field::Supervised),
+                                "knn_classifier_settings" => Ok(Field::KnnClassifierSettings),
+                                "decision_tree_classifier_settings" => {
+                                    Ok(Field::DecisionTreeClassifierSettings)
+                                }
+                                "random_forest_classifier_settings" => {
+                                    Ok(Field::RandomForestClassifierSettings)
+                                }
+                                "logistic_regression_settings" => {
+                                    Ok(Field::LogisticRegressionSettings)
+                                }
+                                "gaussian_nb_settings" => Ok(Field::GaussianNbSettings),
+                                "categorical_nb_settings" => Ok(Field::CategoricalNbSettings),
+                                "multinomial_nb_settings" => Ok(Field::MultinomialNbSettings),
+                                other => Err(de::Error::unknown_field(other, FIELDS)),
+                            }
+                        }
+                    }
+
+                    deserializer.deserialize_identifier(FieldVisitor)
+                }
+            }
+
+            struct ClassificationSettingsVisitor;
+
+            #[allow(clippy::elidable_lifetime_names)]
+            impl<'de> Visitor<'de> for ClassificationSettingsVisitor {
+                type Value = ClassificationSettings;
+
+                fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                    formatter.write_str("a map describing ClassificationSettings")
+                }
+
+                #[allow(clippy::too_many_lines)]
+                fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+                where
+                    A: MapAccess<'de>,
+                {
+                    let mut supervised: Option<SupervisedSettings> = None;
+                    let mut knn_classifier_settings: Option<Option<KNNParameters>> = None;
+                    let mut decision_tree_classifier_settings: Option<
+                        Option<DecisionTreeClassifierParameters>,
+                    > = None;
+                    let mut random_forest_classifier_settings: Option<
+                        Option<RandomForestClassifierParameters>,
+                    > = None;
+                    let mut logistic_regression_settings: Option<
+                        Option<LogisticRegressionParameters<f64>>,
+                    > = None;
+                    let mut gaussian_nb_settings: Option<Option<GaussianNBParameters>> = None;
+                    let mut categorical_nb_settings: Option<Option<CategoricalNBParameters>> = None;
+                    let mut multinomial_nb_settings: Option<Option<MultinomialNBParameters>> = None;
+
+                    while let Some(key) = map.next_key()? {
+                        match key {
+                            Field::Supervised => {
+                                if supervised.is_some() {
+                                    return Err(de::Error::duplicate_field("supervised"));
+                                }
+                                supervised = Some(map.next_value()?);
+                            }
+                            Field::KnnClassifierSettings => {
+                                if knn_classifier_settings.is_some() {
+                                    return Err(de::Error::duplicate_field(
+                                        "knn_classifier_settings",
+                                    ));
+                                }
+                                knn_classifier_settings = Some(map.next_value()?);
+                            }
+                            Field::DecisionTreeClassifierSettings => {
+                                if decision_tree_classifier_settings.is_some() {
+                                    return Err(de::Error::duplicate_field(
+                                        "decision_tree_classifier_settings",
+                                    ));
+                                }
+                                decision_tree_classifier_settings = Some(map.next_value()?);
+                            }
+                            Field::RandomForestClassifierSettings => {
+                                if random_forest_classifier_settings.is_some() {
+                                    return Err(de::Error::duplicate_field(
+                                        "random_forest_classifier_settings",
+                                    ));
+                                }
+                                random_forest_classifier_settings = Some(map.next_value()?);
+                            }
+                            Field::LogisticRegressionSettings => {
+                                if logistic_regression_settings.is_some() {
+                                    return Err(de::Error::duplicate_field(
+                                        "logistic_regression_settings",
+                                    ));
+                                }
+                                logistic_regression_settings = Some(map.next_value()?);
+                            }
+                            Field::GaussianNbSettings => {
+                                if gaussian_nb_settings.is_some() {
+                                    return Err(de::Error::duplicate_field("gaussian_nb_settings"));
+                                }
+                                gaussian_nb_settings = Some(map.next_value()?);
+                            }
+                            Field::CategoricalNbSettings => {
+                                if categorical_nb_settings.is_some() {
+                                    return Err(de::Error::duplicate_field(
+                                        "categorical_nb_settings",
+                                    ));
+                                }
+                                categorical_nb_settings = Some(map.next_value()?);
+                            }
+                            Field::MultinomialNbSettings => {
+                                if multinomial_nb_settings.is_some() {
+                                    return Err(de::Error::duplicate_field(
+                                        "multinomial_nb_settings",
+                                    ));
+                                }
+                                multinomial_nb_settings = Some(map.next_value()?);
+                            }
+                        }
+                    }
+
+                    let mut settings = ClassificationSettings::default();
+                    if let Some(value) = supervised {
+                        settings.supervised = value;
+                    }
+                    if let Some(value) = knn_classifier_settings {
+                        settings.knn_classifier_settings = value;
+                    }
+                    if let Some(value) = decision_tree_classifier_settings {
+                        settings.decision_tree_classifier_settings = value;
+                    }
+                    if let Some(value) = random_forest_classifier_settings {
+                        settings.random_forest_classifier_settings = value;
+                    }
+                    if let Some(value) = logistic_regression_settings {
+                        settings.logistic_regression_settings = value;
+                    }
+                    if let Some(value) = gaussian_nb_settings {
+                        settings.gaussian_nb_settings = value;
+                    }
+                    if let Some(value) = categorical_nb_settings {
+                        settings.categorical_nb_settings = value;
+                    }
+                    if let Some(value) = multinomial_nb_settings {
+                        settings.multinomial_nb_settings = value;
+                    }
+                    Ok(settings)
+                }
+            }
+
+            const FIELDS: &[&str] = &[
+                "supervised",
+                "knn_classifier_settings",
+                "decision_tree_classifier_settings",
+                "random_forest_classifier_settings",
+                "logistic_regression_settings",
+                "gaussian_nb_settings",
+                "categorical_nb_settings",
+                "multinomial_nb_settings",
+            ];
+
+            deserializer.deserialize_struct(
+                "ClassificationSettings",
+                FIELDS,
+                ClassificationSettingsVisitor,
+            )
+        }
     }
 }
