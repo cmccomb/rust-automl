@@ -1,12 +1,14 @@
 //! Classification algorithm definitions and helpers.
 
 use std::fmt::{Display, Formatter};
+use std::mem;
 use std::time::Instant;
 
 use super::supervised_train::SupervisedTrain;
 use crate::model::{ComparisonEntry, supervised::Algorithm};
-use crate::settings::{ClassificationSettings, SettingsError};
+use crate::settings::{ClassificationSettings, SVCParameters, SettingsError};
 use crate::utils::distance::KNNRegressorDistance;
+use crate::utils::kernels::SmartcoreKernel;
 use num_traits::Unsigned;
 use smartcore::api::SupervisedEstimator;
 use smartcore::error::{Failed, FailedError};
@@ -24,6 +26,7 @@ use smartcore::naive_bayes::{
 use smartcore::numbers::basenum::Number;
 use smartcore::numbers::floatnum::FloatNumber;
 use smartcore::numbers::realnum::RealNumber;
+use smartcore::svm::svc::{MultiClassSVC, SVCParameters as SmartcoreSVCParameters};
 
 type DenseCategoricalNB<OUTPUT, OutputArray> =
     CategoricalNB<OUTPUT, DenseMatrix<OUTPUT>, OutputArray>;
@@ -134,11 +137,71 @@ where
     convert_to_nonnegative_integer_dense_matrix(x, MULTINOMIAL_NB_ALGORITHM_NAME)
 }
 
-/// Supported classification algorithms.
-pub enum ClassificationAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
+#[derive(Clone)]
+struct PreparedSVCParameters<INPUT>
 where
     INPUT: RealNumber + FloatNumber,
-    OUTPUT: Number + Ord + Unsigned,
+{
+    epoch: usize,
+    c: INPUT,
+    tol: INPUT,
+    kernel_template: smartcore::svm::Kernels,
+}
+
+impl<INPUT> PreparedSVCParameters<INPUT>
+where
+    INPUT: RealNumber + FloatNumber,
+{
+    fn new(settings: &SVCParameters) -> Result<(Self, Box<dyn smartcore::svm::Kernel>), Failed> {
+        let SmartcoreKernel { kernel, function } = settings.kernel.to_smartcore()?;
+        let c = convert_positive_scalar::<INPUT>(settings.c, "support vector classifier C")?;
+        let tol =
+            convert_positive_scalar::<INPUT>(settings.tol, "support vector classifier tolerance")?;
+        Ok((
+            Self {
+                epoch: settings.epoch,
+                c,
+                tol,
+                kernel_template: kernel,
+            },
+            function,
+        ))
+    }
+
+    fn boxed_params<OUTPUT, InputArray, OutputArray>(
+        &self,
+        kernel: Box<dyn smartcore::svm::Kernel>,
+    ) -> Box<SmartcoreSVCParameters<INPUT, OUTPUT, InputArray, OutputArray>>
+    where
+        OUTPUT: Number + Ord,
+        InputArray: Array2<INPUT>,
+        OutputArray: Array1<OUTPUT>,
+    {
+        let mut params = SmartcoreSVCParameters::default();
+        params.epoch = self.epoch;
+        params.c = self.c;
+        params.tol = self.tol;
+        params.kernel = Some(kernel);
+        Box::new(params)
+    }
+
+    fn boxed_params_from_template<OUTPUT, InputArray, OutputArray>(
+        &self,
+    ) -> Box<SmartcoreSVCParameters<INPUT, OUTPUT, InputArray, OutputArray>>
+    where
+        OUTPUT: Number + Ord,
+        InputArray: Array2<INPUT>,
+        OutputArray: Array1<OUTPUT>,
+    {
+        self.boxed_params::<OUTPUT, InputArray, OutputArray>(Box::new(self.kernel_template.clone()))
+    }
+}
+
+/// Support vector classifier wrapper holding owned kernel parameters.
+pub struct OwnedSupportVectorClassifier<INPUT, OUTPUT, InputArray, OutputArray>
+where
+    INPUT: RealNumber + FloatNumber + 'static,
+    OUTPUT: Number + Ord + Unsigned + 'static,
     InputArray: MutArrayView2<INPUT>
         + Sized
         + Clone
@@ -146,8 +209,133 @@ where
         + QRDecomposable<INPUT>
         + SVDDecomposable<INPUT>
         + EVDDecomposable<INPUT>
-        + CholeskyDecomposable<INPUT>,
-    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
+        + CholeskyDecomposable<INPUT>
+        + 'static,
+    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT> + 'static,
+{
+    /// Stored parameters ensure the kernel object outlives the trained model.
+    _parameters: Box<SmartcoreSVCParameters<INPUT, OUTPUT, InputArray, OutputArray>>,
+    model: MultiClassSVC<'static, INPUT, OUTPUT, InputArray, OutputArray>,
+}
+
+impl<INPUT, OUTPUT, InputArray, OutputArray>
+    OwnedSupportVectorClassifier<INPUT, OUTPUT, InputArray, OutputArray>
+where
+    INPUT: RealNumber + FloatNumber + 'static,
+    OUTPUT: Number + Ord + Unsigned + 'static,
+    InputArray: MutArrayView2<INPUT>
+        + Sized
+        + Clone
+        + Array2<INPUT>
+        + QRDecomposable<INPUT>
+        + SVDDecomposable<INPUT>
+        + EVDDecomposable<INPUT>
+        + CholeskyDecomposable<INPUT>
+        + 'static,
+    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT> + 'static,
+{
+    fn fit_with_parameters(
+        x: &InputArray,
+        y: &OutputArray,
+        params: Box<SmartcoreSVCParameters<INPUT, OUTPUT, InputArray, OutputArray>>,
+    ) -> Result<Self, Failed> {
+        let params_ref: &SmartcoreSVCParameters<INPUT, OUTPUT, InputArray, OutputArray> =
+            params.as_ref();
+        let model = MultiClassSVC::fit(x, y, params_ref)?;
+        let model = unsafe {
+            mem::transmute::<
+                MultiClassSVC<'_, INPUT, OUTPUT, InputArray, OutputArray>,
+                MultiClassSVC<'static, INPUT, OUTPUT, InputArray, OutputArray>,
+            >(model)
+        };
+        Ok(Self {
+            _parameters: params,
+            model,
+        })
+    }
+
+    fn predict_vec(&self, x: &InputArray) -> Result<Vec<OUTPUT>, Failed> {
+        let raw_predictions = self.model.predict(x)?;
+        raw_predictions
+            .into_iter()
+            .map(convert_svc_prediction::<INPUT, OUTPUT>)
+            .collect()
+    }
+
+    fn predict_array(&self, x: &InputArray) -> Result<OutputArray, Failed> {
+        let values = self.predict_vec(x)?;
+        Ok(<OutputArray as Array1<OUTPUT>>::from_vec_slice(&values))
+    }
+}
+
+fn convert_positive_scalar<INPUT>(value: f32, name: &str) -> Result<INPUT, Failed>
+where
+    INPUT: RealNumber + FloatNumber,
+{
+    let as_f64 = f64::from(value);
+    if !as_f64.is_finite() {
+        return Err(Failed::because(
+            FailedError::ParametersError,
+            &format!("{name} must be finite"),
+        ));
+    }
+    if as_f64 <= 0.0 {
+        return Err(Failed::because(
+            FailedError::ParametersError,
+            &format!("{name} must be positive"),
+        ));
+    }
+    INPUT::from_f64(as_f64).ok_or_else(|| {
+        Failed::because(
+            FailedError::ParametersError,
+            &format!("{name} value {as_f64} cannot be represented by the input type"),
+        )
+    })
+}
+
+fn convert_svc_prediction<INPUT, OUTPUT>(value: INPUT) -> Result<OUTPUT, Failed>
+where
+    INPUT: RealNumber + FloatNumber,
+    OUTPUT: Number + Ord + Unsigned,
+{
+    let as_f64 = value
+        .to_f64()
+        .ok_or_else(|| Failed::predict("prediction not representable"))?;
+    if !as_f64.is_finite() {
+        return Err(Failed::predict(
+            "support vector classifier produced a non-finite prediction",
+        ));
+    }
+    let rounded = as_f64.round();
+    if (rounded - as_f64).abs() > f64::EPSILON {
+        return Err(Failed::predict(&format!(
+            "support vector classifier produced a non-integer class value {as_f64}"
+        )));
+    }
+    OUTPUT::from_f64(rounded).ok_or_else(|| {
+        Failed::predict(
+            &format!(
+                "support vector classifier prediction {rounded} cannot be represented in the output type"
+            ),
+        )
+    })
+}
+
+/// Supported classification algorithms.
+pub enum ClassificationAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
+where
+    INPUT: RealNumber + FloatNumber + 'static,
+    OUTPUT: Number + Ord + Unsigned + 'static,
+    InputArray: MutArrayView2<INPUT>
+        + Sized
+        + Clone
+        + Array2<INPUT>
+        + QRDecomposable<INPUT>
+        + SVDDecomposable<INPUT>
+        + EVDDecomposable<INPUT>
+        + CholeskyDecomposable<INPUT>
+        + 'static,
+    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT> + 'static,
 {
     /// Decision tree classifier
     DecisionTreeClassifier(
@@ -186,6 +374,10 @@ where
             OutputArray,
         >,
     ),
+    /// Support vector classifier
+    SupportVectorClassifier(
+        Option<OwnedSupportVectorClassifier<INPUT, OUTPUT, InputArray, OutputArray>>,
+    ),
     /// Gaussian naive Bayes classifier
     GaussianNB(
         smartcore::naive_bayes::gaussian::GaussianNB<INPUT, OUTPUT, InputArray, OutputArray>,
@@ -200,8 +392,8 @@ impl<INPUT, OUTPUT, InputArray, OutputArray>
     SupervisedTrain<INPUT, OUTPUT, InputArray, OutputArray, ClassificationSettings>
     for ClassificationAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
 where
-    INPUT: RealNumber + FloatNumber,
-    OUTPUT: Number + Ord + Unsigned,
+    INPUT: RealNumber + FloatNumber + 'static,
+    OUTPUT: Number + Ord + Unsigned + 'static,
     InputArray: MutArrayView2<INPUT>
         + Sized
         + Clone
@@ -209,8 +401,9 @@ where
         + QRDecomposable<INPUT>
         + SVDDecomposable<INPUT>
         + EVDDecomposable<INPUT>
-        + CholeskyDecomposable<INPUT>,
-    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
+        + CholeskyDecomposable<INPUT>
+        + 'static,
+    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT> + 'static,
 {
     #[allow(clippy::too_many_lines)]
     fn fit_inner(
@@ -294,6 +487,19 @@ where
                 Self::LogisticRegression(
                     smartcore::linear::logistic_regression::LogisticRegression::fit(x, y, params)?,
                 )
+            }
+            Self::SupportVectorClassifier(_) => {
+                let svc_settings = settings.svc_settings.as_ref().ok_or_else(|| {
+                    Failed::because(
+                        FailedError::ParametersError,
+                        "support vector classifier settings not provided",
+                    )
+                })?;
+                let (prepared, initial_kernel) = PreparedSVCParameters::<INPUT>::new(svc_settings)?;
+                let params =
+                    prepared.boxed_params::<OUTPUT, InputArray, OutputArray>(initial_kernel);
+                let model = OwnedSupportVectorClassifier::fit_with_parameters(x, y, params)?;
+                Self::SupportVectorClassifier(Some(model))
             }
             Self::GaussianNB(_) => {
                 Self::GaussianNB(smartcore::naive_bayes::gaussian::GaussianNB::fit(
@@ -435,6 +641,48 @@ where
                     metric,
                 )
             }
+            Self::SupportVectorClassifier(_) => {
+                let svc_settings = settings.svc_settings.as_ref().ok_or_else(|| {
+                    Failed::because(
+                        FailedError::ParametersError,
+                        "support vector classifier settings not provided",
+                    )
+                })?;
+                let (prepared, initial_kernel) = PreparedSVCParameters::<INPUT>::new(svc_settings)?;
+                let kfold = settings.get_kfolds();
+                let mut initial_kernel = Some(initial_kernel);
+                let mut test_scores: Vec<f64> = Vec::with_capacity(kfold.n_splits);
+                let mut train_scores: Vec<f64> = Vec::with_capacity(kfold.n_splits);
+                for (train_idx, test_idx) in kfold.split(x) {
+                    let train_x = x.take(&train_idx, 0);
+                    let train_y = y.take(&train_idx);
+                    let test_x = x.take(&test_idx, 0);
+                    let test_y = y.take(&test_idx);
+                    let params = if let Some(kernel) = initial_kernel.take() {
+                        prepared.boxed_params::<OUTPUT, InputArray, OutputArray>(kernel)
+                    } else {
+                        prepared.boxed_params_from_template::<OUTPUT, InputArray, OutputArray>()
+                    };
+                    let fold_model = OwnedSupportVectorClassifier::fit_with_parameters(
+                        &train_x, &train_y, params,
+                    )?;
+                    let train_pred = fold_model.predict_array(&train_x)?;
+                    let test_pred = fold_model.predict_array(&test_x)?;
+                    train_scores.push(metric(&train_y, &train_pred));
+                    test_scores.push(metric(&test_y, &test_pred));
+                }
+                let result = CrossValidationResult {
+                    test_score: test_scores,
+                    train_score: train_scores,
+                };
+                let (final_prepared, final_kernel) =
+                    PreparedSVCParameters::<INPUT>::new(svc_settings)?;
+                let final_params =
+                    final_prepared.boxed_params::<OUTPUT, InputArray, OutputArray>(final_kernel);
+                let final_model =
+                    OwnedSupportVectorClassifier::fit_with_parameters(x, y, final_params)?;
+                Ok((result, Self::SupportVectorClassifier(Some(final_model))))
+            }
             Self::GaussianNB(_) => Self::cross_validate_with(
                 self,
                 smartcore::naive_bayes::gaussian::GaussianNB::new(),
@@ -522,8 +770,8 @@ where
 impl<INPUT, OUTPUT, InputArray, OutputArray>
     ClassificationAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
 where
-    INPUT: RealNumber + FloatNumber,
-    OUTPUT: Number + Ord + Unsigned,
+    INPUT: RealNumber + FloatNumber + 'static,
+    OUTPUT: Number + Ord + Unsigned + 'static,
     InputArray: MutArrayView2<INPUT>
         + Sized
         + Clone
@@ -531,8 +779,9 @@ where
         + QRDecomposable<INPUT>
         + SVDDecomposable<INPUT>
         + EVDDecomposable<INPUT>
-        + CholeskyDecomposable<INPUT>,
-    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
+        + CholeskyDecomposable<INPUT>
+        + 'static,
+    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT> + 'static,
 {
     /// Default decision tree classifier algorithm
     #[must_use]
@@ -560,6 +809,12 @@ where
     #[must_use]
     pub fn default_logistic_regression() -> Self {
         Self::LogisticRegression(smartcore::linear::logistic_regression::LogisticRegression::new())
+    }
+
+    /// Default support vector classifier algorithm
+    #[must_use]
+    pub fn default_support_vector_classifier() -> Self {
+        Self::SupportVectorClassifier(None)
     }
 
     /// Default Gaussian naive Bayes classifier algorithm
@@ -632,8 +887,8 @@ where
 impl<INPUT, OUTPUT, InputArray, OutputArray> Algorithm<ClassificationSettings>
     for ClassificationAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
 where
-    INPUT: RealNumber + FloatNumber,
-    OUTPUT: Number + Ord + Unsigned,
+    INPUT: RealNumber + FloatNumber + 'static,
+    OUTPUT: Number + Ord + Unsigned + 'static,
     InputArray: MutArrayView2<INPUT>
         + Sized
         + Clone
@@ -641,8 +896,9 @@ where
         + QRDecomposable<INPUT>
         + SVDDecomposable<INPUT>
         + EVDDecomposable<INPUT>
-        + CholeskyDecomposable<INPUT>,
-    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
+        + CholeskyDecomposable<INPUT>
+        + 'static,
+    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT> + 'static,
 {
     type Input = INPUT;
     type Output = OUTPUT;
@@ -655,6 +911,12 @@ where
             Self::KNNClassifier(model) => model.predict(x),
             Self::RandomForestClassifier(model) => model.predict(x),
             Self::LogisticRegression(model) => model.predict(x),
+            Self::SupportVectorClassifier(model) => {
+                let model = model
+                    .as_ref()
+                    .ok_or_else(|| Failed::predict("support vector classifier is not trained"))?;
+                model.predict_array(x)
+            }
             Self::GaussianNB(model) => model.predict(x),
             Self::CategoricalNB(model) => {
                 let converted = convert_to_categorical_dense_matrix::<INPUT, OUTPUT, _>(x)?;
@@ -694,6 +956,9 @@ where
         if settings.logistic_regression_settings.is_some() {
             algorithms.push(Self::default_logistic_regression());
         }
+        if settings.svc_settings.is_some() {
+            algorithms.push(Self::default_support_vector_classifier());
+        }
         if settings.gaussian_nb_settings.is_some() {
             algorithms.push(Self::default_gaussian_nb());
         }
@@ -710,8 +975,8 @@ where
 impl<INPUT, OUTPUT, InputArray, OutputArray> PartialEq
     for ClassificationAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
 where
-    INPUT: RealNumber + FloatNumber,
-    OUTPUT: Number + Ord + Unsigned,
+    INPUT: RealNumber + FloatNumber + 'static,
+    OUTPUT: Number + Ord + Unsigned + 'static,
     InputArray: MutArrayView2<INPUT>
         + Sized
         + Clone
@@ -719,8 +984,9 @@ where
         + QRDecomposable<INPUT>
         + SVDDecomposable<INPUT>
         + EVDDecomposable<INPUT>
-        + CholeskyDecomposable<INPUT>,
-    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
+        + CholeskyDecomposable<INPUT>
+        + 'static,
+    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT> + 'static,
 {
     fn eq(&self, other: &Self) -> bool {
         matches!(self, Self::DecisionTreeClassifier(_))
@@ -730,6 +996,8 @@ where
                 && matches!(other, Self::RandomForestClassifier(_))
             || matches!(self, Self::LogisticRegression(_))
                 && matches!(other, Self::LogisticRegression(_))
+            || matches!(self, Self::SupportVectorClassifier(_))
+                && matches!(other, Self::SupportVectorClassifier(_))
             || matches!(self, Self::GaussianNB(_)) && matches!(other, Self::GaussianNB(_))
             || matches!(self, Self::CategoricalNB(_)) && matches!(other, Self::CategoricalNB(_))
             || matches!(self, Self::MultinomialNB(_)) && matches!(other, Self::MultinomialNB(_))
@@ -739,8 +1007,8 @@ where
 impl<INPUT, OUTPUT, InputArray, OutputArray> Default
     for ClassificationAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
 where
-    INPUT: RealNumber + FloatNumber,
-    OUTPUT: Number + Ord + Unsigned,
+    INPUT: RealNumber + FloatNumber + 'static,
+    OUTPUT: Number + Ord + Unsigned + 'static,
     InputArray: MutArrayView2<INPUT>
         + Sized
         + Clone
@@ -748,8 +1016,9 @@ where
         + QRDecomposable<INPUT>
         + SVDDecomposable<INPUT>
         + EVDDecomposable<INPUT>
-        + CholeskyDecomposable<INPUT>,
-    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
+        + CholeskyDecomposable<INPUT>
+        + 'static,
+    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT> + 'static,
 {
     fn default() -> Self {
         Self::default_decision_tree_classifier()
@@ -759,8 +1028,8 @@ where
 impl<INPUT, OUTPUT, InputArray, OutputArray> Display
     for ClassificationAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
 where
-    INPUT: RealNumber + FloatNumber,
-    OUTPUT: Number + Ord + Unsigned,
+    INPUT: RealNumber + FloatNumber + 'static,
+    OUTPUT: Number + Ord + Unsigned + 'static,
     InputArray: MutArrayView2<INPUT>
         + Sized
         + Clone
@@ -768,8 +1037,9 @@ where
         + QRDecomposable<INPUT>
         + SVDDecomposable<INPUT>
         + EVDDecomposable<INPUT>
-        + CholeskyDecomposable<INPUT>,
-    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT>,
+        + CholeskyDecomposable<INPUT>
+        + 'static,
+    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT> + 'static,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -777,6 +1047,7 @@ where
             Self::KNNClassifier(_) => write!(f, "KNN Classifier"),
             Self::RandomForestClassifier(_) => write!(f, "Random Forest Classifier"),
             Self::LogisticRegression(_) => write!(f, "Logistic Regression"),
+            Self::SupportVectorClassifier(_) => write!(f, "Support Vector Classifier"),
             Self::GaussianNB(_) => write!(f, "Gaussian NB"),
             Self::CategoricalNB(_) => write!(f, "Categorical NB"),
             Self::MultinomialNB(_) => write!(f, "Multinomial NB"),

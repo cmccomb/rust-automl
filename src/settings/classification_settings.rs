@@ -1,8 +1,8 @@
 use super::{
     CategoricalNBParameters, DecisionTreeClassifierParameters, FinalAlgorithm,
     GaussianNBParameters, KNNParameters, LogisticRegressionParameters, Metric,
-    MultinomialNBParameters, PreProcessing, RandomForestClassifierParameters, SettingsError,
-    SupervisedSettings, WithSupervisedSettings,
+    MultinomialNBParameters, PreProcessing, RandomForestClassifierParameters, SVCParameters,
+    SettingsError, SupervisedSettings, WithSupervisedSettings,
 };
 use crate::settings::macros::with_settings_methods;
 use smartcore::linalg::basic::arrays::Array1;
@@ -28,6 +28,8 @@ pub struct ClassificationSettings {
     pub(crate) categorical_nb_settings: Option<CategoricalNBParameters>,
     /// Optional settings for multinomial naive Bayes classifier
     pub(crate) multinomial_nb_settings: Option<MultinomialNBParameters>,
+    /// Optional settings for support vector classifier
+    pub(crate) svc_settings: Option<SVCParameters>,
 }
 
 impl Default for ClassificationSettings {
@@ -44,6 +46,7 @@ impl Default for ClassificationSettings {
             gaussian_nb_settings: Some(GaussianNBParameters::default()),
             categorical_nb_settings: None,
             multinomial_nb_settings: None,
+            svc_settings: None,
         }
     }
 }
@@ -77,6 +80,8 @@ impl ClassificationSettings {
         with_random_forest_classifier_settings, random_forest_classifier_settings, RandomForestClassifierParameters;
         /// Specify settings for logistic regression classifier
         with_logistic_regression_settings, logistic_regression_settings, LogisticRegressionParameters<f64>;
+        /// Specify settings for support vector classifier
+        with_svc_settings, svc_settings, SVCParameters;
     }
 
     /// Specify settings for Gaussian naive Bayes classifier
@@ -204,7 +209,7 @@ mod serde_impls {
     use super::{
         CategoricalNBParameters, ClassificationSettings, DecisionTreeClassifierParameters,
         GaussianNBParameters, KNNParameters, LogisticRegressionParameters, MultinomialNBParameters,
-        RandomForestClassifierParameters, SupervisedSettings,
+        RandomForestClassifierParameters, SVCParameters, SupervisedSettings,
     };
     use serde::de::{self, MapAccess, Visitor};
     use serde::ser::SerializeStruct;
@@ -216,7 +221,7 @@ mod serde_impls {
         where
             S: Serializer,
         {
-            let mut state = serializer.serialize_struct("ClassificationSettings", 8)?;
+            let mut state = serializer.serialize_struct("ClassificationSettings", 9)?;
             state.serialize_field("supervised", &self.supervised)?;
             state.serialize_field("knn_classifier_settings", &self.knn_classifier_settings)?;
             state.serialize_field(
@@ -234,6 +239,7 @@ mod serde_impls {
             state.serialize_field("gaussian_nb_settings", &self.gaussian_nb_settings)?;
             state.serialize_field("categorical_nb_settings", &self.categorical_nb_settings)?;
             state.serialize_field("multinomial_nb_settings", &self.multinomial_nb_settings)?;
+            state.serialize_field("svc_settings", &self.svc_settings)?;
             state.end()
         }
     }
@@ -253,6 +259,7 @@ mod serde_impls {
                 GaussianNbSettings,
                 CategoricalNbSettings,
                 MultinomialNbSettings,
+                SvcSettings,
             }
 
             impl<'de> Deserialize<'de> for Field {
@@ -289,6 +296,7 @@ mod serde_impls {
                                 "gaussian_nb_settings" => Ok(Field::GaussianNbSettings),
                                 "categorical_nb_settings" => Ok(Field::CategoricalNbSettings),
                                 "multinomial_nb_settings" => Ok(Field::MultinomialNbSettings),
+                                "svc_settings" => Ok(Field::SvcSettings),
                                 other => Err(de::Error::unknown_field(other, FIELDS)),
                             }
                         }
@@ -327,6 +335,7 @@ mod serde_impls {
                     let mut gaussian_nb_settings: Option<Option<GaussianNBParameters>> = None;
                     let mut categorical_nb_settings: Option<Option<CategoricalNBParameters>> = None;
                     let mut multinomial_nb_settings: Option<Option<MultinomialNBParameters>> = None;
+                    let mut svc_settings: Option<Option<SVCParameters>> = None;
 
                     while let Some(key) = map.next_key()? {
                         match key {
@@ -390,6 +399,12 @@ mod serde_impls {
                                 }
                                 multinomial_nb_settings = Some(map.next_value()?);
                             }
+                            Field::SvcSettings => {
+                                if svc_settings.is_some() {
+                                    return Err(de::Error::duplicate_field("svc_settings"));
+                                }
+                                svc_settings = Some(map.next_value()?);
+                            }
                         }
                     }
 
@@ -418,6 +433,9 @@ mod serde_impls {
                     if let Some(value) = multinomial_nb_settings {
                         settings.multinomial_nb_settings = value;
                     }
+                    if let Some(value) = svc_settings {
+                        settings.svc_settings = value;
+                    }
                     Ok(settings)
                 }
             }
@@ -431,6 +449,7 @@ mod serde_impls {
                 "gaussian_nb_settings",
                 "categorical_nb_settings",
                 "multinomial_nb_settings",
+                "svc_settings",
             ];
 
             deserializer.deserialize_struct(
