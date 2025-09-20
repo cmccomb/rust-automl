@@ -4,11 +4,14 @@ mod classification_data;
 use automl::algorithms::ClassificationAlgorithm;
 use automl::model::Algorithm;
 use automl::settings::{
-    CategoricalNBParameters, ClassificationSettings, MultinomialNBParameters,
-    RandomForestClassifierParameters, SVCParameters,
+    BernoulliNBParameters, CategoricalNBParameters, ClassificationSettings,
+    MultinomialNBParameters, RandomForestClassifierParameters, SVCParameters,
 };
 use automl::{DenseMatrix, ModelError, SupervisedModel};
-use classification_data::classification_testing_data;
+use classification_data::{
+    bernoulli_binary_classification_data, bernoulli_threshold_classification_data,
+    classification_testing_data,
+};
 use smartcore::api::SupervisedEstimator;
 use smartcore::linear::logistic_regression::LogisticRegressionParameters;
 
@@ -52,6 +55,11 @@ fn test_all_algorithms_included() {
             .iter()
             .all(|a| !matches!(a, ClassificationAlgorithm::MultinomialNB(_)))
     );
+    assert!(
+        algorithms
+            .iter()
+            .all(|a| !matches!(a, ClassificationAlgorithm::BernoulliNB(_)))
+    );
 }
 
 #[test]
@@ -77,6 +85,19 @@ fn multinomial_nb_algorithm_available_when_enabled() {
         algorithms
             .iter()
             .any(|a| matches!(a, ClassificationAlgorithm::MultinomialNB(_)))
+    );
+}
+
+#[test]
+fn bernoulli_nb_algorithm_available_when_enabled() {
+    let settings = ClassificationSettings::default()
+        .with_bernoulli_nb_settings(BernoulliNBParameters::default());
+    let algorithms = <ClassificationAlgorithm<f64, u32, DenseMatrix<f64>, Vec<u32>> as
+        automl::model::Algorithm<ClassificationSettings>>::all_algorithms(&settings);
+    assert!(
+        algorithms
+            .iter()
+            .any(|a| matches!(a, ClassificationAlgorithm::BernoulliNB(_)))
     );
 }
 
@@ -137,6 +158,63 @@ fn support_vector_classifier_trains_and_predicts() {
         .expect("SVC training should succeed");
     let predictions = trained.predict(&x).expect("SVC prediction should succeed");
     assert_eq!(predictions.len(), y.len());
+}
+
+#[test]
+fn bernoulli_nb_trains_on_binary_features() {
+    let (x, y) = bernoulli_binary_classification_data();
+    let params = BernoulliNBParameters::<f64> {
+        binarize: None,
+        ..BernoulliNBParameters::default()
+    };
+    let settings = ClassificationSettings::default().with_bernoulli_nb_settings(params);
+    let algorithm: ClassificationAlgorithm<f64, u32, DenseMatrix<f64>, Vec<u32>> =
+        ClassificationAlgorithm::default_bernoulli_nb();
+    let trained = algorithm
+        .fit(&x, &y, &settings)
+        .expect("Bernoulli NB training should succeed on binary data");
+    let predictions = trained
+        .predict(&x)
+        .expect("Bernoulli NB prediction should succeed on binary data");
+    assert_eq!(predictions.len(), y.len());
+    assert!(predictions.iter().all(|&value| value <= 1));
+}
+
+#[test]
+fn bernoulli_nb_binarizes_with_threshold() {
+    let (x, y) = bernoulli_threshold_classification_data();
+    let settings = ClassificationSettings::default()
+        .with_bernoulli_nb_settings(BernoulliNBParameters::default().with_binarize(0.5));
+    let algorithm: ClassificationAlgorithm<f64, u32, DenseMatrix<f64>, Vec<u32>> =
+        ClassificationAlgorithm::default_bernoulli_nb();
+    let trained = algorithm
+        .fit(&x, &y, &settings)
+        .expect("Bernoulli NB training should succeed with threshold");
+    let predictions = trained
+        .predict(&x)
+        .expect("Bernoulli NB prediction should succeed with threshold");
+    assert_eq!(predictions.len(), y.len());
+}
+
+#[test]
+fn bernoulli_nb_rejects_non_binary_without_threshold() {
+    let (x, y) = bernoulli_threshold_classification_data();
+    let params = BernoulliNBParameters::<f64> {
+        binarize: None,
+        ..BernoulliNBParameters::default()
+    };
+    let settings = ClassificationSettings::default().with_bernoulli_nb_settings(params);
+    let algorithm: ClassificationAlgorithm<f64, u32, DenseMatrix<f64>, Vec<u32>> =
+        ClassificationAlgorithm::default_bernoulli_nb();
+    let error = algorithm
+        .fit(&x, &y, &settings)
+        .err()
+        .expect("Bernoulli NB training should fail without threshold on non-binary data");
+    let message = error.to_string();
+    assert!(
+        message.contains("Bernoulli naive Bayes requires binary features"),
+        "Unexpected error message: {message}"
+    );
 }
 
 #[test]
