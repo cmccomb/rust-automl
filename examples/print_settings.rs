@@ -1,8 +1,8 @@
 use automl::settings::{
     DecisionTreeRegressorParameters, Distance, ElasticNetParameters, KNNAlgorithmName,
-    KNNParameters, KNNWeightFunction, LassoParameters, LinearRegressionParameters,
+    KNNParameters, KNNWeightFunction, Kernel, LassoParameters, LinearRegressionParameters,
     LinearRegressionSolverName, Metric, PreProcessing, RandomForestRegressorParameters,
-    RegressionSettings, RidgeRegressionParameters, RidgeRegressionSolverName,
+    RegressionSettings, RidgeRegressionParameters, RidgeRegressionSolverName, SVRParameters,
 };
 use smartcore::linalg::basic::matrix::DenseMatrix;
 
@@ -45,13 +45,13 @@ fn main() {
                     .with_distance(Distance::Euclidean)
                     .with_weight(KNNWeightFunction::Uniform),
             )
-            // .with_svr_settings(
-            //     SVRParameters::default()
-            //         .with_eps(1e-10)
-            //         .with_tol(1e-10)
-            //         .with_c(1.0)
-            //         .with_kernel(Kernel::Linear),
-            // )
+            .with_svr_settings(
+                SVRParameters::default()
+                    .with_eps(0.1)
+                    .with_tol(1e-4)
+                    .with_c(1.5)
+                    .with_kernel(Kernel::Polynomial(2.0, 0.5, 1.0)),
+            )
             .with_random_forest_regressor_settings(
                 RandomForestRegressorParameters::default()
                     .with_m(100)

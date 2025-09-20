@@ -5,8 +5,8 @@
 use super::{
     DecisionTreeRegressorParameters, ElasticNetParameters, FinalAlgorithm, KNNParameters,
     LassoParameters, LinearRegressionParameters, Metric, PreProcessing,
-    RandomForestRegressorParameters, RidgeRegressionParameters, SettingsError, SupervisedSettings,
-    WithSupervisedSettings,
+    RandomForestRegressorParameters, RidgeRegressionParameters, SVRParameters, SettingsError,
+    SupervisedSettings, WithSupervisedSettings,
 };
 use crate::algorithms::RegressionAlgorithm;
 use crate::settings::macros::with_settings_methods;
@@ -25,13 +25,14 @@ use std::fmt::{Display, Formatter};
 /// Any algorithms in the `skiplist` member will be skipped during training.
 pub struct RegressionSettings<INPUT, OUTPUT, InputArray, OutputArray>
 where
-    INPUT: FloatNumber + RealNumber,
-    OUTPUT: FloatNumber,
+    INPUT: FloatNumber + RealNumber + 'static,
+    OUTPUT: FloatNumber + 'static,
     InputArray: CholeskyDecomposable<INPUT>
         + SVDDecomposable<INPUT>
         + EVDDecomposable<INPUT>
-        + QRDecomposable<INPUT>,
-    OutputArray: Array1<OUTPUT>,
+        + QRDecomposable<INPUT>
+        + 'static,
+    OutputArray: Array1<OUTPUT> + 'static,
 {
     /// Shared supervised settings
     pub(crate) supervised: SupervisedSettings,
@@ -51,18 +52,21 @@ where
     pub(crate) random_forest_regressor_settings: Option<RandomForestRegressorParameters>,
     /// Optional settings for KNN regressor
     pub(crate) knn_regressor_settings: Option<KNNParameters>,
+    /// Optional settings for support vector regressor
+    pub(crate) svr_settings: Option<SVRParameters>,
 }
 
 impl<INPUT, OUTPUT, InputArray, OutputArray> Default
     for RegressionSettings<INPUT, OUTPUT, InputArray, OutputArray>
 where
-    INPUT: FloatNumber + RealNumber,
-    OUTPUT: FloatNumber,
+    INPUT: FloatNumber + RealNumber + 'static,
+    OUTPUT: FloatNumber + 'static,
     InputArray: CholeskyDecomposable<INPUT>
         + SVDDecomposable<INPUT>
         + EVDDecomposable<INPUT>
-        + QRDecomposable<INPUT>,
-    OutputArray: Array1<OUTPUT>,
+        + QRDecomposable<INPUT>
+        + 'static,
+    OutputArray: Array1<OUTPUT> + 'static,
 {
     fn default() -> Self {
         Self {
@@ -78,6 +82,7 @@ where
             decision_tree_regressor_settings: Some(DecisionTreeRegressorParameters::default()),
             random_forest_regressor_settings: Some(RandomForestRegressorParameters::default()),
             knn_regressor_settings: Some(KNNParameters::default()),
+            svr_settings: Some(SVRParameters::default()),
         }
     }
 }
@@ -85,13 +90,14 @@ where
 impl<INPUT, OUTPUT, InputArray, OutputArray>
     RegressionSettings<INPUT, OUTPUT, InputArray, OutputArray>
 where
-    INPUT: FloatNumber + RealNumber + Number,
-    OUTPUT: FloatNumber + Number,
+    INPUT: FloatNumber + RealNumber + Number + 'static,
+    OUTPUT: FloatNumber + Number + 'static,
     InputArray: CholeskyDecomposable<INPUT>
         + SVDDecomposable<INPUT>
         + EVDDecomposable<INPUT>
-        + QRDecomposable<INPUT>,
-    OutputArray: Array1<OUTPUT>,
+        + QRDecomposable<INPUT>
+        + 'static,
+    OutputArray: Array1<OUTPUT> + 'static,
 {
     /// Retrieve the metric function for regression tasks.
     ///
@@ -146,6 +152,15 @@ where
         with_random_forest_regressor_settings, random_forest_regressor_settings, RandomForestRegressorParameters;
         /// Specify settings for decision tree regressor
         with_decision_tree_regressor_settings, decision_tree_regressor_settings, DecisionTreeRegressorParameters;
+        /// Specify settings for support vector regressor
+        with_svr_settings, svr_settings, SVRParameters;
+    }
+
+    /// Disable the support vector regressor by removing its settings.
+    #[must_use]
+    pub fn without_svr_settings(mut self) -> Self {
+        self.svr_settings = None;
+        self
     }
 
     /// Set the number of folds for cross-validation.
@@ -253,13 +268,14 @@ where
 impl<INPUT, OUTPUT, InputArray, OutputArray> WithSupervisedSettings
     for RegressionSettings<INPUT, OUTPUT, InputArray, OutputArray>
 where
-    INPUT: FloatNumber + RealNumber,
-    OUTPUT: FloatNumber,
+    INPUT: FloatNumber + RealNumber + 'static,
+    OUTPUT: FloatNumber + 'static,
     InputArray: CholeskyDecomposable<INPUT>
         + SVDDecomposable<INPUT>
         + EVDDecomposable<INPUT>
-        + QRDecomposable<INPUT>,
-    OutputArray: Array1<OUTPUT>,
+        + QRDecomposable<INPUT>
+        + 'static,
+    OutputArray: Array1<OUTPUT> + 'static,
 {
     fn supervised(&self) -> &SupervisedSettings {
         &self.supervised
@@ -273,13 +289,14 @@ where
 impl<INPUT, OUTPUT, InputArray, OutputArray> Display
     for RegressionSettings<INPUT, OUTPUT, InputArray, OutputArray>
 where
-    INPUT: FloatNumber + RealNumber,
-    OUTPUT: FloatNumber,
+    INPUT: FloatNumber + RealNumber + 'static,
+    OUTPUT: FloatNumber + 'static,
     InputArray: CholeskyDecomposable<INPUT>
         + SVDDecomposable<INPUT>
         + EVDDecomposable<INPUT>
-        + QRDecomposable<INPUT>,
-    OutputArray: Array1<OUTPUT>,
+        + QRDecomposable<INPUT>
+        + 'static,
+    OutputArray: Array1<OUTPUT> + 'static,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(

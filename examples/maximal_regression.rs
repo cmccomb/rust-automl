@@ -20,9 +20,10 @@ use automl::{
     algorithms::RegressionAlgorithm,
     settings::{
         DecisionTreeRegressorParameters, Distance, ElasticNetParameters, FinalAlgorithm,
-        KNNAlgorithmName, KNNParameters, KNNWeightFunction, LassoParameters,
+        KNNAlgorithmName, KNNParameters, KNNWeightFunction, Kernel, LassoParameters,
         LinearRegressionParameters, LinearRegressionSolverName, Metric,
         RandomForestRegressorParameters, RidgeRegressionParameters, RidgeRegressionSolverName,
+        SVRParameters,
     },
 };
 use regression_data::regression_testing_data;
@@ -72,13 +73,13 @@ fn main() -> Result<(), Failed> {
                 .with_distance(Distance::Euclidean)
                 .with_weight(KNNWeightFunction::Uniform),
         )
-        // .with_svr_settings(
-        //     SVRParameters::default()
-        //         .with_eps(0.1)
-        //         .with_tol(1e-3)
-        //         .with_c(1.0)
-        //         .with_kernel(Kernel::Linear),
-        // )
+        .with_svr_settings(
+            SVRParameters::default()
+                .with_eps(0.05)
+                .with_tol(1e-4)
+                .with_c(2.5)
+                .with_kernel(Kernel::RBF(0.4)),
+        )
         .with_random_forest_regressor_settings(
             RandomForestRegressorParameters::default()
                 .with_m(1)

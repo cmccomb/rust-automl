@@ -51,6 +51,13 @@
 //!             .with_distance(Distance::Euclidean)
 //!             .with_weight(KNNWeightFunction::Uniform),
 //!     )
+//!     .with_svr_settings(
+//!         SVRParameters::default()
+//!             .with_eps(0.2)
+//!             .with_tol(1e-4)
+//!             .with_c(2.0)
+//!             .with_kernel(Kernel::RBF(0.5)),
+//!     )
 //!     .with_random_forest_regressor_settings(
 //!         RandomForestRegressorParameters::default()
 //!             .with_m(100)

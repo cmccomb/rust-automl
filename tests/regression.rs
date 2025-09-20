@@ -2,9 +2,10 @@
 mod regression_data;
 
 use automl::algorithms::RegressionAlgorithm;
-use automl::settings::{Distance, KNNParameters};
+use automl::settings::{Distance, KNNParameters, Kernel, SVRParameters};
 use automl::{DenseMatrix, RegressionSettings, SupervisedModel};
 use regression_data::regression_testing_data;
+use smartcore::error::FailedError;
 
 #[test]
 fn test_default_regression() {
@@ -25,6 +26,63 @@ fn test_knn_only_regression() {
             .only(&RegressionAlgorithm::default_knn_regressor());
         test_from_settings(settings);
     }
+}
+
+#[test]
+fn test_svr_regression_multiple_kernels() {
+    let kernels = vec![
+        Kernel::Linear,
+        Kernel::RBF(0.25),
+        Kernel::Polynomial(3.0, 0.5, 1.0),
+        Kernel::Sigmoid(0.1, 0.0),
+    ];
+    for kernel in kernels {
+        let settings = RegressionSettings::default()
+            .with_svr_settings(
+                SVRParameters::default()
+                    .with_eps(0.2)
+                    .with_tol(5e-4)
+                    .with_c(1.2)
+                    .with_kernel(kernel),
+            )
+            .only(&RegressionAlgorithm::default_support_vector_regressor());
+        test_from_settings(settings);
+    }
+}
+
+#[test]
+fn test_svr_skiplist_controls_algorithms() {
+    let settings: RegressionSettings<f64, f64, DenseMatrix<f64>, Vec<f64>> =
+        RegressionSettings::default().skip(RegressionAlgorithm::default_support_vector_regressor());
+    let algorithms = RegressionAlgorithm::all_algorithms(&settings);
+    assert!(
+        algorithms
+            .iter()
+            .all(|algo| !matches!(algo, RegressionAlgorithm::SupportVectorRegressor(_)))
+    );
+
+    let settings: RegressionSettings<f64, f64, DenseMatrix<f64>, Vec<f64>> =
+        RegressionSettings::default()
+            .only(&RegressionAlgorithm::default_support_vector_regressor());
+    let algorithms = RegressionAlgorithm::all_algorithms(&settings);
+    assert_eq!(algorithms.len(), 1);
+    assert!(matches!(
+        algorithms[0],
+        RegressionAlgorithm::SupportVectorRegressor(_)
+    ));
+}
+
+#[test]
+fn test_svr_missing_settings_error() {
+    let (x, y) = regression_testing_data();
+    let settings: RegressionSettings<f64, f64, DenseMatrix<f64>, Vec<f64>> =
+        RegressionSettings::default().without_svr_settings();
+    let algo = RegressionAlgorithm::default_support_vector_regressor();
+    let err = algo
+        .fit(&x, &y, &settings)
+        .err()
+        .expect("expected missing SVR settings to error");
+    assert_eq!(err.error(), FailedError::ParametersError);
 }
 
 fn test_from_settings(settings: RegressionSettings<f64, f64, DenseMatrix<f64>, Vec<f64>>) {
