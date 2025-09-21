@@ -22,11 +22,45 @@ fn errors_on_bad_path() {
 #[test]
 fn errors_on_non_numeric() {
     let err = load_labeled_csv("tests/fixtures/non_numeric_labeled.csv", 2).unwrap_err();
-    assert!(matches!(err, CsvError::Parse(_)));
+    match err {
+        CsvError::Parse(parse_err) => {
+            let message = parse_err.to_string();
+            assert!(message.contains("row 2"), "unexpected message: {message}");
+            assert!(
+                message.contains("column 2"),
+                "unexpected message: {message}"
+            );
+        }
+        other => panic!("expected parse error, got {other}"),
+    }
 }
 
 #[test]
 fn errors_on_inconsistent_rows() {
     let err = load_labeled_csv("tests/fixtures/inconsistent_labeled.csv", 2).unwrap_err();
-    assert!(matches!(err, CsvError::Shape(_)));
+    match err {
+        CsvError::Shape(message) => {
+            assert!(message.contains("row 2"), "unexpected message: {message}");
+            assert!(
+                message.contains("out of bounds"),
+                "unexpected message: {message}"
+            );
+        }
+        other => panic!("expected shape error, got {other}"),
+    }
+}
+
+#[test]
+fn errors_when_target_column_out_of_range() {
+    let err = load_labeled_csv("tests/fixtures/supervised_sample.csv", 5).unwrap_err();
+    match err {
+        CsvError::Shape(message) => {
+            assert!(message.contains("row 1"), "unexpected message: {message}");
+            assert!(
+                message.contains("out of bounds"),
+                "unexpected message: {message}"
+            );
+        }
+        other => panic!("expected shape error, got {other}"),
+    }
 }
