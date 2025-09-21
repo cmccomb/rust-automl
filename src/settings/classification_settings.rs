@@ -1,6 +1,6 @@
 use super::{
-    CategoricalNBParameters, DecisionTreeClassifierParameters, FinalAlgorithm,
-    GaussianNBParameters, KNNParameters, LogisticRegressionParameters, Metric,
+    BernoulliNBParameters, CategoricalNBParameters, DecisionTreeClassifierParameters,
+    FinalAlgorithm, GaussianNBParameters, KNNParameters, LogisticRegressionParameters, Metric,
     MultinomialNBParameters, PreProcessing, RandomForestClassifierParameters, SVCParameters,
     SettingsError, SupervisedSettings, WithSupervisedSettings,
 };
@@ -22,6 +22,8 @@ pub struct ClassificationSettings {
     pub(crate) random_forest_classifier_settings: Option<RandomForestClassifierParameters>,
     /// Optional settings for logistic regression classifier
     pub(crate) logistic_regression_settings: Option<LogisticRegressionParameters<f64>>,
+    /// Optional settings for Bernoulli naive Bayes classifier
+    pub(crate) bernoulli_nb_settings: Option<BernoulliNBParameters<f64>>,
     /// Optional settings for Gaussian naive Bayes classifier
     pub(crate) gaussian_nb_settings: Option<GaussianNBParameters>,
     /// Optional settings for categorical naive Bayes classifier
@@ -43,6 +45,7 @@ impl Default for ClassificationSettings {
             decision_tree_classifier_settings: Some(DecisionTreeClassifierParameters::default()),
             random_forest_classifier_settings: Some(RandomForestClassifierParameters::default()),
             logistic_regression_settings: Some(LogisticRegressionParameters::default()),
+            bernoulli_nb_settings: None,
             gaussian_nb_settings: Some(GaussianNBParameters::default()),
             categorical_nb_settings: None,
             multinomial_nb_settings: None,
@@ -82,6 +85,13 @@ impl ClassificationSettings {
         with_logistic_regression_settings, logistic_regression_settings, LogisticRegressionParameters<f64>;
         /// Specify settings for support vector classifier
         with_svc_settings, svc_settings, SVCParameters;
+    }
+
+    /// Specify settings for Bernoulli naive Bayes classifier
+    #[must_use]
+    pub fn with_bernoulli_nb_settings(mut self, settings: BernoulliNBParameters<f64>) -> Self {
+        self.bernoulli_nb_settings = Some(settings);
+        self
     }
 
     /// Specify settings for Gaussian naive Bayes classifier
@@ -207,9 +217,10 @@ impl WithSupervisedSettings for ClassificationSettings {
 
 mod serde_impls {
     use super::{
-        CategoricalNBParameters, ClassificationSettings, DecisionTreeClassifierParameters,
-        GaussianNBParameters, KNNParameters, LogisticRegressionParameters, MultinomialNBParameters,
-        RandomForestClassifierParameters, SVCParameters, SupervisedSettings,
+        BernoulliNBParameters, CategoricalNBParameters, ClassificationSettings,
+        DecisionTreeClassifierParameters, GaussianNBParameters, KNNParameters,
+        LogisticRegressionParameters, MultinomialNBParameters, RandomForestClassifierParameters,
+        SVCParameters, SupervisedSettings,
     };
     use serde::de::{self, MapAccess, Visitor};
     use serde::ser::SerializeStruct;
@@ -221,7 +232,7 @@ mod serde_impls {
         where
             S: Serializer,
         {
-            let mut state = serializer.serialize_struct("ClassificationSettings", 9)?;
+            let mut state = serializer.serialize_struct("ClassificationSettings", 10)?;
             state.serialize_field("supervised", &self.supervised)?;
             state.serialize_field("knn_classifier_settings", &self.knn_classifier_settings)?;
             state.serialize_field(
@@ -236,6 +247,7 @@ mod serde_impls {
                 "logistic_regression_settings",
                 &self.logistic_regression_settings,
             )?;
+            state.serialize_field("bernoulli_nb_settings", &self.bernoulli_nb_settings)?;
             state.serialize_field("gaussian_nb_settings", &self.gaussian_nb_settings)?;
             state.serialize_field("categorical_nb_settings", &self.categorical_nb_settings)?;
             state.serialize_field("multinomial_nb_settings", &self.multinomial_nb_settings)?;
@@ -256,6 +268,7 @@ mod serde_impls {
                 DecisionTreeClassifierSettings,
                 RandomForestClassifierSettings,
                 LogisticRegressionSettings,
+                BernoulliNbSettings,
                 GaussianNbSettings,
                 CategoricalNbSettings,
                 MultinomialNbSettings,
@@ -293,6 +306,7 @@ mod serde_impls {
                                 "logistic_regression_settings" => {
                                     Ok(Field::LogisticRegressionSettings)
                                 }
+                                "bernoulli_nb_settings" => Ok(Field::BernoulliNbSettings),
                                 "gaussian_nb_settings" => Ok(Field::GaussianNbSettings),
                                 "categorical_nb_settings" => Ok(Field::CategoricalNbSettings),
                                 "multinomial_nb_settings" => Ok(Field::MultinomialNbSettings),
@@ -332,6 +346,8 @@ mod serde_impls {
                     let mut logistic_regression_settings: Option<
                         Option<LogisticRegressionParameters<f64>>,
                     > = None;
+                    let mut bernoulli_nb_settings: Option<Option<BernoulliNBParameters<f64>>> =
+                        None;
                     let mut gaussian_nb_settings: Option<Option<GaussianNBParameters>> = None;
                     let mut categorical_nb_settings: Option<Option<CategoricalNBParameters>> = None;
                     let mut multinomial_nb_settings: Option<Option<MultinomialNBParameters>> = None;
@@ -376,6 +392,14 @@ mod serde_impls {
                                     ));
                                 }
                                 logistic_regression_settings = Some(map.next_value()?);
+                            }
+                            Field::BernoulliNbSettings => {
+                                if bernoulli_nb_settings.is_some() {
+                                    return Err(de::Error::duplicate_field(
+                                        "bernoulli_nb_settings",
+                                    ));
+                                }
+                                bernoulli_nb_settings = Some(map.next_value()?);
                             }
                             Field::GaussianNbSettings => {
                                 if gaussian_nb_settings.is_some() {
@@ -424,6 +448,9 @@ mod serde_impls {
                     if let Some(value) = logistic_regression_settings {
                         settings.logistic_regression_settings = value;
                     }
+                    if let Some(value) = bernoulli_nb_settings {
+                        settings.bernoulli_nb_settings = value;
+                    }
                     if let Some(value) = gaussian_nb_settings {
                         settings.gaussian_nb_settings = value;
                     }
@@ -446,6 +473,7 @@ mod serde_impls {
                 "decision_tree_classifier_settings",
                 "random_forest_classifier_settings",
                 "logistic_regression_settings",
+                "bernoulli_nb_settings",
                 "gaussian_nb_settings",
                 "categorical_nb_settings",
                 "multinomial_nb_settings",

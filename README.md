@@ -153,6 +153,23 @@ let settings = ClassificationSettings::default()
 If the feature matrix includes fractional or negative values, the Multinomial NB variant will
 emit a descriptive error explaining the constraint.
 
+Bernoulli Naive Bayes supports binary features and can also binarize continuous inputs when you
+provide a threshold. Set `binarize` to `None` to require pre-binarized inputs, or configure the
+threshold to map values above it to `1` and the rest to `0` during training and prediction:
+
+```rust
+use automl::settings::{BernoulliNBParameters, ClassificationSettings};
+
+let mut params = BernoulliNBParameters::default();
+params.binarize = None; // ensure features are already 0/1 encoded
+let settings = ClassificationSettings::default().with_bernoulli_nb_settings(params);
+
+// alternatively, binarize values greater than 0.5
+let thresholded = ClassificationSettings::default().with_bernoulli_nb_settings(
+    BernoulliNBParameters::default().with_binarize(0.5),
+);
+```
+
 ### Clustering
 ```rust
 use automl::ClusteringModel;
@@ -198,7 +215,7 @@ Model comparison:
 ## Capabilities
 - Feature Engineering: PCA, SVD, interaction terms, polynomial terms
 - Regression: Decision Tree, KNN, Random Forest, Extra Trees, Linear, Ridge, LASSO, Elastic Net, Support Vector Regression, `XGBoost` Gradient Boosting
-- Classification: Random Forest, Decision Tree, KNN, Logistic Regression, Support Vector Classifier, Gaussian Naive Bayes, Categorical Naive Bayes, Multinomial Naive Bayes (non-negative integer features)
+- Classification: Random Forest, Decision Tree, KNN, Logistic Regression, Support Vector Classifier, Gaussian Naive Bayes, Categorical Naive Bayes, Bernoulli Naive Bayes (binary features or configurable thresholding), Categorical Naive Bayes, Multinomial Naive Bayes (non-negative integer features)
 - Clustering: K-Means, Agglomerative, DBSCAN
 - Meta-learning: Blending (experimental)
 - Persistence: Save/load settings and models
