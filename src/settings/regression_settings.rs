@@ -3,10 +3,10 @@
 #![allow(clippy::struct_field_names)]
 
 use super::{
-    DecisionTreeRegressorParameters, ElasticNetParameters, FinalAlgorithm, KNNParameters,
-    LassoParameters, LinearRegressionParameters, Metric, PreProcessing,
-    RandomForestRegressorParameters, RidgeRegressionParameters, SVRParameters, SettingsError,
-    SupervisedSettings, WithSupervisedSettings, XGRegressorParameters,
+    DecisionTreeRegressorParameters, ElasticNetParameters, ExtraTreesRegressorParameters,
+    FinalAlgorithm, KNNParameters, LassoParameters, LinearRegressionParameters, Metric,
+    PreProcessing, RandomForestRegressorParameters, RidgeRegressionParameters, SVRParameters,
+    SettingsError, SupervisedSettings, WithSupervisedSettings, XGRegressorParameters,
 };
 use crate::algorithms::RegressionAlgorithm;
 use crate::settings::macros::with_settings_methods;
@@ -50,6 +50,8 @@ where
     pub(crate) decision_tree_regressor_settings: Option<DecisionTreeRegressorParameters>,
     /// Optional settings for random forest regressor
     pub(crate) random_forest_regressor_settings: Option<RandomForestRegressorParameters>,
+    /// Optional settings for extra trees regressor
+    pub(crate) extra_trees_settings: Option<ExtraTreesRegressorParameters>,
     /// Optional settings for KNN regressor
     pub(crate) knn_regressor_settings: Option<KNNParameters>,
     /// Optional settings for support vector regressor
@@ -83,6 +85,7 @@ where
             elastic_net_settings: Some(ElasticNetParameters::default()),
             decision_tree_regressor_settings: Some(DecisionTreeRegressorParameters::default()),
             random_forest_regressor_settings: Some(RandomForestRegressorParameters::default()),
+            extra_trees_settings: Some(ExtraTreesRegressorParameters::default()),
             knn_regressor_settings: Some(KNNParameters::default()),
             svr_settings: Some(SVRParameters::default()),
             xgboost_settings: Some(XGRegressorParameters::default()),
@@ -153,12 +156,21 @@ where
         with_knn_regressor_settings, knn_regressor_settings, KNNParameters;
         /// Specify settings for random forest regressor
         with_random_forest_regressor_settings, random_forest_regressor_settings, RandomForestRegressorParameters;
+        /// Specify settings for extra trees regressor
+        with_extra_trees_settings, extra_trees_settings, ExtraTreesRegressorParameters;
         /// Specify settings for decision tree regressor
         with_decision_tree_regressor_settings, decision_tree_regressor_settings, DecisionTreeRegressorParameters;
         /// Specify settings for support vector regressor
         with_svr_settings, svr_settings, SVRParameters;
         /// Specify settings for gradient boosting regressor
         with_xgboost_settings, xgboost_settings, XGRegressorParameters;
+    }
+
+    /// Disable the extra trees regressor by removing its settings.
+    #[must_use]
+    pub fn without_extra_trees_settings(mut self) -> Self {
+        self.extra_trees_settings = None;
+        self
     }
 
     /// Disable the support vector regressor by removing its settings.
@@ -307,13 +319,14 @@ mod serde_impls {
     use std::marker::PhantomData;
 
     use super::{
-        DecisionTreeRegressorParameters, ElasticNetParameters, KNNParameters, LassoParameters,
-        LinearRegressionParameters, RandomForestRegressorParameters, RidgeRegressionParameters,
-        SVRParameters, SupervisedSettings, XGRegressorParameters,
+        DecisionTreeRegressorParameters, ElasticNetParameters, ExtraTreesRegressorParameters,
+        KNNParameters, LassoParameters, LinearRegressionParameters,
+        RandomForestRegressorParameters, RidgeRegressionParameters, SVRParameters,
+        SupervisedSettings, XGRegressorParameters,
     };
     use crate::settings::Objective;
 
-    const FIELD_COUNT: usize = 11;
+    const FIELD_COUNT: usize = 12;
 
     fn algorithm_to_name<INPUT, OUTPUT, InputArray, OutputArray>(
         algorithm: &RegressionAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>,
@@ -334,6 +347,7 @@ mod serde_impls {
         match algorithm {
             RegressionAlgorithm::DecisionTreeRegressor(_) => "decision_tree_regressor",
             RegressionAlgorithm::RandomForestRegressor(_) => "random_forest_regressor",
+            RegressionAlgorithm::ExtraTreesRegressor(_) => "extra_trees_regressor",
             RegressionAlgorithm::Linear(_) => "linear_regressor",
             RegressionAlgorithm::Ridge(_) => "ridge_regressor",
             RegressionAlgorithm::Lasso(_) => "lasso_regressor",
@@ -363,6 +377,7 @@ mod serde_impls {
         match name {
             "decision_tree_regressor" => Ok(RegressionAlgorithm::default_decision_tree()),
             "random_forest_regressor" => Ok(RegressionAlgorithm::default_random_forest()),
+            "extra_trees_regressor" => Ok(RegressionAlgorithm::default_extra_trees_regressor()),
             "linear_regressor" => Ok(RegressionAlgorithm::default_linear()),
             "ridge_regressor" => Ok(RegressionAlgorithm::default_ridge()),
             "lasso_regressor" => Ok(RegressionAlgorithm::default_lasso()),
@@ -655,6 +670,7 @@ mod serde_impls {
                 "random_forest_regressor_settings",
                 &self.random_forest_regressor_settings,
             )?;
+            state.serialize_field("extra_trees_settings", &self.extra_trees_settings)?;
             state.serialize_field("knn_regressor_settings", &self.knn_regressor_settings)?;
             state.serialize_field("svr_settings", &self.svr_settings)?;
             match &self.xgboost_settings {
@@ -700,6 +716,7 @@ mod serde_impls {
                 ElasticNetSettings,
                 DecisionTreeRegressorSettings,
                 RandomForestRegressorSettings,
+                ExtraTreesSettings,
                 KnnRegressorSettings,
                 SvrSettings,
                 XgboostSettings,
@@ -736,6 +753,7 @@ mod serde_impls {
                                 "random_forest_regressor_settings" => {
                                     Ok(Field::RandomForestRegressorSettings)
                                 }
+                                "extra_trees_settings" => Ok(Field::ExtraTreesSettings),
                                 "knn_regressor_settings" => Ok(Field::KnnRegressorSettings),
                                 "svr_settings" => Ok(Field::SvrSettings),
                                 "xgboost_settings" => Ok(Field::XgboostSettings),
@@ -790,6 +808,8 @@ mod serde_impls {
                     let mut random_forest_regressor_settings: Option<
                         Option<RandomForestRegressorParameters>,
                     > = None;
+                    let mut extra_trees_settings: Option<Option<ExtraTreesRegressorParameters>> =
+                        None;
                     let mut knn_regressor_settings: Option<Option<KNNParameters>> = None;
                     let mut svr_settings: Option<Option<SVRParameters>> = None;
                     let mut xgboost_settings: Option<Option<XGRegressorParameters>> = None;
@@ -847,6 +867,12 @@ mod serde_impls {
                                     ));
                                 }
                                 random_forest_regressor_settings = Some(map.next_value()?);
+                            }
+                            Field::ExtraTreesSettings => {
+                                if extra_trees_settings.is_some() {
+                                    return Err(de::Error::duplicate_field("extra_trees_settings"));
+                                }
+                                extra_trees_settings = Some(map.next_value()?);
                             }
                             Field::KnnRegressorSettings => {
                                 if knn_regressor_settings.is_some() {
@@ -907,6 +933,9 @@ mod serde_impls {
                     if let Some(value) = random_forest_regressor_settings {
                         settings.random_forest_regressor_settings = value;
                     }
+                    if let Some(value) = extra_trees_settings {
+                        settings.extra_trees_settings = value;
+                    }
                     if let Some(value) = knn_regressor_settings {
                         settings.knn_regressor_settings = value;
                     }
@@ -929,6 +958,7 @@ mod serde_impls {
                 "elastic_net_settings",
                 "decision_tree_regressor_settings",
                 "random_forest_regressor_settings",
+                "extra_trees_settings",
                 "knn_regressor_settings",
                 "svr_settings",
                 "xgboost_settings",
