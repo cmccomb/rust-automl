@@ -18,11 +18,26 @@ fn errors_on_bad_path() {
 #[test]
 fn errors_on_non_numeric() {
     let err = load_csv_features("tests/fixtures/non_numeric_features.csv").unwrap_err();
-    assert!(matches!(err, CsvError::Parse(_)));
+    match err {
+        CsvError::Parse(parse_err) => {
+            let message = parse_err.to_string();
+            assert!(message.contains("row 2"), "unexpected message: {message}");
+            assert!(
+                message.contains("column 1"),
+                "unexpected message: {message}"
+            );
+        }
+        other => panic!("expected parse error, got {other}"),
+    }
 }
 
 #[test]
 fn errors_on_inconsistent_rows() {
     let err = load_csv_features("tests/fixtures/inconsistent_features.csv").unwrap_err();
-    assert!(matches!(err, CsvError::Shape(_)));
+    match err {
+        CsvError::Shape(message) => {
+            assert!(message.contains("row 2"), "unexpected message: {message}");
+        }
+        other => panic!("expected shape error, got {other}"),
+    }
 }
