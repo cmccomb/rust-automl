@@ -214,12 +214,3 @@ where
     }
 }
 
-impl Display for ClusteringAlgorithmName {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::KMeans => write!(f, "KMeans"),
-            Self::Agglomerative => write!(f, "Agglomerative"),
-            Self::DBSCAN => write!(f, "DBSCAN"),
-        }
-    }
-}
