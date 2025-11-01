@@ -51,6 +51,7 @@ where
 
     /// Train the model using the configured algorithm.
     pub fn train(&mut self) {
+        self.metrics = None;
         let alg = match self.settings.algorithm {
             ClusteringAlgorithmName::KMeans => ClusteringAlgorithm::default_kmeans(),
             ClusteringAlgorithmName::Agglomerative => ClusteringAlgorithm::default_agglomerative(),
