@@ -187,7 +187,11 @@ model.train();
 let truth = vec![1_u8, 1, 2, 2];
 model.evaluate(&truth);
 println!("{model}");
-let _clusters: Vec<u8> = model.predict(&x).expect("prediction");
+
+for algorithm in model.trained_algorithm_names() {
+    let clusters: Vec<u8> = model.predict_with(algorithm, &x).expect("prediction");
+    println!("{algorithm}: {clusters:?}");
+}
 ```
 
 Additional runnable examples are available in the [examples/ directory](https://github.com/cmccomb/rust-automl/tree/main/examples),

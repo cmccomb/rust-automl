@@ -10,12 +10,27 @@ use clustering_data::clustering_testing_data;
 use smartcore::linalg::basic::matrix::DenseMatrix;
 
 #[test]
-fn kmeans_clustering_runs() {
+fn default_clustering_trains_all_algorithms() {
     let x = clustering_testing_data();
     let mut model = ClusteringModel::new(x.clone(), ClusteringSettings::default().with_k(2));
     model.train();
     let labels: Vec<u8> = model.predict(&x).unwrap();
     assert_eq!(labels.len(), 4);
+
+    let algorithms = model.trained_algorithm_names();
+    assert_eq!(
+        algorithms,
+        vec![
+            ClusteringAlgorithmName::KMeans,
+            ClusteringAlgorithmName::Agglomerative,
+            ClusteringAlgorithmName::DBSCAN,
+        ]
+    );
+
+    for algorithm in algorithms {
+        let labels: Vec<u8> = model.predict_with(algorithm, &x).unwrap();
+        assert_eq!(labels.len(), 4);
+    }
 }
 
 #[test]
@@ -71,6 +86,8 @@ fn clustering_model_display_shows_metrics() {
 
     // Assert
     assert!(output.contains("KMeans"));
+    assert!(output.contains("Agglomerative"));
+    assert!(output.contains("DBSCAN"));
     assert!(output.contains("V-Measure"));
     assert!(output.contains("1.00"));
 }

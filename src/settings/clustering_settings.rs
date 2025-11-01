@@ -3,7 +3,7 @@
 use std::fmt::{Display, Formatter};
 
 /// Available clustering algorithms.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ClusteringAlgorithmName {
     /// K-Means clustering
     KMeans,
@@ -32,8 +32,8 @@ pub struct ClusteringSettings {
     pub(crate) eps: f64,
     /// DBSCAN minimum samples per core point
     pub(crate) min_samples: usize,
-    /// Selected clustering algorithm
-    pub(crate) algorithm: ClusteringAlgorithmName,
+    /// Selected clustering algorithms (empty implies default list)
+    pub(crate) algorithms: Vec<ClusteringAlgorithmName>,
     /// Verbosity flag
     pub(crate) verbose: bool,
 }
@@ -45,7 +45,11 @@ impl Default for ClusteringSettings {
             max_iter: 100,
             eps: 0.5,
             min_samples: 5,
-            algorithm: ClusteringAlgorithmName::KMeans,
+            algorithms: vec![
+                ClusteringAlgorithmName::KMeans,
+                ClusteringAlgorithmName::Agglomerative,
+                ClusteringAlgorithmName::DBSCAN,
+            ],
             verbose: false,
         }
     }
@@ -82,8 +86,18 @@ impl ClusteringSettings {
 
     /// Choose the clustering algorithm
     #[must_use]
-    pub const fn with_algorithm(mut self, algorithm: ClusteringAlgorithmName) -> Self {
-        self.algorithm = algorithm;
+    pub fn with_algorithm(mut self, algorithm: ClusteringAlgorithmName) -> Self {
+        self.algorithms = vec![algorithm];
+        self
+    }
+
+    /// Choose multiple clustering algorithms
+    #[must_use]
+    pub fn with_algorithms(mut self, algorithms: Vec<ClusteringAlgorithmName>) -> Self {
+        if algorithms.is_empty() {
+            return self;
+        }
+        self.algorithms = algorithms;
         self
     }
 
@@ -92,6 +106,19 @@ impl ClusteringSettings {
     pub const fn verbose(mut self, verbose: bool) -> Self {
         self.verbose = verbose;
         self
+    }
+
+    /// Retrieve the configured clustering algorithms
+    #[must_use]
+    pub(crate) fn selected_algorithms(&self) -> Vec<ClusteringAlgorithmName> {
+        if self.algorithms.is_empty() {
+            return vec![
+                ClusteringAlgorithmName::KMeans,
+                ClusteringAlgorithmName::Agglomerative,
+                ClusteringAlgorithmName::DBSCAN,
+            ];
+        }
+        self.algorithms.clone()
     }
 }
 

@@ -1,10 +1,10 @@
 #![allow(clippy::needless_doctest_main)]
 //! Minimal clustering example
 //!
-//! This example demonstrates the minimal steps required to run K-Means
-//! clustering using the `ClusteringModel` API. It loads a small clustering
-//! fixture, builds default clustering settings, trains the algorithm, and
-//! prints predicted cluster assignments.
+//! This example demonstrates the minimal steps required to run clustering
+//! using the `ClusteringModel` API. It loads a small clustering fixture,
+//! builds default clustering settings, trains every available algorithm, and
+//! prints predicted cluster assignments for each trained model.
 //!
 //! Run with:
 //!
@@ -24,6 +24,17 @@ fn main() {
     // Create and train the model
     let mut model = ClusteringModel::new(x.clone(), settings);
     model.train();
+
+    // Print trained results
+    println!("{model}");
+
+    // Predict cluster assignments for each trained algorithm
+    for algorithm in model.trained_algorithm_names() {
+        let clusters: Vec<u8> = model
+            .predict_with(algorithm, &x)
+            .expect("prediction failed");
+        println!("{algorithm}: {clusters:?}");
+    }
 
     // Predict cluster assignments
     let clusters: Vec<u8> = model.predict(&x).expect("prediction failed");
