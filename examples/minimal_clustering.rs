@@ -25,6 +25,9 @@ fn main() {
     let mut model = ClusteringModel::new(x.clone(), settings);
     model.train();
 
+    // Print trained results
+    println!("{model}");
+
     // Predict cluster assignments for each trained algorithm
     for algorithm in model.trained_algorithm_names() {
         let clusters: Vec<u8> = model

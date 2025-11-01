@@ -33,6 +33,9 @@ fn main() {
     // Load a dataset from smartcore and add it to the classifier along with the settings
     let mut model = ClassificationModel::new(x, y, settings);
 
-    // Run a model comparison with all models at default settings
+    // Train the model
     model.train().unwrap();
+
+    // Run a model comparison with all models at default settings
+    println!("{model}")
 }
