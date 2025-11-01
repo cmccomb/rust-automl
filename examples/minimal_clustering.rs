@@ -35,4 +35,8 @@ fn main() {
             .expect("prediction failed");
         println!("{algorithm}: {clusters:?}");
     }
+
+    // Predict cluster assignments
+    let clusters: Vec<u8> = model.predict(&x).expect("prediction failed");
+    println!("Predicted clusters: {clusters:?}");
 }
