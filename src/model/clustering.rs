@@ -111,7 +111,7 @@ where
 
         let algorithm = match &self.algorithm {
             Some(alg) => alg.to_string(),
-            None => "Untrained".to_string(),
+            None => format!("{} (untrained)", self.settings.algorithm),
         };
 
         let (homogeneity, completeness, v_measure) = if let Some(scores) = &self.metrics {

@@ -76,6 +76,22 @@ fn clustering_model_display_shows_metrics() {
 }
 
 #[test]
+fn clustering_model_display_shows_configured_algorithm_when_untrained() {
+    // Arrange
+    let x = clustering_testing_data();
+    let settings = ClusteringSettings::default().with_algorithm(ClusteringAlgorithmName::DBSCAN);
+    let model: ClusteringModel<f64, u8, DenseMatrix<f64>, Vec<u8>> =
+        ClusteringModel::new(x, settings);
+
+    // Act
+    let output = format!("{model}");
+
+    // Assert
+    assert!(output.contains("DBSCAN (untrained)"));
+    assert!(output.contains("Homogeneity"));
+}
+
+#[test]
 fn predict_without_training_returns_error() {
     let x = clustering_testing_data();
     let model: ClusteringModel<f64, u8, automl::DenseMatrix<f64>, Vec<u8>> =
