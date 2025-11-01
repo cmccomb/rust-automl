@@ -138,12 +138,14 @@ where
         ]);
 
         if self.trained_algorithms.is_empty() {
-            table.add_row(vec![
-                "Untrained".to_string(),
-                "-".to_string(),
-                "-".to_string(),
-                "-".to_string(),
-            ]);
+            for algorithm_name in self.settings.selected_algorithms() {
+                table.add_row(vec![
+                    format!("{algorithm_name} (untrained)"),
+                    "-".to_string(),
+                    "-".to_string(),
+                    "-".to_string(),
+                ]);
+            }
         } else {
             for entry in &self.trained_algorithms {
                 table.add_row(entry.display_row());
@@ -213,4 +215,3 @@ where
         ]
     }
 }
-
