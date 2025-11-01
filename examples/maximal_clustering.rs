@@ -26,13 +26,16 @@ fn main() {
 
     // Customize clustering settings for DBSCAN
     let settings = ClusteringSettings::default()
-        .with_algorithm(ClusteringAlgorithmName::DBSCAN)
-        .with_min_samples(2)
+        .with_algorithm(ClusteringAlgorithmName::KMeans)
+        .with_k(3)
         .verbose(true);
 
     // Create and train the model
     let mut model = ClusteringModel::new(x.clone(), settings);
     model.train();
+
+    // Print the results
+    println!("{model}");
 
     // Predict cluster assignments for new data
     let new_points = DenseMatrix::from_2d_vec(&vec![vec![0.9_f64, 1.1], vec![8.1, 8.3]]).unwrap();
