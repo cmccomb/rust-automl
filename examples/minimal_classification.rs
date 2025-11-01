@@ -37,5 +37,5 @@ fn main() {
     model.train().unwrap();
 
     // Run a model comparison with all models at default settings
-    println!("{model}")
+    println!("{model}");
 }

@@ -93,6 +93,44 @@ fn clustering_model_display_shows_metrics() {
 }
 
 #[test]
+fn clustering_model_display_shows_configured_algorithm_when_untrained() {
+    // Arrange
+    let x = clustering_testing_data();
+    let settings = ClusteringSettings::default().with_algorithm(ClusteringAlgorithmName::DBSCAN);
+    let model: ClusteringModel<f64, u8, DenseMatrix<f64>, Vec<u8>> =
+        ClusteringModel::new(x, settings);
+
+    // Act
+    let output = format!("{model}");
+
+    // Assert
+    assert!(output.contains("DBSCAN (untrained)"));
+    assert!(output.contains("Homogeneity"));
+}
+
+#[test]
+fn clustering_model_display_clears_metrics_after_retraining() {
+    // Arrange
+    let x = clustering_testing_data();
+    let truth = vec![1_u8, 1, 2, 2];
+    let mut model: ClusteringModel<f64, u8, DenseMatrix<f64>, Vec<u8>> =
+        ClusteringModel::new(x.clone(), ClusteringSettings::default().with_k(2));
+    model.train();
+    model.evaluate(&truth);
+
+    // Sanity check – metrics should be displayed after evaluation
+    let evaluated_output = format!("{model}");
+    assert!(evaluated_output.contains("1.00"));
+
+    // Act
+    model.train();
+    let retrained_output = format!("{model}");
+
+    // Assert
+    assert!(!retrained_output.contains("1.00"));
+}
+
+#[test]
 fn predict_without_training_returns_error() {
     let x = clustering_testing_data();
     let model: ClusteringModel<f64, u8, automl::DenseMatrix<f64>, Vec<u8>> =

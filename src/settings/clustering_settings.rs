@@ -1,5 +1,7 @@
 //! Settings for clustering models
 
+use std::fmt::{Display, Formatter};
+
 /// Available clustering algorithms.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ClusteringAlgorithmName {
@@ -117,5 +119,15 @@ impl ClusteringSettings {
             ];
         }
         self.algorithms.clone()
+    }
+}
+
+impl Display for ClusteringAlgorithmName {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::KMeans => write!(f, "KMeans"),
+            Self::Agglomerative => write!(f, "Agglomerative"),
+            Self::DBSCAN => write!(f, "DBSCAN"),
+        }
     }
 }
