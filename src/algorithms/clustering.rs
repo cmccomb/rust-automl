@@ -3,7 +3,7 @@
 use std::fmt::{Display, Formatter};
 
 use crate::model::{ModelError, ModelResult};
-use crate::settings::ClusteringSettings;
+use crate::settings::{ClusteringAlgorithmName, ClusteringSettings};
 use smartcore::cluster::{
     agglomerative::{AgglomerativeClustering, AgglomerativeClusteringParameters},
     dbscan::{DBSCAN, DBSCANParameters},
@@ -55,14 +55,24 @@ where
         Self::DBSCAN(None)
     }
 
+    /// Create an algorithm variant from its identifier
+    #[must_use]
+    pub const fn from_name(name: ClusteringAlgorithmName) -> Self {
+        match name {
+            ClusteringAlgorithmName::KMeans => Self::default_kmeans(),
+            ClusteringAlgorithmName::Agglomerative => Self::default_agglomerative(),
+            ClusteringAlgorithmName::DBSCAN => Self::default_dbscan(),
+        }
+    }
+
     /// List all available algorithms
     #[must_use]
-    pub fn all_algorithms(_settings: &ClusteringSettings) -> Vec<Self> {
-        vec![
-            Self::default_kmeans(),
-            Self::default_agglomerative(),
-            Self::default_dbscan(),
-        ]
+    pub fn all_algorithms(settings: &ClusteringSettings) -> Vec<Self> {
+        settings
+            .selected_algorithms()
+            .into_iter()
+            .map(Self::from_name)
+            .collect()
     }
 
     /// Fit the algorithm
