@@ -3,7 +3,7 @@
 use std::fmt::{Display, Formatter};
 
 /// Available clustering algorithms.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, serde::Serialize, serde::Deserialize, Debug, PartialEq, Eq)]
 pub enum ClusteringAlgorithmName {
     /// K-Means clustering
     KMeans,
@@ -22,7 +22,7 @@ pub enum ClusteringAlgorithmName {
 /// let settings =
 ///     ClusteringSettings::default().with_algorithm(ClusteringAlgorithmName::DBSCAN);
 /// ```
-#[derive(Clone)]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct ClusteringSettings {
     /// Number of clusters to produce (for algorithms that require it)
     pub(crate) k: usize,
