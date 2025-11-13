@@ -2,15 +2,15 @@
 [![Crates.io](https://img.shields.io/crates/v/automl.svg)](https://crates.io/crates/automl)
 [![docs.rs](https://img.shields.io/docsrs/automl/latest?logo=rust)](https://docs.rs/automl)
 
-# AutoML with SmartCore
+# `automl` with `smartcore`
 
-AutoML (_Automated Machine Learning_) streamlines machine learning workflows, making them more accessible and efficient
+`AutoML` (_Automated Machine Learning_) streamlines machine learning workflows, making them more accessible and efficient
 for users of all experience levels. This crate extends the [`smartcore`](https://docs.rs/smartcore/) machine learning
 framework, providing utilities to quickly train, compare, and deploy models.
 
 # Install
 
-Add AutoML to your `Cargo.toml` to get started:
+Add `automl` to your `Cargo.toml` to get started:
 
 **Stable Version**
 
@@ -26,7 +26,7 @@ automl = { git = "https://github.com/cmccomb/rust-automl" }
 
 # Example Usage
 
-Here’s a quick example to illustrate how AutoML can simplify model training and comparison:
+Here’s a quick example to illustrate how `AutoML` can simplify model training and comparison:
 
 ```rust, no_run, ignore
 let dataset = smartcore::dataset::breast_cancer::load_dataset();
