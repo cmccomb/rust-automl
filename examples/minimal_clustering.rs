@@ -25,6 +25,11 @@ fn main() {
     let mut model = ClusteringModel::new(x.clone(), settings);
     model.train();
 
+    // Evaluate clustering quality using the known ground-truth assignments
+    // for this fixture dataset.
+    let truth = vec![1_u8, 1, 2, 2];
+    model.evaluate(&truth);
+
     // Print trained results
     println!("{model}");
 
