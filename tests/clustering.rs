@@ -5,6 +5,7 @@ use automl::{
     ClusteringModel, ModelError,
     metrics::ClusterMetrics,
     settings::{ClusteringAlgorithmName, ClusteringSettings},
+    utils::load_csv_features,
 };
 use clustering_data::clustering_testing_data;
 use smartcore::linalg::basic::matrix::DenseMatrix;
@@ -89,6 +90,23 @@ fn clustering_model_display_shows_metrics() {
     assert!(output.contains("Agglomerative"));
     assert!(output.contains("DBSCAN"));
     assert!(output.contains("V-Measure"));
+    assert!(output.contains("1.00"));
+}
+
+#[test]
+fn clustering_model_display_shows_metrics_for_fixture_csv() {
+    // Arrange
+    let x = load_csv_features("tests/fixtures/clustering_points.csv").unwrap();
+    let mut model: ClusteringModel<f64, u8, DenseMatrix<f64>, Vec<u8>> =
+        ClusteringModel::new(x.clone(), ClusteringSettings::default().with_k(2));
+    model.train();
+    let truth = vec![1_u8, 1, 2, 2];
+    model.evaluate(&truth);
+
+    // Act
+    let output = format!("{model}");
+
+    // Assert
     assert!(output.contains("1.00"));
 }
 
