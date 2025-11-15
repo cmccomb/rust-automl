@@ -4,7 +4,7 @@ pub mod classification;
 pub mod clustering;
 mod comparison;
 pub mod error;
-mod preprocessing;
+pub mod preprocessing;
 pub mod regression;
 pub mod supervised;
 

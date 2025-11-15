@@ -8,6 +8,23 @@
 use core::iter::FromIterator;
 use serde::{Deserialize, Serialize};
 
+/// Column selection helpers for preprocessing steps.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ColumnSelector {
+    /// Apply to every column.
+    All,
+    /// Apply only to the listed column indices.
+    Include(Vec<usize>),
+    /// Apply to every column except the provided indices.
+    Exclude(Vec<usize>),
+}
+
+impl Default for ColumnSelector {
+    fn default() -> Self {
+        Self::All
+    }
+}
+
 /// Parameters for standardizing features column-wise.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StandardizeParams {
@@ -43,7 +60,7 @@ impl StandardizeParams {
 }
 
 /// A single preprocessing operation.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum PreprocessingStep {
     /// Add pairwise interaction terms.
     AddInteractions,
@@ -64,6 +81,16 @@ pub enum PreprocessingStep {
     },
     /// Standardize features column-wise.
     Standardize(StandardizeParams),
+    /// Flexible numeric scaling strategies.
+    Scale(ScaleParams),
+    /// Missing-value imputation strategies.
+    Impute(ImputeParams),
+    /// Encode categorical columns into numerical representations.
+    EncodeCategorical(CategoricalEncoderParams),
+    /// Apply power transformations such as log or Box-Cox.
+    PowerTransform(PowerTransformParams),
+    /// Filter columns from the feature matrix.
+    FilterColumns(ColumnFilterParams),
 }
 
 impl core::fmt::Display for PreprocessingStep {
@@ -84,12 +111,223 @@ impl core::fmt::Display for PreprocessingStep {
                 "Standardized features (with_mean = {}, with_std = {})",
                 params.with_mean, params.with_std
             ),
+            Self::Scale(params) => write!(f, "Scaled features using {:?}", params.strategy),
+            Self::Impute(params) => write!(f, "Imputed features using {:?}", params.strategy),
+            Self::EncodeCategorical(params) => {
+                write!(f, "Encoded categorical columns with {:?}", params.encoding)
+            }
+            Self::PowerTransform(params) => {
+                write!(f, "Applied power transform {:?}", params.transform)
+            }
+            Self::FilterColumns(params) => {
+                let mode = if params.retain_selected {
+                    "retain"
+                } else {
+                    "drop"
+                };
+                write!(f, "Column filter ({mode})")
+            }
+        }
+    }
+}
+
+/// Configuration for flexible numeric scaling.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ScaleParams {
+    /// Scaling strategy to apply.
+    pub strategy: ScaleStrategy,
+    /// Columns to scale.
+    pub selector: ColumnSelector,
+}
+
+impl Default for ScaleParams {
+    fn default() -> Self {
+        Self {
+            strategy: ScaleStrategy::Standard(StandardizeParams::default()),
+            selector: ColumnSelector::All,
+        }
+    }
+}
+
+/// Supported scaling strategies.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum ScaleStrategy {
+    /// Standardize (z-score) scaling.
+    Standard(StandardizeParams),
+    /// Min-max scaling to a feature range.
+    MinMax(MinMaxParams),
+    /// Robust scaling using medians and IQR.
+    Robust(RobustScaleParams),
+}
+
+/// Parameters for min-max scaling.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct MinMaxParams {
+    /// Target feature range (min, max).
+    pub feature_range: (f64, f64),
+}
+
+impl Default for MinMaxParams {
+    fn default() -> Self {
+        Self {
+            feature_range: (0.0, 1.0),
+        }
+    }
+}
+
+impl MinMaxParams {
+    /// Customize the feature range.
+    #[must_use]
+    pub const fn with_feature_range(mut self, range: (f64, f64)) -> Self {
+        self.feature_range = range;
+        self
+    }
+}
+
+/// Parameters for robust scaling.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct RobustScaleParams {
+    /// Quantile range (e.g. 25th–75th percentiles).
+    pub quantile_range: (f64, f64),
+}
+
+impl Default for RobustScaleParams {
+    fn default() -> Self {
+        Self {
+            quantile_range: (25.0, 75.0),
+        }
+    }
+}
+
+impl RobustScaleParams {
+    /// Customize the quantile range.
+    #[must_use]
+    pub const fn with_quantile_range(mut self, range: (f64, f64)) -> Self {
+        self.quantile_range = range;
+        self
+    }
+}
+
+/// Parameters for missing-value imputation.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ImputeParams {
+    /// Imputation strategy.
+    pub strategy: ImputeStrategy,
+    /// Columns to impute.
+    pub selector: ColumnSelector,
+}
+
+impl Default for ImputeParams {
+    fn default() -> Self {
+        Self {
+            strategy: ImputeStrategy::Mean,
+            selector: ColumnSelector::All,
+        }
+    }
+}
+
+/// Strategies for missing-value imputation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ImputeStrategy {
+    /// Replace missing values with the column mean.
+    Mean,
+    /// Replace missing values with the column median.
+    Median,
+    /// Replace missing values with the most frequent value.
+    MostFrequent,
+}
+
+/// Parameters for categorical encoding.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CategoricalEncoderParams {
+    /// Columns to encode.
+    pub selector: ColumnSelector,
+    /// Encoding strategy.
+    pub encoding: CategoricalEncoding,
+}
+
+impl Default for CategoricalEncoderParams {
+    fn default() -> Self {
+        Self {
+            selector: ColumnSelector::All,
+            encoding: CategoricalEncoding::Ordinal,
+        }
+    }
+}
+
+/// Supported categorical encoding strategies.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CategoricalEncoding {
+    /// Replace categories with ordinal indices.
+    Ordinal,
+    /// Replace categories with one-hot columns.
+    OneHot {
+        /// Whether to drop the first generated column to avoid collinearity.
+        drop_first: bool,
+    },
+}
+
+impl CategoricalEncoding {
+    /// Convenience constructor for one-hot encoding.
+    #[must_use]
+    pub const fn one_hot(drop_first: bool) -> Self {
+        Self::OneHot { drop_first }
+    }
+}
+
+/// Parameters for power transformations.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct PowerTransformParams {
+    /// Columns to transform.
+    pub selector: ColumnSelector,
+    /// Transform to apply.
+    pub transform: PowerTransform,
+}
+
+impl Default for PowerTransformParams {
+    fn default() -> Self {
+        Self {
+            selector: ColumnSelector::All,
+            transform: PowerTransform::Log { offset: 0.0 },
+        }
+    }
+}
+
+/// Supported power transformations.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub enum PowerTransform {
+    /// Natural logarithm (with optional offset to ensure positivity).
+    Log {
+        /// Offset added prior to the logarithm.
+        offset: f64,
+    },
+    /// Box-Cox transformation with configurable lambda.
+    BoxCox {
+        /// Lambda parameter for the transform.
+        lambda: f64,
+    },
+}
+
+/// Parameters for filtering columns.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ColumnFilterParams {
+    /// Which columns to consider.
+    pub selector: ColumnSelector,
+    /// Whether to retain (`true`) or drop (`false`) the selected columns.
+    pub retain_selected: bool,
+}
+
+impl Default for ColumnFilterParams {
+    fn default() -> Self {
+        Self {
+            selector: ColumnSelector::All,
+            retain_selected: true,
         }
     }
 }
 
 /// Ordered collection of preprocessing steps.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct PreprocessingPipeline {
     steps: Vec<PreprocessingStep>,
 }
