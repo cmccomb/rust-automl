@@ -26,7 +26,11 @@ fn main() {
 
     // Customize clustering settings for DBSCAN
     let settings = ClusteringSettings::default()
-        .with_algorithm(ClusteringAlgorithmName::KMeans)
+        .with_algorithms(vec![
+            ClusteringAlgorithmName::KMeans,
+            ClusteringAlgorithmName::Agglomerative,
+            ClusteringAlgorithmName::DBSCAN,
+        ])
         .with_k(3)
         .verbose(true);
 
