@@ -157,7 +157,12 @@ mod regression_settings;
 pub use regression_settings::RegressionSettings;
 
 mod preprocessing;
-pub use preprocessing::{PreprocessingPipeline, PreprocessingStep, StandardizeParams};
+pub use preprocessing::{
+    CategoricalEncoderParams, CategoricalEncoding, ColumnFilterParams, ColumnSelector,
+    ImputeParams, ImputeStrategy, MinMaxParams, PowerTransform, PowerTransformParams,
+    PreprocessingPipeline, PreprocessingStep, RobustScaleParams, ScaleParams, ScaleStrategy,
+    StandardizeParams,
+};
 
 mod common;
 pub use common::{SupervisedSettings, WithSupervisedSettings};
