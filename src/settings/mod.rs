@@ -156,6 +156,9 @@ mod regression_settings;
 #[doc(no_inline)]
 pub use regression_settings::RegressionSettings;
 
+mod preprocessing;
+pub use preprocessing::{PreprocessingPipeline, PreprocessingStep, StandardizeParams};
+
 mod common;
 pub use common::{SupervisedSettings, WithSupervisedSettings};
 
@@ -192,49 +195,6 @@ impl Display for Metric {
             Self::MeanSquaredError => write!(f, "MSE"),
             Self::Accuracy => write!(f, "Accuracy"),
             Self::None => write!(f, "None"),
-        }
-    }
-}
-
-/// Options for pre-processing the data
-#[derive(serde::Serialize, serde::Deserialize)]
-pub enum PreProcessing {
-    /// Don't do any preprocessing
-    None,
-    /// Add interaction terms to the data
-    AddInteractions,
-    /// Add polynomial terms of order n to the data
-    AddPolynomial {
-        /// The order of the polynomial to add (i.e., x^order)
-        order: usize,
-    },
-    /// Replace the data with n PCA terms
-    ReplaceWithPCA {
-        /// The number of components to use from PCA
-        number_of_components: usize,
-    },
-    /// Replace the data with n PCA terms
-    ReplaceWithSVD {
-        /// The number of components to use from PCA
-        number_of_components: usize,
-    },
-}
-
-impl Display for PreProcessing {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::None => write!(f, "None"),
-            Self::AddInteractions => write!(f, "Interaction terms added"),
-            Self::AddPolynomial { order } => {
-                write!(f, "Polynomial terms added (order = {order})")
-            }
-            Self::ReplaceWithPCA {
-                number_of_components,
-            } => write!(f, "Replaced with PCA features (n = {number_of_components})"),
-
-            Self::ReplaceWithSVD {
-                number_of_components,
-            } => write!(f, "Replaced with SVD features (n = {number_of_components})"),
         }
     }
 }

@@ -4,8 +4,8 @@ mod regression_data;
 use automl::algorithms::RegressionAlgorithm;
 use automl::model::Algorithm;
 use automl::settings::{
-    Distance, ExtraTreesRegressorParameters, KNNParameters, Kernel, PreProcessing, SVRParameters,
-    XGRegressorParameters,
+    Distance, ExtraTreesRegressorParameters, KNNParameters, Kernel, PreprocessingStep,
+    SVRParameters, StandardizeParams, XGRegressorParameters,
 };
 use automl::{DenseMatrix, RegressionSettings, SupervisedModel};
 use regression_data::regression_testing_data;
@@ -245,7 +245,7 @@ fn regression_polynomial_preprocessing_predicts() {
 
     let (x, y) = regression_testing_data();
     let settings = RegressionSettings::default()
-        .with_preprocessing(PreProcessing::AddPolynomial { order: 2 })
+        .add_step(PreprocessingStep::AddPolynomial { order: 2 })
         .only(&RegressionAlgorithm::default_knn_regressor());
 
     let mut regressor: Model = SupervisedModel::new(x, y, settings);
@@ -260,6 +260,39 @@ fn regression_polynomial_preprocessing_predicts() {
             .unwrap(),
         )
         .expect("Polynomial preprocessing should allow prediction");
+
+    assert_eq!(predictions.len(), 2);
+}
+
+#[test]
+fn regression_standardize_pipeline_predicts() {
+    type Model = SupervisedModel<
+        RegressionAlgorithm<f64, f64, DenseMatrix<f64>, Vec<f64>>,
+        RegressionSettings<f64, f64, DenseMatrix<f64>, Vec<f64>>,
+        DenseMatrix<f64>,
+        Vec<f64>,
+    >;
+
+    let (x, y) = regression_testing_data();
+    let settings = RegressionSettings::default()
+        .add_step(PreprocessingStep::Standardize(StandardizeParams::default()))
+        .add_step(PreprocessingStep::ReplaceWithPCA {
+            number_of_components: 3,
+        })
+        .only(&RegressionAlgorithm::default_knn_regressor());
+
+    let mut regressor: Model = SupervisedModel::new(x, y, settings);
+    regressor.train().unwrap();
+
+    let predictions = regressor
+        .predict(
+            DenseMatrix::from_2d_array(&[
+                &[234.289, 235.6, 159.0, 107.608, 1947., 60.323],
+                &[259.426, 232.5, 145.6, 108.632, 1948., 61.122],
+            ])
+            .unwrap(),
+        )
+        .expect("Standardize + PCA preprocessing should allow prediction");
 
     assert_eq!(predictions.len(), 2);
 }

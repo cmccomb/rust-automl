@@ -21,9 +21,9 @@ use automl::{
     settings::{
         DecisionTreeRegressorParameters, Distance, ElasticNetParameters, FinalAlgorithm,
         KNNAlgorithmName, KNNParameters, KNNWeightFunction, Kernel, LassoParameters,
-        LinearRegressionParameters, LinearRegressionSolverName, Metric,
+        LinearRegressionParameters, LinearRegressionSolverName, Metric, PreprocessingStep,
         RandomForestRegressorParameters, RidgeRegressionParameters, RidgeRegressionSolverName,
-        SVRParameters, XGRegressorParameters,
+        SVRParameters, StandardizeParams, XGRegressorParameters,
     },
 };
 use regression_data::regression_testing_data;
@@ -41,7 +41,7 @@ fn main() -> Result<(), Failed> {
         .with_final_model(FinalAlgorithm::Best)
         .skip(RegressionAlgorithm::default_random_forest())
         .sorted_by(Metric::RSquared)
-        // .with_preprocessing(PreProcessing::AddInteractions)
+        .add_step(PreprocessingStep::Standardize(StandardizeParams::default()))
         .with_linear_settings(
             LinearRegressionParameters::default().with_solver(LinearRegressionSolverName::QR),
         )

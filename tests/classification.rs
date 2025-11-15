@@ -5,7 +5,7 @@ use automl::algorithms::ClassificationAlgorithm;
 use automl::model::Algorithm;
 use automl::settings::{
     BernoulliNBParameters, CategoricalNBParameters, ClassificationSettings,
-    MultinomialNBParameters, PreProcessing, RandomForestClassifierParameters, SVCParameters,
+    MultinomialNBParameters, PreprocessingStep, RandomForestClassifierParameters, SVCParameters,
 };
 use automl::{DenseMatrix, ModelError, SupervisedModel};
 use classification_data::{
@@ -229,7 +229,7 @@ fn classification_pca_preprocessing_predicts() {
     let (x, y) = classification_testing_data();
     let settings = ClassificationSettings::default()
         .with_svc_settings(SVCParameters::default())
-        .with_preprocessing(PreProcessing::ReplaceWithPCA {
+        .add_step(PreprocessingStep::ReplaceWithPCA {
             number_of_components: 2,
         });
 

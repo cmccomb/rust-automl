@@ -60,6 +60,40 @@ will perform a comparison of classifier models using cross-validation. Printing 
 
 You can then perform inference using the best model with the `predict` method.
 
+## Preprocessing pipelines
+
+`automl` now supports composable preprocessing pipelines so you can build
+feature engineering recipes similar to `AutoGluon` or `caret`. Pipelines are
+defined with the [`PreprocessingStep`](https://docs.rs/automl/latest/automl/settings/enum.PreprocessingStep.html)
+enum and attached via either the `add_step` builder or by passing a full
+[`PreprocessingPipeline`](https://docs.rs/automl/latest/automl/settings/struct.PreprocessingPipeline.html).
+
+```rust
+use automl::settings::{
+    ClassificationSettings, PreprocessingPipeline, PreprocessingStep, RegressionSettings,
+    StandardizeParams,
+};
+use automl::DenseMatrix;
+
+let regression = RegressionSettings::<f64, f64, DenseMatrix<f64>, Vec<f64>>::default()
+    .add_step(PreprocessingStep::Standardize(StandardizeParams::default()))
+    .add_step(PreprocessingStep::ReplaceWithPCA {
+        number_of_components: 5,
+    });
+
+let classification = ClassificationSettings::default().with_preprocessing(
+    PreprocessingPipeline::new()
+        .add_step(PreprocessingStep::AddInteractions)
+        .add_step(PreprocessingStep::ReplaceWithSVD {
+            number_of_components: 4,
+        }),
+);
+```
+
+Pipelines preserve the order of steps. Stateful steps such as PCA, SVD, or
+standardization automatically fit during training and reuse the same fitted
+state when you call `predict`.
+
 ## Features
 
 This crate has several features that add some additional methods.

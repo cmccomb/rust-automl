@@ -5,8 +5,9 @@
 use super::{
     DecisionTreeRegressorParameters, ElasticNetParameters, ExtraTreesRegressorParameters,
     FinalAlgorithm, KNNParameters, LassoParameters, LinearRegressionParameters, Metric,
-    PreProcessing, RandomForestRegressorParameters, RidgeRegressionParameters, SVRParameters,
-    SettingsError, SupervisedSettings, WithSupervisedSettings, XGRegressorParameters,
+    PreprocessingPipeline, PreprocessingStep, RandomForestRegressorParameters,
+    RidgeRegressionParameters, SVRParameters, SettingsError, SupervisedSettings,
+    WithSupervisedSettings, XGRegressorParameters,
 };
 use crate::algorithms::RegressionAlgorithm;
 use crate::settings::macros::with_settings_methods;
@@ -228,14 +229,24 @@ where
     ///
     /// # Examples
     /// ```
-    /// use automl::settings::{PreProcessing, RegressionSettings};
+    /// use automl::settings::{
+    ///     PreprocessingPipeline, PreprocessingStep, RegressionSettings,
+    /// };
     /// use automl::DenseMatrix;
     /// let settings = RegressionSettings::<f64, f64, DenseMatrix<f64>, Vec<f64>>::default()
-    ///     .with_preprocessing(PreProcessing::AddInteractions);
+    ///     .with_preprocessing(
+    ///         PreprocessingPipeline::new().add_step(PreprocessingStep::AddInteractions),
+    ///     );
     /// ```
     #[must_use]
-    pub fn with_preprocessing(self, pre: PreProcessing) -> Self {
+    pub fn with_preprocessing(self, pre: PreprocessingPipeline) -> Self {
         <Self as WithSupervisedSettings>::with_preprocessing(self, pre)
+    }
+
+    /// Append a preprocessing step to the pipeline.
+    #[must_use]
+    pub fn add_step(self, step: PreprocessingStep) -> Self {
+        <Self as WithSupervisedSettings>::add_step(self, step)
     }
 
     /// Choose the strategy for the final model.
