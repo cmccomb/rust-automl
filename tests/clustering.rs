@@ -89,6 +89,8 @@ fn clustering_model_display_shows_metrics() {
     assert!(output.contains("KMeans"));
     assert!(output.contains("Agglomerative"));
     assert!(output.contains("DBSCAN"));
+    assert!(output.contains("Clusters"));
+    assert!(output.contains("Noise"));
     assert!(output.contains("V-Measure"));
     assert!(output.contains("1.00"));
 }
@@ -124,6 +126,23 @@ fn clustering_model_display_shows_configured_algorithm_when_untrained() {
     // Assert
     assert!(output.contains("DBSCAN (untrained)"));
     assert!(output.contains("Homogeneity"));
+}
+
+#[test]
+fn clustering_model_display_shows_baseline_without_ground_truth() {
+    // Arrange
+    let x = clustering_testing_data();
+    let mut model: ClusteringModel<f64, u8, DenseMatrix<f64>, Vec<u8>> =
+        ClusteringModel::new(x.clone(), ClusteringSettings::default().with_k(2));
+    model.train();
+
+    // Act
+    let output = format!("{model}");
+
+    // Assert
+    assert!(output.contains("Clusters"));
+    assert!(output.contains("Noise"));
+    assert!(output.contains('2'));
 }
 
 #[test]
