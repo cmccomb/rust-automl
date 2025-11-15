@@ -11,13 +11,14 @@ use crate::model::{
     preprocessing::Preprocessor,
 };
 use crate::settings::{
-    ClassificationSettings, FinalAlgorithm, Metric, RegressionSettings, SupervisedSettings,
+    ClassificationSettings, FinalAlgorithm, Metric, RegressionSettings, SettingsError,
+    SupervisedSettings,
 };
 use comfy_table::{
     Attribute, Cell, Table, modifiers::UTF8_SOLID_INNER_BORDERS, presets::UTF8_FULL,
 };
 use humantime::format_duration;
-use smartcore::error::Failed;
+use smartcore::error::{Failed, FailedError};
 use smartcore::linalg::{
     basic::arrays::{Array, Array1, Array2, MutArrayView1},
     traits::{
@@ -111,7 +112,9 @@ where
 {
     /// Settings for the model.
     pub settings: S,
-    /// Training features.
+    /// Original training features used to recompute preprocessing steps.
+    x_train_raw: InputArray,
+    /// Preprocessed training features fed to algorithms.
     x_train: InputArray,
     /// Training targets.
     y_train: OutputArray,
@@ -136,8 +139,10 @@ where
 {
     /// Create a new supervised model.
     pub fn new(x: InputArray, y: OutputArray, settings: S) -> Self {
+        let x_train_raw = x.clone();
         Self {
             settings,
+            x_train_raw,
             x_train: x,
             y_train: y,
             comparison: Vec::new(),
@@ -152,8 +157,11 @@ where
     /// Returns [`Failed`] if cross-validation fails for any algorithm.
     pub fn train(&mut self) -> Result<(), Failed> {
         let sup = self.settings.supervised();
-        self.preprocessor
-            .train(&self.x_train.clone(), &sup.preprocessing);
+        let raw = self.x_train_raw.clone();
+        self.x_train = self
+            .preprocessor
+            .fit_transform(raw, &sup.preprocessing)
+            .map_err(Self::preprocessing_failed)?;
 
         for alg in <A>::all_algorithms(&self.settings) {
             let trained = alg.cross_validate_model(&self.x_train, &self.y_train, &self.settings)?;
@@ -169,10 +177,7 @@ where
     /// Returns [`ModelError::NotTrained`] if no algorithm has been trained or if inference fails.
     pub fn predict(&self, x: InputArray) -> ModelResult<OutputArray> {
         let sup = self.settings.supervised();
-        let x = self
-            .preprocessor
-            .preprocess(x, &sup.preprocessing)
-            .map_err(|e| ModelError::Inference(e.to_string()))?;
+        let x = self.preprocessor.preprocess(x, &sup.preprocessing)?;
 
         match sup.final_model_approach {
             FinalAlgorithm::None => Err(ModelError::NotTrained),
@@ -202,6 +207,10 @@ where
         if matches!(sort_by, Metric::RSquared | Metric::Accuracy) {
             self.comparison.reverse();
         }
+    }
+
+    fn preprocessing_failed(err: SettingsError) -> Failed {
+        Failed::because(FailedError::ParametersError, &err.to_string())
     }
 }
 

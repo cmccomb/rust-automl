@@ -5,12 +5,14 @@ use std::fmt::{Display, Formatter};
 use super::Metric;
 
 /// Errors related to model settings.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SettingsError {
     /// A required metric was not specified.
     MetricNotSet,
     /// The provided metric is not supported for the task.
     UnsupportedMetric(Metric),
+    /// Preprocessing configuration failed to run successfully.
+    PreProcessingFailed(String),
 }
 
 impl Display for SettingsError {
@@ -18,6 +20,9 @@ impl Display for SettingsError {
         match self {
             Self::MetricNotSet => write!(f, "a metric must be set"),
             Self::UnsupportedMetric(m) => write!(f, "unsupported metric: {m}"),
+            Self::PreProcessingFailed(msg) => {
+                write!(f, "preprocessing configuration failed: {msg}")
+            }
         }
     }
 }

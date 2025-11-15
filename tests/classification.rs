@@ -5,7 +5,7 @@ use automl::algorithms::ClassificationAlgorithm;
 use automl::model::Algorithm;
 use automl::settings::{
     BernoulliNBParameters, CategoricalNBParameters, ClassificationSettings,
-    MultinomialNBParameters, RandomForestClassifierParameters, SVCParameters,
+    MultinomialNBParameters, PreProcessing, RandomForestClassifierParameters, SVCParameters,
 };
 use automl::{DenseMatrix, ModelError, SupervisedModel};
 use classification_data::{
@@ -215,6 +215,32 @@ fn bernoulli_nb_rejects_non_binary_without_threshold() {
         message.contains("Bernoulli naive Bayes requires binary features"),
         "Unexpected error message: {message}"
     );
+}
+
+#[test]
+fn classification_pca_preprocessing_predicts() {
+    type Model = SupervisedModel<
+        ClassificationAlgorithm<f64, u32, DenseMatrix<f64>, Vec<u32>>,
+        ClassificationSettings,
+        DenseMatrix<f64>,
+        Vec<u32>,
+    >;
+
+    let (x, y) = classification_testing_data();
+    let settings = ClassificationSettings::default()
+        .with_svc_settings(SVCParameters::default())
+        .with_preprocessing(PreProcessing::ReplaceWithPCA {
+            number_of_components: 2,
+        });
+
+    let mut model: Model = SupervisedModel::new(x, y, settings);
+    model.train().unwrap();
+
+    let predictions = model
+        .predict(DenseMatrix::from_2d_array(&[&[0.0, 0.0], &[1.0, 1.0]]).unwrap())
+        .expect("PCA-preprocessed model should predict successfully");
+
+    assert_eq!(predictions.len(), 2);
 }
 
 #[test]
