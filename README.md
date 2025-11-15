@@ -4,7 +4,8 @@
 
 # `automl` with `smartcore`
 
-`AutoML` (_Automated Machine Learning_) streamlines machine learning workflows, making them more accessible and efficient
+`AutoML` (_Automated Machine Learning_) streamlines machine learning workflows, making them more accessible and
+efficient
 for users of all experience levels. This crate extends the [`smartcore`](https://docs.rs/smartcore/) machine learning
 framework, providing utilities to quickly train, compare, and deploy models.
 
@@ -15,7 +16,7 @@ Add `automl` to your `Cargo.toml` to get started:
 **Stable Version**
 
 ```toml
-automl = "0.2.9"
+automl = "0.3.0"
 ```
 
 **Latest Development Version**
