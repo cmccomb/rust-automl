@@ -9,20 +9,15 @@ use core::iter::FromIterator;
 use serde::{Deserialize, Serialize};
 
 /// Column selection helpers for preprocessing steps.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ColumnSelector {
     /// Apply to every column.
+    #[default]
     All,
     /// Apply only to the listed column indices.
     Include(Vec<usize>),
     /// Apply to every column except the provided indices.
     Exclude(Vec<usize>),
-}
-
-impl Default for ColumnSelector {
-    fn default() -> Self {
-        Self::All
-    }
 }
 
 /// Parameters for standardizing features column-wise.
