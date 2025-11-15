@@ -161,7 +161,7 @@ where
         self.x_train = self
             .preprocessor
             .fit_transform(raw, &sup.preprocessing)
-            .map_err(Self::preprocessing_failed)?;
+            .map_err(|err| Self::preprocessing_failed(&err))?;
 
         for alg in <A>::all_algorithms(&self.settings) {
             let trained = alg.cross_validate_model(&self.x_train, &self.y_train, &self.settings)?;
@@ -209,7 +209,7 @@ where
         }
     }
 
-    fn preprocessing_failed(err: SettingsError) -> Failed {
+    fn preprocessing_failed(err: &SettingsError) -> Failed {
         Failed::because(FailedError::ParametersError, &err.to_string())
     }
 }

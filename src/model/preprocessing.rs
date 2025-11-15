@@ -106,8 +106,10 @@ where
                 .with_n_components(n)
                 .with_use_correlation_matrix(true),
         )
-        .map_err(Self::failed_to_settings)?;
-        let transformed = pca.transform(x).map_err(Self::failed_to_settings)?;
+        .map_err(|err| Self::failed_to_settings(&err))?;
+        let transformed = pca
+            .transform(x)
+            .map_err(|err| Self::failed_to_settings(&err))?;
         self.pca = Some(pca);
         Ok(transformed)
     }
@@ -123,8 +125,10 @@ where
 
     fn fit_svd(&mut self, x: &InputArray, n: usize) -> Result<InputArray, SettingsError> {
         let svd = SVD::fit(x, SVDParameters::default().with_n_components(n))
-            .map_err(Self::failed_to_settings)?;
-        let transformed = svd.transform(x).map_err(Self::failed_to_settings)?;
+            .map_err(|err| Self::failed_to_settings(&err))?;
+        let transformed = svd
+            .transform(x)
+            .map_err(|err| Self::failed_to_settings(&err))?;
         self.svd = Some(svd);
         Ok(transformed)
     }
@@ -146,7 +150,7 @@ where
         ModelError::Inference(err.to_string())
     }
 
-    fn failed_to_settings(err: Failed) -> SettingsError {
+    fn failed_to_settings(err: &Failed) -> SettingsError {
         SettingsError::PreProcessingFailed(err.to_string())
     }
 }
