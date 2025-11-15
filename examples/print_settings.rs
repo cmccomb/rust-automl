@@ -4,9 +4,10 @@ use automl::settings::{
     DecisionTreeRegressorParameters, Distance, ElasticNetParameters, ExtraTreesRegressorParameters,
     FinalAlgorithm, GaussianNBParameters, KNNAlgorithmName, KNNParameters, KNNWeightFunction,
     Kernel, LassoParameters, LinearRegressionParameters, LinearRegressionSolverName,
-    LogisticRegressionParameters, Metric, MultinomialNBParameters, Objective, PreProcessing,
-    RandomForestClassifierParameters, RandomForestRegressorParameters, RegressionSettings,
-    RidgeRegressionParameters, RidgeRegressionSolverName, SVCParameters, SVRParameters,
+    LogisticRegressionParameters, Metric, MultinomialNBParameters, Objective,
+    PreprocessingPipeline, PreprocessingStep, RandomForestClassifierParameters,
+    RandomForestRegressorParameters, RegressionSettings, RidgeRegressionParameters,
+    RidgeRegressionSolverName, SVCParameters, SVRParameters, StandardizeParams,
     XGRegressorParameters,
 };
 use serde_json::to_string_pretty;
@@ -20,7 +21,8 @@ fn build_regression_settings() -> RegressionConfig {
         .shuffle_data(true)
         .verbose(true)
         .sorted_by(Metric::RSquared)
-        .with_preprocessing(PreProcessing::AddInteractions)
+        .add_step(PreprocessingStep::Standardize(StandardizeParams::default()))
+        .add_step(PreprocessingStep::AddInteractions)
         .with_linear_settings(
             LinearRegressionParameters::default().with_solver(LinearRegressionSolverName::QR),
         )
@@ -99,12 +101,16 @@ fn build_regression_settings() -> RegressionConfig {
 }
 
 fn build_classification_settings() -> ClassificationSettings {
+    let pipeline = PreprocessingPipeline::new()
+        .add_step(PreprocessingStep::Standardize(StandardizeParams::default()))
+        .add_step(PreprocessingStep::AddInteractions);
+
     ClassificationSettings::default()
         .with_number_of_folds(6)
         .shuffle_data(true)
         .verbose(true)
         .sorted_by(Metric::Accuracy)
-        .with_preprocessing(PreProcessing::AddInteractions)
+        .with_preprocessing(pipeline)
         .with_final_model(FinalAlgorithm::Best)
         .with_knn_classifier_settings(
             KNNParameters::default()

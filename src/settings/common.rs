@@ -1,4 +1,4 @@
-use super::{FinalAlgorithm, Metric, PreProcessing};
+use super::{FinalAlgorithm, Metric, PreprocessingPipeline, PreprocessingStep};
 use smartcore::model_selection::KFold;
 use std::mem;
 
@@ -9,7 +9,7 @@ pub struct SupervisedSettings {
     pub(crate) shuffle: bool,
     pub(crate) verbose: bool,
     pub(crate) final_model_approach: FinalAlgorithm,
-    pub(crate) preprocessing: PreProcessing,
+    pub(crate) preprocessing: PreprocessingPipeline,
 }
 
 impl Default for SupervisedSettings {
@@ -20,7 +20,7 @@ impl Default for SupervisedSettings {
             shuffle: false,
             verbose: false,
             final_model_approach: FinalAlgorithm::Best,
-            preprocessing: PreProcessing::None,
+            preprocessing: PreprocessingPipeline::new(),
         }
     }
 }
@@ -225,9 +225,16 @@ impl SupervisedSettings {
     }
 
     #[must_use]
-    /// Specify preprocessing strategy.
-    pub const fn with_preprocessing(mut self, pre: PreProcessing) -> Self {
+    /// Specify an explicit preprocessing pipeline.
+    pub fn with_preprocessing(mut self, pre: PreprocessingPipeline) -> Self {
         self.preprocessing = pre;
+        self
+    }
+
+    /// Append a preprocessing step to the pipeline.
+    #[must_use]
+    pub fn add_step(mut self, step: PreprocessingStep) -> Self {
+        self.preprocessing.push_step(step);
         self
     }
 
@@ -289,12 +296,23 @@ pub trait WithSupervisedSettings {
 
     /// Delegate builder for [`SupervisedSettings::with_preprocessing`].
     #[must_use]
-    fn with_preprocessing(mut self, pre: PreProcessing) -> Self
+    fn with_preprocessing(mut self, pre: PreprocessingPipeline) -> Self
     where
         Self: Sized,
     {
         let settings = self.supervised_mut();
         *settings = mem::take(settings).with_preprocessing(pre);
+        self
+    }
+
+    /// Delegate builder for [`SupervisedSettings::add_step`].
+    #[must_use]
+    fn add_step(mut self, step: PreprocessingStep) -> Self
+    where
+        Self: Sized,
+    {
+        let settings = self.supervised_mut();
+        *settings = mem::take(settings).add_step(step);
         self
     }
 

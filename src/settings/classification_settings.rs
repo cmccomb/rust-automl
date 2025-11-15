@@ -1,8 +1,9 @@
 use super::{
     BernoulliNBParameters, CategoricalNBParameters, DecisionTreeClassifierParameters,
     FinalAlgorithm, GaussianNBParameters, KNNParameters, LogisticRegressionParameters, Metric,
-    MultinomialNBParameters, PreProcessing, RandomForestClassifierParameters, SVCParameters,
-    SettingsError, SupervisedSettings, WithSupervisedSettings,
+    MultinomialNBParameters, PreprocessingPipeline, PreprocessingStep,
+    RandomForestClassifierParameters, SVCParameters, SettingsError, SupervisedSettings,
+    WithSupervisedSettings,
 };
 use crate::settings::macros::with_settings_methods;
 use smartcore::linalg::basic::arrays::Array1;
@@ -157,13 +158,22 @@ impl ClassificationSettings {
     ///
     /// # Examples
     /// ```
-    /// use automl::settings::{ClassificationSettings, PreProcessing};
-    /// let settings = ClassificationSettings::default()
-    ///     .with_preprocessing(PreProcessing::AddInteractions);
+    /// use automl::settings::{
+    ///     ClassificationSettings, PreprocessingPipeline, PreprocessingStep,
+    /// };
+    /// let settings = ClassificationSettings::default().with_preprocessing(
+    ///     PreprocessingPipeline::new().add_step(PreprocessingStep::AddInteractions),
+    /// );
     /// ```
     #[must_use]
-    pub fn with_preprocessing(self, pre: PreProcessing) -> Self {
+    pub fn with_preprocessing(self, pre: PreprocessingPipeline) -> Self {
         <Self as WithSupervisedSettings>::with_preprocessing(self, pre)
+    }
+
+    /// Append a preprocessing step to the pipeline.
+    #[must_use]
+    pub fn add_step(self, step: PreprocessingStep) -> Self {
+        <Self as WithSupervisedSettings>::add_step(self, step)
     }
 
     /// Choose the strategy for the final model.

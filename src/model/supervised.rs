@@ -176,10 +176,9 @@ where
     ///
     /// Returns [`ModelError::NotTrained`] if no algorithm has been trained or if inference fails.
     pub fn predict(&self, x: InputArray) -> ModelResult<OutputArray> {
-        let sup = self.settings.supervised();
-        let x = self.preprocessor.preprocess(x, &sup.preprocessing)?;
+        let x = self.preprocessor.preprocess(x)?;
 
-        match sup.final_model_approach {
+        match self.settings.supervised().final_model_approach {
             FinalAlgorithm::None => Err(ModelError::NotTrained),
             FinalAlgorithm::Best => {
                 let entry = self.comparison.first().ok_or(ModelError::NotTrained)?;
