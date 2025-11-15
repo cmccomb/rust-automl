@@ -1,4 +1,4 @@
-[![Github CI](https://github.com/cmccomb/rust-automl/actions/workflows/tests.yml/badge.svg)](https://github.com/cmccomb/automl/actions)
+[![ci](https://github.com/cmccomb/rust-automl/actions/workflows/ci.yml/badge.svg)](https://github.com/cmccomb/rust-automl/actions/workflows/ci.yml)
 [![Crates.io](https://img.shields.io/crates/v/automl.svg)](https://crates.io/crates/automl)
 [![docs.rs](https://img.shields.io/docsrs/automl/latest?logo=rust)](https://docs.rs/automl)
 
