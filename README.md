@@ -97,7 +97,7 @@ state when you call `predict`.
 ### Supported preprocessing steps
 
 The pipeline is intentionally modular so you can mix and match steps to
-mirror popular AutoML defaults:
+mirror popular `AutoML` defaults:
 
 - **Scaling** – standard, min–max, or robust scaling via `ScaleParams`.
 - **Imputation** – mean, median, or most-frequent replacement with
