@@ -13,3 +13,20 @@
 //! ```rust,ignore
 #![doc = include_str!("../examples/maximal_regression.rs")]
 //! ```
+//!
+//! ## Wisconsin Breast Cancer Classification
+//!
+//! Demonstrates loading data from `data/breast_cancer.csv`, standardizing every
+//! feature, and customizing the random forest search space before running the
+//! leaderboard comparison.
+//! ```rust,ignore
+#![doc = include_str!("../examples/breast_cancer_csv.rs")]
+//! ```
+//!
+//! ## Diabetes Progression Regression
+//!
+//! Shows how to impute, standardize, and tune regression algorithms on the
+//! diabetes dataset that ships with the repository.
+//! ```rust,ignore
+#![doc = include_str!("../examples/diabetes_regression.rs")]
+//! ```

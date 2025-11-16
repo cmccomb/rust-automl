@@ -60,6 +60,17 @@ will perform a comparison of classifier models using cross-validation. Printing 
 
 You can then perform inference using the best model with the `predict` method.
 
+## Cookbook
+
+Explore the `automl::cookbook` module for copy-pastable examples that mirror
+real-world workflows:
+
+- `cargo run --example breast_cancer_csv` – load the Wisconsin Diagnostic
+  Breast Cancer dataset from CSV, standardize features, and compare tuned
+  classifiers.
+- `cargo run --example diabetes_regression` – impute, scale, and train
+  regression models for the diabetes progression dataset.
+
 ## Preprocessing pipelines
 
 `automl` now supports composable preprocessing pipelines so you can build
