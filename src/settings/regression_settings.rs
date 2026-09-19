@@ -131,12 +131,13 @@ where
         self
     }
 
-    /// Specify only one algorithm to train
+    /// Specify only one algorithm to train, replacing previous `only` and `skip` selections.
     #[must_use]
     pub fn only(
         mut self,
         only: &RegressionAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>,
     ) -> Self {
+        self.skiplist.clear();
         self.skiplist = RegressionAlgorithm::all_algorithms(&self)
             .into_iter()
             .filter(|algo| algo != only)

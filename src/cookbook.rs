@@ -30,3 +30,6 @@
 //! ```rust,ignore
 #![doc = include_str!("../examples/diabetes_regression.rs")]
 //! ```
+
+//!
+#![doc = include_str!("../docs/preprocessing.md")]
