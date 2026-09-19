@@ -120,6 +120,8 @@ where
     y_train: OutputArray,
     /// Comparison results for trained models.
     comparison: Vec<ComparisonEntry<A>>,
+    /// Metric used by the last successful comparison.
+    comparison_metric: Option<Metric>,
     /// Preprocessor for feature engineering.
     preprocessor: Preprocessor<A::Input, InputArray>,
 }
@@ -146,27 +148,56 @@ where
             x_train: x,
             y_train: y,
             comparison: Vec::new(),
+            comparison_metric: None,
             preprocessor: Preprocessor::new(),
         }
     }
 
     /// Train all available algorithms and record their performance.
     ///
+    /// A successful call replaces the previous comparison and fitted preprocessing
+    /// state. If training fails, the last successful model and its scores remain
+    /// available; an initially untrained model remains untrained. Changes to
+    /// [`Self::settings`] are not rolled back.
+    ///
     /// # Errors
     ///
-    /// Returns [`Failed`] if cross-validation fails for any algorithm.
+    /// Returns [`Failed`] if no algorithms are selected, the fold count is outside
+    /// `2..=number_of_training_rows`, preprocessing fails, or any algorithm fails.
     pub fn train(&mut self) -> Result<(), Failed> {
         let sup = self.settings.supervised();
-        let raw = self.x_train_raw.clone();
-        self.x_train = self
-            .preprocessor
-            .fit_transform(raw, &sup.preprocessing)
-            .map_err(|err| Self::preprocessing_failed(&err))?;
-
-        for alg in <A>::all_algorithms(&self.settings) {
-            let trained = alg.cross_validate_model(&self.x_train, &self.y_train, &self.settings)?;
-            self.record_trained_model(trained);
+        let rows = self.x_train_raw.shape().0;
+        if sup.number_of_folds < 2 || sup.number_of_folds > rows {
+            return Err(Failed::because(
+                FailedError::ParametersError,
+                &format!(
+                    "number of folds must be between 2 and the number of training rows ({rows})"
+                ),
+            ));
         }
+        let algorithms = <A>::all_algorithms(&self.settings);
+        if algorithms.is_empty() {
+            return Err(Failed::because(
+                FailedError::ParametersError,
+                "no algorithms are selected for training",
+            ));
+        }
+
+        // Build the complete next run before replacing any fitted state.
+        let mut preprocessor = Preprocessor::new();
+        let x_train = preprocessor
+            .fit_transform(self.x_train_raw.clone(), &sup.preprocessing)
+            .map_err(|err| Self::preprocessing_failed(&err))?;
+        let comparison = algorithms
+            .into_iter()
+            .map(|alg| alg.cross_validate_model(&x_train, &self.y_train, &self.settings))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        self.comparison_metric = Some(sup.sort_by);
+        self.preprocessor = preprocessor;
+        self.x_train = x_train;
+        self.comparison = comparison;
+        self.sort();
         Ok(())
     }
 
@@ -174,7 +205,8 @@ where
     ///
     /// # Errors
     ///
-    /// Returns [`ModelError::NotTrained`] if no algorithm has been trained or if inference fails.
+    /// Returns [`ModelError::NotTrained`] if no training run has succeeded or no
+    /// final model is requested, or [`ModelError::Inference`] if inference fails.
     pub fn predict(&self, x: InputArray) -> ModelResult<OutputArray> {
         let x = self.preprocessor.preprocess(x)?;
 
@@ -188,11 +220,6 @@ where
                     .map_err(|e| ModelError::Inference(e.to_string()))
             }
         }
-    }
-
-    fn record_trained_model(&mut self, trained_model: ComparisonEntry<A>) {
-        self.comparison.push(trained_model);
-        self.sort();
     }
 
     fn sort(&mut self) {
@@ -227,16 +254,17 @@ where
     OutputArray: Clone + MutArrayView1<A::Output> + Array1<A::Output>,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let metric = self
+            .comparison_metric
+            .unwrap_or(self.settings.supervised().sort_by);
         let mut table = Table::new();
         table.load_preset(UTF8_FULL);
         table.apply_modifier(UTF8_SOLID_INNER_BORDERS);
         table.set_header(vec![
             Cell::new("Model").add_attribute(Attribute::Bold),
             Cell::new("Time").add_attribute(Attribute::Bold),
-            Cell::new(format!("Training {}", self.settings.supervised().sort_by))
-                .add_attribute(Attribute::Bold),
-            Cell::new(format!("Testing {}", self.settings.supervised().sort_by))
-                .add_attribute(Attribute::Bold),
+            Cell::new(format!("Training {metric}")).add_attribute(Attribute::Bold),
+            Cell::new(format!("Testing {metric}")).add_attribute(Attribute::Bold),
         ]);
 
         for entry in &self.comparison {
