@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.2
+
+- Add versioned JSON `save`/`load` for nine regression families and their fitted
+  preprocessing. Loaded models predict and can be saved again without training data.
+- Reject unsupported XGBoost persistence before replacing existing artifacts.
+- Save atomically and default new Unix artifacts to owner-only permissions.
+- Preserve floating-point category values exactly across JSON decoding.
+- Persist SVR support vectors, kernels, coefficients, bias, and input width,
+  including valid constant models with no support vectors.
+- Retain 0.3.1 retraining behavior and add round trips across kernels, KNN
+  distance/search settings, preprocessing variants, and f32/f64 models.
+
 ## 0.3.1
 
 - Replace the supervised-model leaderboard on each successful `train()` call,

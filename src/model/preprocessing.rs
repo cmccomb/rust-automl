@@ -1,6 +1,9 @@
 //! Utilities for data preprocessing.
 
-use crate::model::error::ModelError;
+use crate::model::{
+    error::ModelError,
+    persistence::{as_array, as_object, required_field, usize_number},
+};
 use crate::settings::{
     CategoricalEncoderParams, CategoricalEncoding, ColumnFilterParams, ColumnSelector,
     ImputeParams, ImputeStrategy, MinMaxParams, PowerTransform, PowerTransformParams,
@@ -27,6 +30,7 @@ use smartcore::{
 use core::{cmp::Ordering, marker::PhantomData};
 
 /// Handles optional preprocessing steps.
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct Preprocessor<INPUT, InputArray>
 where
     INPUT: RealNumber + FloatNumber,
@@ -112,6 +116,35 @@ where
             data = Self::apply_step(step, data)?;
         }
         Ok(data)
+    }
+
+    pub(crate) fn validate_persisted(encoded: &serde_json::Value) -> Result<(), String> {
+        let encoded_steps = as_array(
+            required_field(encoded, "trained_steps", "preprocessor")?,
+            "preprocessor.trained_steps",
+        )?;
+        for (index, encoded_step) in encoded_steps.iter().enumerate() {
+            let context = format!("preprocessor.trained_steps[{index}]");
+            let object = as_object(encoded_step, &context)?;
+            if object.len() != 1 {
+                return Err(format!("{context} must contain exactly one step variant"));
+            }
+            let (variant, state) = object
+                .iter()
+                .next()
+                .ok_or_else(|| format!("{context} is empty"))?;
+            let state_context = format!("{context}.{variant}");
+            match variant.as_str() {
+                "Stateless" => validate_stateless_step(state, &state_context)?,
+                "Pca" | "Svd" | "Standardize" | "Scale" | "Categorical" | "PowerTransform" => {
+                    as_object(state, &state_context)?;
+                }
+                "Impute" => validate_imputer(state, &state_context)?,
+                "ColumnFilter" => validate_column_filter(state, &state_context)?,
+                _ => return Err(format!("{context} contains unknown variant {variant:?}")),
+            }
+        }
+        Ok(())
     }
 
     fn fit_step(
@@ -283,6 +316,7 @@ where
     }
 }
 
+#[derive(serde::Serialize, serde::Deserialize)]
 enum TrainedStep<INPUT, InputArray>
 where
     INPUT: RealNumber + FloatNumber,
@@ -305,7 +339,73 @@ where
     ColumnFilter(ColumnFilterState<INPUT>),
 }
 
-#[derive(Clone, Debug)]
+fn validate_stateless_step(value: &serde_json::Value, context: &str) -> Result<(), String> {
+    if value.as_str() == Some("AddInteractions") {
+        return Ok(());
+    }
+    let object = as_object(value, context)?;
+    if object.len() != 1 {
+        return Err(format!("{context} must contain one stateless variant"));
+    }
+    let parameters = object
+        .get("AddPolynomial")
+        .ok_or_else(|| format!("{context} contains a step that requires fitted state"))?;
+    usize_number(
+        required_field(parameters, "order", context)?,
+        &format!("{context}.AddPolynomial.order"),
+    )?;
+    Ok(())
+}
+
+fn validate_imputer(value: &serde_json::Value, context: &str) -> Result<(), String> {
+    let columns = as_array(
+        required_field(value, "columns", context)?,
+        &format!("{context}.columns"),
+    )?;
+    let replacements = as_array(
+        required_field(value, "values", context)?,
+        &format!("{context}.values"),
+    )?;
+    if columns.len() != replacements.len() {
+        return Err(format!(
+            "{context} has different column and replacement counts"
+        ));
+    }
+    Ok(())
+}
+
+fn validate_column_filter(value: &serde_json::Value, context: &str) -> Result<(), String> {
+    let original_width = usize_number(
+        required_field(value, "original_width", context)?,
+        &format!("{context}.original_width"),
+    )?;
+    let retained = usize_values(
+        required_field(value, "retained", context)?,
+        &format!("{context}.retained"),
+    )?;
+    if original_width == 0 || retained.is_empty() {
+        return Err(format!(
+            "{context} must retain columns from a non-empty input"
+        ));
+    }
+    if retained.iter().any(|column| *column >= original_width) {
+        return Err(format!(
+            "{context}.retained contains an out-of-bounds column"
+        ));
+    }
+    Ok(())
+}
+
+fn usize_values(value: &serde_json::Value, context: &str) -> Result<Vec<usize>, String> {
+    let values = as_array(value, context)?;
+    let mut parsed = Vec::with_capacity(values.len());
+    for (index, value) in values.iter().enumerate() {
+        parsed.push(usize_number(value, &format!("{context}[{index}]"))?);
+    }
+    Ok(parsed)
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 struct StandardScalerState<INPUT>
 where
     INPUT: RealNumber + FloatNumber,
@@ -632,7 +732,7 @@ where
     })
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 struct ScaleState<INPUT>
 where
     INPUT: RealNumber + FloatNumber,
@@ -640,7 +740,7 @@ where
     entries: Vec<ScaleEntry<INPUT>>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 struct ScaleEntry<INPUT>
 where
     INPUT: RealNumber + FloatNumber,
@@ -649,7 +749,7 @@ where
     data: ScaleEntryData<INPUT>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 enum ScaleEntryData<INPUT>
 where
     INPUT: RealNumber + FloatNumber,
@@ -667,7 +767,7 @@ where
     },
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 struct StandardScaleStats<INPUT>
 where
     INPUT: RealNumber + FloatNumber,
@@ -951,7 +1051,7 @@ where
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 struct ImputerState<INPUT>
 where
     INPUT: RealNumber + FloatNumber,
@@ -1044,7 +1144,7 @@ where
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 enum CategoricalState<INPUT>
 where
     INPUT: RealNumber + FloatNumber,
@@ -1092,7 +1192,7 @@ where
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 struct OrdinalEncodingState<INPUT>
 where
     INPUT: RealNumber + FloatNumber,
@@ -1100,7 +1200,7 @@ where
     columns: Vec<OrdinalColumnState<INPUT>>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 struct OrdinalColumnState<INPUT>
 where
     INPUT: RealNumber + FloatNumber,
@@ -1169,7 +1269,7 @@ where
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 struct OneHotEncodingState<INPUT>
 where
     INPUT: RealNumber + FloatNumber,
@@ -1179,7 +1279,7 @@ where
     output_width: usize,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 struct OneHotColumnState<INPUT>
 where
     INPUT: RealNumber + FloatNumber,
@@ -1310,7 +1410,7 @@ where
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 struct PowerTransformState<INPUT>
 where
     INPUT: RealNumber + FloatNumber,
@@ -1318,7 +1418,7 @@ where
     columns: Vec<PowerColumnState<INPUT>>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 enum PowerColumnState<INPUT>
 where
     INPUT: RealNumber + FloatNumber,
@@ -1470,7 +1570,7 @@ where
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 struct ColumnFilterState<INPUT>
 where
     INPUT: RealNumber + FloatNumber,

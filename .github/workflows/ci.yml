@@ -83,3 +83,11 @@ jobs:
         run: cargo build --release --verbose
       - name: Test
         run: cargo test --release --verbose
+
+  persistence-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Persistence and retraining
+        run: cargo test --test model_persistence --test supervised_retraining

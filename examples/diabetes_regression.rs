@@ -4,7 +4,8 @@
 //! The diabetes dataset includes 10 physiological measurements for 442
 //! individuals. This example demonstrates how to configure a preprocessing
 //! pipeline, tighten algorithm hyperparameters, and evaluate the models via
-//! cross-validation before using the best regressor for inference.
+//! cross-validation before saving the best regressor and its fitted
+//! preprocessing state for later inference.
 //!
 //! Run with:
 //!
@@ -22,7 +23,7 @@ use automl::settings::{
     PreprocessingStep, RandomForestRegressorParameters, RegressionSettings, SVRParameters,
     ScaleParams, ScaleStrategy, StandardizeParams,
 };
-use automl::{DenseMatrix, RegressionModel};
+use automl::{DenseMatrix, RegressionAlgorithm, RegressionModel};
 use diabetes_dataset::load_diabetes_dataset;
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -55,7 +56,10 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .with_c(12.5)
                 .with_eps(0.05)
                 .with_kernel(Kernel::RBF(0.35)),
-        );
+        )
+        // SmartCore 0.4.2 does not expose serializable XGBoost state, so keep
+        // this save/load example's winner within the persisted model set.
+        .skip(RegressionAlgorithm::default_xgboost_regressor());
 
     let mut model = RegressionModel::new(features, targets, settings);
     model.train()?;
@@ -74,8 +78,17 @@ fn main() -> Result<(), Box<dyn Error>> {
         0.019_908_421,
         -0.017_646_125,
     ]])?;
-    let predicted_progression = model.predict(evaluation_visit)?;
+    let predicted_progression = model.predict(evaluation_visit.clone())?;
     println!("Predicted disease progression: {predicted_progression:?}");
+
+    let model_path = "target/diabetes_regression_model.json";
+    model.save(model_path)?;
+    println!("Saved trained model to {model_path}");
+
+    let loaded: RegressionModel<f64, f64, DenseMatrix<f64>, Vec<f64>> =
+        RegressionModel::load(model_path)?;
+    let loaded_prediction = loaded.predict(evaluation_visit)?;
+    println!("Prediction from loaded model: {loaded_prediction:?}");
 
     Ok(())
 }
