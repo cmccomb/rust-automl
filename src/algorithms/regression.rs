@@ -7,10 +7,19 @@ use std::mem;
 use std::time::Instant;
 
 use super::supervised_train::SupervisedTrain;
-use crate::model::{ComparisonEntry, supervised::Algorithm};
+use crate::model::{
+    ComparisonEntry,
+    persistence::{
+        as_array, as_object, finite_number, numeric_array, required_field, usize_number,
+    },
+    supervised::Algorithm,
+};
 use crate::settings::{RegressionSettings, SVRParameters, SettingsError, XGRegressorParameters};
 use crate::utils::distance::{Distance, KNNRegressorDistance};
 use crate::utils::kernels::SmartcoreKernel;
+use serde::de::{DeserializeOwned, Error as _};
+use serde::ser::Error as _;
+use serde::{Deserialize, Serialize};
 use smartcore::api::SupervisedEstimator;
 use smartcore::error::{Failed, FailedError};
 use smartcore::linalg::basic::arrays::{Array1, Array2, MutArrayView1, MutArrayView2};
@@ -21,6 +30,7 @@ use smartcore::linalg::traits::svd::SVDDecomposable;
 use smartcore::model_selection::{BaseKFold, CrossValidationResult};
 use smartcore::numbers::floatnum::FloatNumber;
 use smartcore::numbers::realnum::RealNumber;
+use smartcore::svm::Kernel as _;
 use smartcore::svm::svr::{SVR as SmartcoreSVR, SVRParameters as SmartcoreSVRParameters};
 use smartcore::xgboost::xgb_regressor::{
     XGRegressor as SmartcoreXGRegressor, XGRegressorParameters as SmartcoreXGRegressorParameters,
@@ -66,7 +76,123 @@ where
     }
 }
 
-/// Support vector regressor wrapper holding owned kernel parameters.
+// Projection of SmartCore 0.4.2's private SVR Serde representation. Any
+// SmartCore upgrade must revalidate these field names and bump the artifact
+// format if the persisted inference state changes.
+#[derive(Deserialize)]
+struct SmartcoreSVRSnapshot<INPUT> {
+    instances: Option<Vec<Vec<f64>>>,
+    w: Option<Vec<INPUT>>,
+    b: INPUT,
+}
+
+#[derive(Serialize, Deserialize)]
+struct PersistedSupportVectorRegressor<INPUT> {
+    n_features: usize,
+    support_vectors: Vec<Vec<f64>>,
+    weights: Vec<INPUT>,
+    bias: INPUT,
+    kernel: smartcore::svm::Kernels,
+}
+
+impl<INPUT> PersistedSupportVectorRegressor<INPUT>
+where
+    INPUT: RealNumber + FloatNumber,
+{
+    fn validate(&self) -> Result<(), String> {
+        if self.support_vectors.len() != self.weights.len() {
+            return Err("persisted SVR support-vector and weight counts differ".to_string());
+        }
+
+        let dimensions = self.n_features;
+        if dimensions == 0 {
+            return Err("persisted SVR support vectors have no features".to_string());
+        }
+        for (row, support_vector) in self.support_vectors.iter().enumerate() {
+            if support_vector.len() != dimensions {
+                return Err(format!(
+                    "persisted SVR support vector {row} has inconsistent dimensions"
+                ));
+            }
+            for (column, value) in support_vector.iter().enumerate() {
+                if !value.is_finite() {
+                    return Err(format!(
+                        "persisted SVR support vector {row}, feature {column} is not finite"
+                    ));
+                }
+            }
+        }
+        for (index, weight) in self.weights.iter().enumerate() {
+            if !weight.to_f64().is_some_and(f64::is_finite) {
+                return Err(format!("persisted SVR weight {index} is not finite"));
+            }
+        }
+        if !self.bias.to_f64().is_some_and(f64::is_finite) {
+            return Err("persisted SVR bias is not finite".to_string());
+        }
+        validate_svr_kernel(&self.kernel)
+    }
+}
+
+fn validate_svr_kernel(kernel: &smartcore::svm::Kernels) -> Result<(), String> {
+    match kernel {
+        smartcore::svm::Kernels::Linear => Ok(()),
+        smartcore::svm::Kernels::RBF { gamma } => {
+            validate_kernel_parameter(*gamma, "RBF gamma", true)
+        }
+        smartcore::svm::Kernels::Polynomial {
+            degree,
+            gamma,
+            coef0,
+        } => {
+            validate_kernel_parameter(*degree, "polynomial degree", true)?;
+            validate_kernel_parameter(*gamma, "polynomial gamma", true)?;
+            validate_kernel_parameter(*coef0, "polynomial coef0", false)
+        }
+        smartcore::svm::Kernels::Sigmoid { gamma, coef0 } => {
+            validate_kernel_parameter(*gamma, "sigmoid gamma", false)?;
+            validate_kernel_parameter(*coef0, "sigmoid coef0", false)
+        }
+    }
+}
+
+fn validate_kernel_parameter(
+    value: Option<f64>,
+    name: &str,
+    must_be_positive: bool,
+) -> Result<(), String> {
+    let value = value.ok_or_else(|| format!("persisted SVR kernel is missing {name}"))?;
+    if !value.is_finite() {
+        return Err(format!("persisted SVR {name} is not finite"));
+    }
+    if must_be_positive && value <= 0.0 {
+        return Err(format!("persisted SVR {name} must be positive"));
+    }
+    Ok(())
+}
+
+enum SupportVectorRegressorState<INPUT, InputArray>
+where
+    INPUT: RealNumber + FloatNumber + 'static,
+    InputArray: MutArrayView2<INPUT>
+        + Sized
+        + Clone
+        + Array2<INPUT>
+        + QRDecomposable<INPUT>
+        + SVDDecomposable<INPUT>
+        + EVDDecomposable<INPUT>
+        + CholeskyDecomposable<INPUT>
+        + 'static,
+{
+    Trained {
+        n_features: usize,
+        parameters: Box<SmartcoreSVRParameters<INPUT>>,
+        model: SmartcoreSVR<'static, INPUT, InputArray, Vec<INPUT>>,
+    },
+    Restored(PersistedSupportVectorRegressor<INPUT>),
+}
+
+/// Support vector regressor wrapper holding owned inference state.
 pub struct OwnedSupportVectorRegressor<INPUT, OUTPUT, InputArray, OutputArray>
 where
     INPUT: RealNumber + FloatNumber + 'static,
@@ -82,8 +208,7 @@ where
         + 'static,
     OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT> + 'static,
 {
-    _parameters: Box<SmartcoreSVRParameters<INPUT>>,
-    model: SmartcoreSVR<'static, INPUT, InputArray, Vec<INPUT>>,
+    state: SupportVectorRegressorState<INPUT, InputArray>,
     _marker: PhantomData<(OUTPUT, OutputArray)>,
 }
 
@@ -108,9 +233,8 @@ where
         targets: &Vec<INPUT>,
         params: SmartcoreSVRParameters<INPUT>,
     ) -> Result<Self, Failed> {
-        let boxed_params = Box::new(params);
-        let params_ref: &SmartcoreSVRParameters<INPUT> = boxed_params.as_ref();
-        let model = SmartcoreSVR::fit(x, targets, params_ref)?;
+        let parameters = Box::new(params);
+        let model = SmartcoreSVR::fit(x, targets, parameters.as_ref())?;
         let model = unsafe {
             mem::transmute::<
                 SmartcoreSVR<'_, INPUT, InputArray, Vec<INPUT>>,
@@ -118,15 +242,145 @@ where
             >(model)
         };
         Ok(Self {
-            _parameters: boxed_params,
-            model,
+            state: SupportVectorRegressorState::Trained {
+                n_features: x.shape().1,
+                parameters,
+                model,
+            },
             _marker: PhantomData,
         })
     }
 
     fn predict_array(&self, x: &InputArray) -> Result<OutputArray, Failed> {
-        let predictions = self.model.predict(x)?;
+        if let SupportVectorRegressorState::Trained { model, .. } = &self.state {
+            let predictions = model.predict(x)?;
+            return convert_input_predictions_to_output_array::<INPUT, OUTPUT, OutputArray>(
+                predictions,
+            );
+        }
+
+        let SupportVectorRegressorState::Restored(persisted) = &self.state else {
+            unreachable!();
+        };
+        let (rows, columns) = x.shape();
+        if columns != persisted.n_features {
+            return Err(Failed::predict(
+                "SVR input feature count does not match the trained model",
+            ));
+        }
+        let mut predictions = Vec::with_capacity(rows);
+        for row in 0..rows {
+            let mut features = Vec::with_capacity(columns);
+            for column in 0..columns {
+                let value = x
+                    .get((row, column))
+                    .to_f64()
+                    .ok_or_else(|| Failed::predict("SVR input is not representable as f64"))?;
+                features.push(value);
+            }
+
+            let mut prediction = persisted.bias;
+            for (support_vector, weight) in persisted.support_vectors.iter().zip(&persisted.weights)
+            {
+                let kernel_value = persisted.kernel.apply(&features, support_vector)?;
+                let kernel_value = INPUT::from_f64(kernel_value).ok_or_else(|| {
+                    Failed::predict("SVR kernel value is not representable by the input type")
+                })?;
+                prediction += *weight * kernel_value;
+            }
+            predictions.push(prediction);
+        }
         convert_input_predictions_to_output_array::<INPUT, OUTPUT, OutputArray>(predictions)
+    }
+}
+
+impl<INPUT, OUTPUT, InputArray, OutputArray> Serialize
+    for OwnedSupportVectorRegressor<INPUT, OUTPUT, InputArray, OutputArray>
+where
+    INPUT: RealNumber + FloatNumber + Serialize + DeserializeOwned + 'static,
+    OUTPUT: FloatNumber + 'static,
+    InputArray: MutArrayView2<INPUT>
+        + Sized
+        + Clone
+        + Array2<INPUT>
+        + QRDecomposable<INPUT>
+        + SVDDecomposable<INPUT>
+        + EVDDecomposable<INPUT>
+        + CholeskyDecomposable<INPUT>
+        + 'static,
+    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT> + 'static,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match &self.state {
+            SupportVectorRegressorState::Restored(persisted) => {
+                persisted.validate().map_err(S::Error::custom)?;
+                persisted.serialize(serializer)
+            }
+            SupportVectorRegressorState::Trained {
+                n_features,
+                parameters,
+                model,
+            } => {
+                let kernel = parameters.kernel.clone().ok_or_else(|| {
+                    S::Error::custom("trained SVR is missing its configured kernel")
+                })?;
+                let encoded = serde_json::to_value(model).map_err(S::Error::custom)?;
+                let snapshot: SmartcoreSVRSnapshot<INPUT> =
+                    serde_json::from_value(encoded).map_err(S::Error::custom)?;
+                let support_vectors = snapshot
+                    .instances
+                    .ok_or_else(|| S::Error::custom("trained SVR is missing support vectors"))?;
+                let weights = snapshot
+                    .w
+                    .ok_or_else(|| S::Error::custom("trained SVR is missing weights"))?;
+                if support_vectors.len() != weights.len() {
+                    return Err(S::Error::custom(
+                        "trained SVR support-vector and weight counts differ",
+                    ));
+                }
+                let persisted = PersistedSupportVectorRegressor {
+                    n_features: *n_features,
+                    support_vectors,
+                    weights,
+                    bias: snapshot.b,
+                    kernel,
+                };
+                persisted.validate().map_err(S::Error::custom)?;
+                persisted.serialize(serializer)
+            }
+        }
+    }
+}
+
+impl<'de, INPUT, OUTPUT, InputArray, OutputArray> Deserialize<'de>
+    for OwnedSupportVectorRegressor<INPUT, OUTPUT, InputArray, OutputArray>
+where
+    INPUT: RealNumber + FloatNumber + Deserialize<'de> + 'static,
+    OUTPUT: FloatNumber + 'static,
+    InputArray: MutArrayView2<INPUT>
+        + Sized
+        + Clone
+        + Array2<INPUT>
+        + QRDecomposable<INPUT>
+        + SVDDecomposable<INPUT>
+        + EVDDecomposable<INPUT>
+        + CholeskyDecomposable<INPUT>
+        + 'static,
+    OutputArray: MutArrayView1<OUTPUT> + Sized + Clone + Array1<OUTPUT> + 'static,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let persisted = PersistedSupportVectorRegressor::deserialize(deserializer)?;
+        persisted.validate().map_err(D::Error::custom)?;
+        Ok(Self {
+            state: SupportVectorRegressorState::Restored(persisted),
+            _marker: PhantomData,
+        })
     }
 }
 
@@ -356,7 +610,164 @@ fn sanitize_xgboost_parameters(
     Ok(sanitized)
 }
 
+fn validate_linear_model(value: &serde_json::Value, name: &str) -> Result<(), String> {
+    if required_field(value, "coefficients", name)?.is_null() {
+        return Err(format!("{name}.coefficients is missing"));
+    }
+    finite_number(
+        required_field(value, "intercept", name)?,
+        &format!("{name}.intercept"),
+    )?;
+    Ok(())
+}
+
+fn validate_decision_tree(value: &serde_json::Value, name: &str) -> Result<(), String> {
+    let tree = required_field(value, "tree_regressor", name)?;
+    validate_base_tree(tree, &format!("{name}.tree_regressor"))
+}
+
+fn validate_forest(value: &serde_json::Value, name: &str) -> Result<(), String> {
+    let forest = required_field(value, "forest_regressor", name)?;
+    let trees = as_array(
+        required_field(forest, "trees", &format!("{name}.forest_regressor"))?,
+        &format!("{name}.forest_regressor.trees"),
+    )?;
+    if trees.is_empty() {
+        return Err(format!("{name}.forest_regressor has no trees"));
+    }
+    for (index, tree) in trees.iter().enumerate() {
+        validate_base_tree(tree, &format!("{name}.forest_regressor.trees[{index}]"))?;
+    }
+    Ok(())
+}
+
+fn validate_base_tree(value: &serde_json::Value, name: &str) -> Result<(), String> {
+    as_object(
+        required_field(value, "parameters", name)?,
+        &format!("{name}.parameters"),
+    )?;
+    let nodes = as_array(
+        required_field(value, "nodes", name)?,
+        &format!("{name}.nodes"),
+    )?;
+    if nodes.is_empty() {
+        return Err(format!("{name} has no root node"));
+    }
+    Ok(())
+}
+
+fn validate_knn(value: &serde_json::Value, name: &str) -> Result<(), String> {
+    let target_state = required_field(value, "y", name)?;
+    if target_state.is_null() {
+        return Err(format!("{name}.y is missing"));
+    }
+    let target_count = target_state
+        .as_array()
+        .map(|_| numeric_array(target_state, &format!("{name}.y")))
+        .transpose()?;
+
+    let search_algorithms = as_object(
+        required_field(value, "knn_algorithm", name)?,
+        &format!("{name}.knn_algorithm"),
+    )?;
+    let search = search_algorithms
+        .values()
+        .next()
+        .ok_or_else(|| format!("{name}.knn_algorithm is empty"))?;
+    let data = as_array(
+        required_field(search, "data", "KNN search state")?,
+        "KNN search data",
+    )?;
+    match target_count {
+        Some(targets) if data.len() != targets => {
+            return Err(format!(
+                "{name} has {} search rows but {targets} targets",
+                data.len()
+            ));
+        }
+        _ => {}
+    }
+    let mut dimensions = None;
+    for (row, features) in data.iter().enumerate() {
+        let row_context = format!("KNN search data row {row}");
+        let width = numeric_array(features, &row_context)?;
+        if width == 0 {
+            return Err(format!("{row_context} has no features"));
+        }
+        if dimensions
+            .replace(width)
+            .is_some_and(|prior| prior != width)
+        {
+            return Err(format!("{name} search data has inconsistent row widths"));
+        }
+    }
+    if required_field(value, "weight", name)?.is_null() {
+        return Err(format!("{name}.weight is missing"));
+    }
+    let neighbors = usize_number(required_field(value, "k", name)?, &format!("{name}.k"))?;
+    if neighbors == 0 || neighbors > data.len() {
+        return Err(format!(
+            "{name}.k must be between one and the number of training rows"
+        ));
+    }
+    Ok(())
+}
+
+fn validate_svr(value: &serde_json::Value, name: &str) -> Result<(), String> {
+    let support_vectors = as_array(
+        required_field(value, "support_vectors", name)?,
+        &format!("{name}.support_vectors"),
+    )?;
+    let weights = numeric_array(
+        required_field(value, "weights", name)?,
+        &format!("{name}.weights"),
+    )?;
+    let n_features = usize_number(required_field(value, "n_features", name)?, name)?;
+    if n_features == 0 {
+        return Err(format!("{name} has no features"));
+    }
+    if support_vectors.len() != weights {
+        return Err(format!(
+            "{name} has different support-vector and weight counts"
+        ));
+    }
+    let mut dimensions = Some(n_features);
+    for (row, support_vector) in support_vectors.iter().enumerate() {
+        let row_context = format!("{name}.support_vectors[{row}]");
+        let width = numeric_array(support_vector, &row_context)?;
+        if width == 0 {
+            return Err(format!("{row_context} has no features"));
+        }
+        if dimensions
+            .replace(width)
+            .is_some_and(|prior| prior != width)
+        {
+            return Err(format!(
+                "{name}.support_vectors have inconsistent dimensions"
+            ));
+        }
+    }
+    finite_number(
+        required_field(value, "bias", name)?,
+        &format!("{name}.bias"),
+    )?;
+    if required_field(value, "kernel", name)?.is_null() {
+        return Err(format!("{name}.kernel is missing"));
+    }
+    Ok(())
+}
+
 /// `RegressionAlgorithm` options
+#[derive(Serialize, Deserialize)]
+#[serde(
+    tag = "algorithm",
+    content = "model",
+    rename_all = "snake_case",
+    bound(
+        serialize = "INPUT: Serialize + DeserializeOwned, OUTPUT: Serialize, InputArray: Serialize, OutputArray: Serialize",
+        deserialize = "INPUT: Deserialize<'de>, OUTPUT: Deserialize<'de>, InputArray: Deserialize<'de>, OutputArray: Deserialize<'de>"
+    )
+)]
 pub enum RegressionAlgorithm<INPUT, OUTPUT, InputArray, OutputArray>
 where
     INPUT: RealNumber + FloatNumber + 'static,
@@ -436,6 +847,7 @@ where
         Option<OwnedSupportVectorRegressor<INPUT, OUTPUT, InputArray, OutputArray>>,
     ),
     /// Gradient boosting regressor (`XGBoost`)
+    #[serde(skip)]
     XGBoostRegressor(Option<SmartcoreXGRegressor<INPUT, OUTPUT, InputArray, OutputArray>>),
 }
 
@@ -1062,6 +1474,40 @@ where
             .retain(|algorithm| !settings.skiplist.iter().any(|skipped| skipped == algorithm));
 
         algorithms
+    }
+
+    fn persistence_error(&self) -> Option<String> {
+        match self {
+            Self::XGBoostRegressor(_) => Some(
+                "SmartCore 0.4.2 does not expose serializable XGBoost inference state".to_string(),
+            ),
+            Self::SupportVectorRegressor(None) => {
+                Some("support vector regressor has no trained state".to_string())
+            }
+            _ => None,
+        }
+    }
+
+    fn validate_persisted(encoded: &serde_json::Value) -> Result<(), String> {
+        let algorithm = required_field(encoded, "algorithm", "regression algorithm")?
+            .as_str()
+            .ok_or_else(|| "regression algorithm tag must be a string".to_string())?;
+        let model = required_field(encoded, "model", "regression algorithm")?;
+        match algorithm {
+            "linear" | "ridge" | "lasso" | "elastic_net" => validate_linear_model(model, algorithm),
+            "decision_tree_regressor" => validate_decision_tree(model, algorithm),
+            "random_forest_regressor" | "extra_trees_regressor" => {
+                validate_forest(model, algorithm)
+            }
+            "k_n_n_regressor" => validate_knn(model, algorithm),
+            "support_vector_regressor" => validate_svr(model, algorithm),
+            "x_g_boost_regressor" => {
+                Err("SmartCore 0.4.2 XGBoost state is not supported in model artifacts".to_string())
+            }
+            _ => Err(format!(
+                "unsupported regression algorithm tag {algorithm:?}"
+            )),
+        }
     }
 }
 

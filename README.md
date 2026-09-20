@@ -10,7 +10,7 @@ Train, compare, and predict with machine-learning models in Rust, using
 ## Install
 
 ```toml
-automl = "0.3.1"
+automl = "0.3.2"
 ```
 
 ## Quickstart
@@ -68,3 +68,16 @@ CSV loading is available without feature flags through
 and [`load_labeled_csv`](https://docs.rs/automl/latest/automl/utils/fn.load_labeled_csv.html).
 
 [API documentation](https://docs.rs/automl) · [Changelog](CHANGELOG.md)
+
+## Save and reload a regressor
+
+After training, call `model.save("model.json")`. Load it with
+`RegressionModel::<f64, f64, DenseMatrix<f64>, Vec<f64>>::load("model.json")`
+to predict without refitting. The diabetes example demonstrates the complete
+round trip.
+
+Artifacts include the winning estimator and fitted preprocessing. Loaded models
+are inference-only and can be saved again. Nine regressor families are supported;
+`SmartCore` 0.4.2 `XGBoost` cannot be persisted. Artifacts can contain training-derived
+data (including KNN examples and SVR support vectors); load trusted files only.
+See [persistence details](docs/persistence.md).
